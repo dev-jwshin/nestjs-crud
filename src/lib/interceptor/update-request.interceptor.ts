@@ -29,7 +29,6 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
             const crudUpdateOneRequest: CrudUpdateOneRequest<typeof crudOptions.entity> = {
                 params,
                 body,
-                author: this.getAuthor(req, crudOptions, method),
                 exclude: new Set(updatedOptions.exclude ?? []),
                 saveOptions: {
                     listeners: updatedOptions.listeners,

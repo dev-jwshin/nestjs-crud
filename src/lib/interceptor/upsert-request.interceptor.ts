@@ -48,7 +48,6 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
             const crudUpsertRequest: CrudUpsertRequest<typeof crudOptions.entity> = {
                 params,
                 body,
-                author: this.getAuthor(req, crudOptions, method),
                 exclude: new Set(upsertOptions.exclude ?? []),
                 saveOptions: {
                     listeners: upsertOptions.listeners,

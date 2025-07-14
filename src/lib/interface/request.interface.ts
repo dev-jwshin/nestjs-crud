@@ -1,11 +1,10 @@
-import type { Author, SaveOptions, LifecycleHooks } from '.';
+import type { SaveOptions, LifecycleHooks } from '.';
 
 import type { DeepPartial } from 'typeorm';
 
 export type CrudRequestId<T> = keyof T | Array<keyof T>;
 
 export interface CrudRequestBase {
-    author?: Author;
 }
 
 export interface CrudReadRequestBase extends CrudRequestBase {

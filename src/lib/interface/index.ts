@@ -8,5 +8,4 @@ export * from './query-parser.interface';
 export * from './request.interface';
 export * from './response.interface';
 export * from './sort';
-export * from './author.interface';
 export * from './entity';

@@ -33,7 +33,7 @@ export function DeleteRequestInterceptor(crudOptions: CrudOptions, factoryOption
             const crudDeleteOneRequest: CrudDeleteOneRequest<typeof crudOptions.entity> = {
                 params,
                 softDeleted,
-                author: this.getAuthor(req, crudOptions, method),
+
                 exclude: new Set(deleteOptions.exclude ?? []),
                 saveOptions: {
                     listeners: deleteOptions.listeners,

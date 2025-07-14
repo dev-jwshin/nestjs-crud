@@ -6,7 +6,7 @@ import _ from 'lodash';
 import { CreateParamsDto } from '../dto/params.dto';
 import { GROUP } from '../interface';
 
-import type { Author, Column, CrudOptions, EntityType, Method } from '../interface';
+import type { Column, CrudOptions, EntityType, Method } from '../interface';
 import type { CrudLogger } from '../provider/crud-logger';
 import type { Request } from 'express';
 
@@ -38,17 +38,5 @@ export abstract class RequestAbstractInterceptor {
         return Object.assign({}, transformed);
     }
 
-    getAuthor(
-        request: Request | Record<string, unknown>,
-        crudOptions: CrudOptions,
-        method: Exclude<Method, Method.INDEX | Method.SHOW>,
-    ): Author | undefined {
-        const author = crudOptions.routes?.[method]?.author;
 
-        if (!author) {
-            return;
-        }
-
-        return { ...author, value: author.value ?? _.get(request, author.filter ?? '', author.value) };
-    }
 }

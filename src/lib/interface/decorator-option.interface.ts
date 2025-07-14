@@ -1,4 +1,4 @@
-import type { Method, Sort, PaginationType, Author, EntityType } from '.';
+import type { Method, Sort, PaginationType, EntityType } from '.';
 import type { NestInterceptor, Type } from '@nestjs/common';
 import type { ColumnType, DeepPartial } from 'typeorm';
 
@@ -131,12 +131,7 @@ export interface CrudOptions {
                  */
                 body?: Type<unknown>;
             };
-            /**
-             * Configures ways to save author information to the Entity after the operation completed.
-             * It updates Entity's `author.property` field with respect to the value of `author.filter` from express's Request object.
-             * If `author.filter` is not found in the Request object, author.value will be used as default.
-             */
-            author?: Author;
+
             /**
              * 생명주기 훅 함수들을 설정합니다.
              */
@@ -161,13 +156,6 @@ export interface CrudOptions {
                 body?: Type<unknown>;
             };
             /**
-             * Configures ways to save author information to the Entity after the operation completed.
-             *
-             * It updates Entity's `author.property` field with respect to the value of `author.filter` from express's Request object.
-             * If `author.filter` is not found in the Request object, author.value will be used as default.
-             */
-            author?: Author;
-            /**
              * 생명주기 훅 함수들을 설정합니다.
              */
             hooks?: LifecycleHooks;
@@ -189,13 +177,6 @@ export interface CrudOptions {
              * @default true
              */
             softDelete?: boolean;
-            /**
-             * Configures ways to save author information to the Entity after the operation completed.
-             *
-             * It updates Entity's `author.property` field with respect to the value of `author.filter` from express's Request object.
-             * If `author.filter` is not found in the Request object, author.value will be used as default.
-             */
-            author?: Author;
         } & RouteBaseOption &
         SaveOptions;
         [Method.UPSERT]?: {
@@ -216,13 +197,6 @@ export interface CrudOptions {
                 body?: Type<unknown>;
             };
             /**
-             * Configures ways to save author information to the Entity after the operation completed.
-             *
-             * It updates Entity's `author.property` field with respect to the value of `author.filter` from express's Request object.
-             * If `author.filter` is not found in the Request object, author.value will be used as default.
-             */
-            author?: Author;
-            /**
              * 생명주기 훅 함수들을 설정합니다.
              */
             hooks?: LifecycleHooks;
@@ -239,13 +213,6 @@ export interface CrudOptions {
              * It will generate the route `/:id/:subId`
              */
             params?: string[];
-            /**
-             * Configures ways to save author information to the Entity after the operation completed.
-             *
-             * It updates Entity's `author.property` field with respect to the value of `author.filter` from express's Request object.
-             * If `author.filter` is not found in the Request object, author.value will be used as default.
-             */
-            author?: Author;
         } & RouteBaseOption &
         SaveOptions;
     };

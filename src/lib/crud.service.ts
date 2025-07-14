@@ -140,12 +140,7 @@ export class CrudService<T extends EntityType> {
             entities[i] = await this.executeAssignAfterHook(crudCreateRequest.hooks, entities[i], processedBodyArray[i], context);
         }
 
-        // Author 정보 설정
-        if (crudCreateRequest.author) {
-            for (const entity of entities) {
-                _.merge(entity, { [crudCreateRequest.author.property]: crudCreateRequest.author.value });
-            }
-        }
+
 
         // saveBefore 훅 실행
         for (let i = 0; i < entities.length; i++) {
@@ -205,10 +200,7 @@ export class CrudService<T extends EntityType> {
             // assignAfter 훅 실행
             upsertEntity = await this.executeAssignAfterHook(crudUpsertRequest.hooks, upsertEntity, processedBody, context);
 
-            // Author 정보 설정
-            if (crudUpsertRequest.author) {
-                _.merge(upsertEntity, { [crudUpsertRequest.author.property]: crudUpsertRequest.author.value });
-            }
+
 
             // saveBefore 훅 실행
             upsertEntity = await this.executeSaveBeforeHook(crudUpsertRequest.hooks, upsertEntity, context);
@@ -252,10 +244,7 @@ export class CrudService<T extends EntityType> {
             // assignAfter 훅 실행
             entity = await this.executeAssignAfterHook(crudUpdateOneRequest.hooks, entity, processedBody, context);
 
-            // Author 정보 설정
-            if (crudUpdateOneRequest.author) {
-                _.merge(entity, { [crudUpdateOneRequest.author.property]: crudUpdateOneRequest.author.value });
-            }
+
 
             // saveBefore 훅 실행
             entity = await this.executeSaveBeforeHook(crudUpdateOneRequest.hooks, entity, context);
@@ -284,11 +273,7 @@ export class CrudService<T extends EntityType> {
                 throw new NotFoundException();
             }
 
-            if (crudDeleteOneRequest.author) {
-                _.merge(entity, { [crudDeleteOneRequest.author.property]: crudDeleteOneRequest.author.value });
 
-                await this.repository.save(entity, crudDeleteOneRequest.saveOptions);
-            }
 
             await (crudDeleteOneRequest.softDeleted
                 ? this.repository.softRemove(entity, crudDeleteOneRequest.saveOptions)

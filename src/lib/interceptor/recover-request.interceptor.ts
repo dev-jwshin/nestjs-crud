@@ -25,7 +25,7 @@ export function RecoverRequestInterceptor(crudOptions: CrudOptions, factoryOptio
             const params = await this.checkParams(crudOptions.entity, customRequestOption?.params ?? req.params, factoryOption.columns);
             const crudRecoverRequest: CrudRecoverRequest<typeof crudOptions.entity> = {
                 params,
-                author: this.getAuthor(req, crudOptions, method),
+
                 exclude: new Set(recoverOptions.exclude ?? []),
                 saveOptions: {
                     listeners: recoverOptions.listeners,
