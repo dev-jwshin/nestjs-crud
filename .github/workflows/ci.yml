@@ -94,26 +94,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           
-      - name: Create GitHub Release
-        if: steps.check-version.outputs.exists == 'false'
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.package-version.outputs.version }}
-          release_name: Release v${{ steps.package-version.outputs.version }}
-          body: |
-            ## Changes in v${{ steps.package-version.outputs.version }}
-            
-            Released from commit: ${{ github.sha }}
-            
-            ### 주요 변경사항
-            - 자동 배포된 버전입니다
-            - 변경사항은 커밋 히스토리를 확인해주세요
-            
-          draft: false
-          prerelease: false
-          
       - name: Skip publishing (version exists)
         if: steps.check-version.outputs.exists == 'true'
         run: |
