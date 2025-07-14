@@ -1,63 +1,160 @@
-# https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
-
-name: Node.js CI
+name: CI/CD Pipeline
 
 on:
-    push:
-        branches: ['main']
-    pull_request:
-        branches: ['main']
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-    test:
-        runs-on: ubuntu-latest
+  test:
+    name: Test and Build
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'yarn'
+          
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        
+      - name: Run linting
+        run: yarn lint
+        
+      - name: Run tests
+        run: yarn test
+        
+      - name: Build package
+        run: yarn build
+        
+      - name: Upload build artifacts
+        if: matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-files
+          path: dist/
 
-        strategy:
-            matrix:
-                node-version: [20.x, 22.x]
-        steps:
-            - uses: actions/checkout@v3
-            - name: Use Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@v3
-              with:
-                  node-version: ${{ matrix.node-version }}
-                  #  https://stackoverflow.com/questions/61010294/how-to-cache-yarn-packages-in-github-actions
-                  cache: 'yarn'
-            - name: Install docker-compose
-              run: |
-                  curl -L "https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-$(uname -s | tr '[A-Z]' '[a-z]')-$(uname -m)" -o /usr/local/bin/docker-compose
-                  chmod +x /usr/local/bin/docker-compose
-            # https://github.com/kiranojhanp/fullstack-typescript-turborepo-starter/blob/main/.github/workflows/api.yaml
-            - name: Get yarn cache directory path
-              id: yarn-cache-dir-path
-              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+  publish:
+    name: Publish to NPM
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # 전체 git 히스토리를 가져와서 버전 비교 가능
+          fetch-depth: 0
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'yarn'
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        
+      - name: Build package
+        run: yarn build
+        
+      - name: Get package version
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Package version: $VERSION"
+          
+      - name: Check if version exists on NPM
+        id: check-version
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          VERSION=${{ steps.package-version.outputs.version }}
+          
+          # NPM에서 해당 버전이 존재하는지 확인
+          if npm view $PACKAGE_NAME@$VERSION version 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Version $VERSION already exists on NPM"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Version $VERSION does not exist on NPM, ready to publish"
+          fi
+          
+      - name: Publish to NPM
+        if: steps.check-version.outputs.exists == 'false'
+        run: |
+          echo "Publishing version ${{ steps.package-version.outputs.version }} to NPM..."
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          
+      - name: Create GitHub Release
+        if: steps.check-version.outputs.exists == 'false'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.package-version.outputs.version }}
+          release_name: Release v${{ steps.package-version.outputs.version }}
+          body: |
+            ## Changes in v${{ steps.package-version.outputs.version }}
             
-            - name: Cache node modules
-              uses: actions/cache@v4
-              env:
-                  cache-name: cache-node-modules
-              id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-              with:
-                  path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-yarn-
-            - name: Install Dependencies
-              run: yarn install --frozen-lockfile --prefer-offline
-            - name: Format Check
-              run: yarn format-check
+            Released from commit: ${{ github.sha }}
+            
+            ### 주요 변경사항
+            - 자동 배포된 버전입니다
+            - 변경사항은 커밋 히스토리를 확인해주세요
+            
+          draft: false
+          prerelease: false
+          
+      - name: Skip publishing (version exists)
+        if: steps.check-version.outputs.exists == 'true'
+        run: |
+          echo "⚠️  Version ${{ steps.package-version.outputs.version }} already exists on NPM"
+          echo "💡 패키지를 업데이트하려면 package.json의 version을 변경해주세요"
+          echo "📝 Semantic Versioning을 따라 버전을 업데이트하세요:"
+          echo "   - 패치: x.x.X (버그 수정)"
+          echo "   - 마이너: x.X.x (새 기능 추가)"  
+          echo "   - 메이저: X.x.x (호환성 없는 변경)"
 
-            - name: Lint
-              run: yarn lint
-
-            - name: Type Check
-              run: yarn type-check
-
-            - name: Test
-              run: yarn test:ci
-
-            - name: Coveralls
-              uses: coverallsapp/github-action@v2
-#  https://github.com/actions/typescript-action/blob/main/.github/workflows/codeql-analysis.yml
-
-#  https://github.com/actions/typescript-action/blob/main/.github/workflows/test.yml
+  notify:
+    name: Notify Results
+    needs: [test, publish]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Notify Success
+        if: needs.test.result == 'success' && (needs.publish.result == 'success' || needs.publish.result == 'skipped')
+        run: |
+          echo "✅ CI/CD Pipeline completed successfully!"
+          if [ "${{ needs.publish.result }}" == "success" ]; then
+            echo "📦 Package published to NPM"
+          else
+            echo "📦 Package publishing skipped (version already exists)"
+          fi
+          
+      - name: Notify Failure
+        if: needs.test.result == 'failure' || needs.publish.result == 'failure'
+        run: |
+          echo "❌ CI/CD Pipeline failed!"
+          if [ "${{ needs.test.result }}" == "failure" ]; then
+            echo "🔴 Tests failed"
+          fi
+          if [ "${{ needs.publish.result }}" == "failure" ]; then
+            echo "🔴 Publishing failed"
+          fi
+          exit 1
