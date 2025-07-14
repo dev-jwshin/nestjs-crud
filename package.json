@@ -1,5 +1,5 @@
 {
-    "name": "nestjs-crud",
+    "name": "@foryourdev/nestjs-crud",
     "version": "0.1.0",
     "description": "Automatically generate CRUD Rest API based on NestJS and TypeOrm",
     "homepage": "https://github.com/woowabros/nestjs-library-crud",
