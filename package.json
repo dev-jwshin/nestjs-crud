@@ -2,10 +2,10 @@
     "name": "@foryourdev/nestjs-crud",
     "version": "0.1.0",
     "description": "Automatically generate CRUD Rest API based on NestJS and TypeOrm",
-    "homepage": "https://github.com/woowabros/nestjs-library-crud",
+    "homepage": "https://github.com/dev-jwshin/nestjs-crud",
     "repository": {
         "type": "git",
-        "url": "https://github.com/woowabros/nestjs-library-crud"
+        "url": "https://github.com/dev-jwshin/nestjs-crud"
     },
     "main": "dist/cjs/index.js",
     "module": "dist/mjs/index.js",
