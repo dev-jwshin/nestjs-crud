@@ -5,7 +5,7 @@ import { ReadOneRequestInterceptor, CreateRequestInterceptor } from './intercept
 import { DeleteRequestInterceptor } from './interceptor/delete-request.interceptor';
 import { ReadManyRequestInterceptor } from './interceptor/read-many-request.interceptor';
 import { RecoverRequestInterceptor } from './interceptor/recover-request.interceptor';
-import { SearchRequestInterceptor } from './interceptor/search-request.interceptor';
+
 import { UpdateRequestInterceptor } from './interceptor/update-request.interceptor';
 import { UpsertRequestInterceptor } from './interceptor/upsert-request.interceptor';
 import { Method, Sort, PaginationType } from './interface';
@@ -15,7 +15,6 @@ import type { NestInterceptor, Type } from '@nestjs/common';
 
 type CrudMethodPolicy = {
     [Method.SHOW]: MethodPolicy<Method.SHOW>;
-    [Method.SEARCH]: MethodPolicy<Method.SEARCH>;
     [Method.INDEX]: MethodPolicy<Method.INDEX>;
     [Method.CREATE]: MethodPolicy<Method.CREATE>;
     [Method.UPDATE]: MethodPolicy<Method.UPDATE>;
@@ -35,12 +34,12 @@ type MethodPolicy<T extends Method> = {
         };
     };
     default: T extends Method.SHOW | Method.DESTROY
-        ? DefaultOptionsReadOne
-        : T extends Method.INDEX | Method.SEARCH
-          ? DefaultOptionsReadMany
-          : DefaultOptions;
+    ? DefaultOptionsReadOne
+    : T extends Method.INDEX
+    ? DefaultOptionsReadMany
+    : DefaultOptions;
 };
-interface DefaultOptions {}
+interface DefaultOptions { }
 interface DefaultOptionsReadOne extends DefaultOptions {
     softDeleted: boolean;
 }
@@ -53,18 +52,18 @@ interface DefaultOptionsReadMany extends DefaultOptionsReadOne {
 const metaProperties = (paginationType: PaginationType) =>
     paginationType === PaginationType.OFFSET
         ? {
-              page: { type: 'number', example: 1 },
-              pages: { type: 'number', example: 1 },
-              total: { type: 'number', example: 100 },
-              offset: { type: 'number', example: 20 },
-              nextCursor: { type: 'string', example: 'cursorToken' },
-          }
+            page: { type: 'number', example: 1 },
+            pages: { type: 'number', example: 1 },
+            total: { type: 'number', example: 100 },
+            offset: { type: 'number', example: 20 },
+            nextCursor: { type: 'string', example: 'cursorToken' },
+        }
         : {
-              total: { type: 'number', example: 100 },
-              totalPages: { type: 'number', example: 5 },
-              limit: { type: 'number', example: 20 },
-              nextCursor: { type: 'string', example: 'cursorToken' },
-          };
+            total: { type: 'number', example: 100 },
+            totalPages: { type: 'number', example: 5 },
+            limit: { type: 'number', example: 20 },
+            nextCursor: { type: 'string', example: 'cursorToken' },
+        };
 /**
  * Basic Policy by method
  */
@@ -99,50 +98,7 @@ export const CRUD_POLICY: CrudMethodPolicy = {
             softDeleted: false,
         },
     },
-    [Method.SEARCH]: {
-        method: RequestMethod.POST,
-        useBody: true,
-        interceptor: (crudOptions: CrudOptions, factoryOption: FactoryOption) => SearchRequestInterceptor(crudOptions, factoryOption),
-        uriParameter: () => ({
-            path: '/search',
-            params: [],
-        }),
-        swagger: {
-            operationMetadata: (tableName: string) => ({
-                summary: `Search from '${capitalizeFirstLetter(tableName)}' Table`,
-                description: `Fetch multiple entities in '${capitalizeFirstLetter(tableName)}' Table via custom query in body`,
-            }),
-            responseMetadata: ({ type, tableName, paginationType }) => ({
-                [HttpStatus.OK]: {
-                    description: `Fetch multiple entities from '${capitalizeFirstLetter(tableName)}' table`,
-                    schema: {
-                        type: 'object',
-                        properties: {
-                            data: {
-                                type: 'array',
-                                items: {
-                                    $ref: `#/components/schemas/${type.name}`,
-                                },
-                            },
-                            metadata: paginationType && {
-                                type: 'object',
-                                properties: metaProperties(paginationType),
-                            },
-                        },
-                    },
-                },
-                [HttpStatus.UNPROCESSABLE_ENTITY]: {
-                    description: 'Invalid query',
-                },
-            }),
-        },
-        default: {
-            paginationType: PaginationType.CURSOR,
-            numberOfTake: 20,
-            softDeleted: false,
-            sort: Sort.DESC,
-        },
-    },
+
     [Method.INDEX]: {
         method: RequestMethod.GET,
         useBody: false,

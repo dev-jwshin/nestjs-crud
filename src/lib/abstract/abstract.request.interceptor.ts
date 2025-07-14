@@ -11,7 +11,7 @@ import type { CrudLogger } from '../provider/crud-logger';
 import type { Request } from 'express';
 
 export abstract class RequestAbstractInterceptor {
-    constructor(public readonly crudLogger: CrudLogger) {}
+    constructor(public readonly crudLogger: CrudLogger) { }
 
     async checkParams(
         entity: EntityType,
@@ -41,7 +41,7 @@ export abstract class RequestAbstractInterceptor {
     getAuthor(
         request: Request | Record<string, unknown>,
         crudOptions: CrudOptions,
-        method: Exclude<Method, Method.INDEX | Method.SHOW | Method.SEARCH>,
+        method: Exclude<Method, Method.INDEX | Method.SHOW>,
     ): Author | undefined {
         const author = crudOptions.routes?.[method]?.author;
 

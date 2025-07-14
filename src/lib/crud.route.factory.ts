@@ -16,10 +16,7 @@ import { MetadataUtils } from 'typeorm/metadata-builder/MetadataUtils';
 import { capitalizeFirstLetter } from './capitalize-first-letter';
 import { CRUD_ROUTE_ARGS } from './constants';
 import { CRUD_POLICY } from './crud.policy';
-import { RequestSearchFirstCursorDto } from './dto/request-search-first-cursor.dto';
-import { RequestSearchFirstOffsetDto } from './dto/request-search-first-offset.dto';
-import { RequestSearchNextCursorDto } from './dto/request-search-next-cursor.dto';
-import { RequestSearchNextOffsetDto } from './dto/request-search-next-offset.dto';
+
 import { CreateRequestDto, getPropertyNamesFromMetadata } from './dto/request.dto';
 import { Method, PaginationType, PAGINATION_SWAGGER_QUERY } from './interface';
 import { CrudLogger } from './provider/crud-logger';
@@ -41,27 +38,27 @@ import type { ExecutionContext, Type } from '@nestjs/common';
 
 type ParameterDecorators =
     | {
-          name?: string;
-          description?: string;
-          required: boolean;
-          in: string;
-          items?: { type: string };
-          type: unknown;
-          isArray?: boolean;
-      }
+        name?: string;
+        description?: string;
+        required: boolean;
+        in: string;
+        items?: { type: string };
+        type: unknown;
+        isArray?: boolean;
+    }
     | {
-          name?: any;
-          description?: string;
-          required: boolean;
-          in: string;
-          type: unknown;
-          schema: {
-              [type: string]: unknown;
-          };
-          examples?: {
-              [type: string]: { value: unknown };
-          };
-      };
+        name?: any;
+        description?: string;
+        required: boolean;
+        in: string;
+        type: unknown;
+        schema: {
+            [type: string]: unknown;
+        };
+        examples?: {
+            [type: string]: { value: unknown };
+        };
+    };
 
 export class CrudRouteFactory {
     private crudLogger: CrudLogger;
@@ -71,8 +68,8 @@ export class CrudRouteFactory {
         primaryKeys?: PrimaryKey[];
         columns?: Column[];
     } = {
-        tableName: '',
-    };
+            tableName: '',
+        };
 
     constructor(
         protected target: any,
@@ -152,11 +149,7 @@ export class CrudRouteFactory {
         };
     }
 
-    protected search<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedSearch(crudReadManyRequest: CrudReadManyRequest<T>) {
-            return this.crudService.reservedIndex(crudReadManyRequest);
-        };
-    }
+
 
     protected create<T>(controllerMethodName: string): void {
         this.targetPrototype[controllerMethodName] = function reservedCreate(crudCreateRequest: CrudCreateRequest<T>) {
@@ -208,7 +201,7 @@ export class CrudRouteFactory {
             logger: this.crudLogger,
         };
 
-        const needPagination = crudMethod === Method.INDEX || crudMethod === Method.SEARCH;
+        const needPagination = crudMethod === Method.INDEX;
         const paginationType = (() => {
             if (!needPagination) {
                 return undefined;
@@ -216,8 +209,8 @@ export class CrudRouteFactory {
             const input = this.crudOptions.routes?.[crudMethod]?.paginationType ?? CRUD_POLICY[crudMethod].default.paginationType;
             const isPaginationType = (
                 <TEnum extends Record<string, unknown>>(enumType: TEnum) =>
-                (nextCursor: unknown): nextCursor is TEnum[keyof TEnum] =>
-                    Object.values(enumType).includes(nextCursor as TEnum[keyof TEnum])
+                    (nextCursor: unknown): nextCursor is TEnum[keyof TEnum] =>
+                        Object.values(enumType).includes(nextCursor as TEnum[keyof TEnum])
             )(PaginationType);
             if (!isPaginationType(input)) {
                 throw new TypeError(`invalid PaginationType ${input}`);
@@ -244,9 +237,7 @@ export class CrudRouteFactory {
         Reflect.defineMetadata(ROUTE_ARGS_METADATA, requestArg, this.target, methodNameOnController);
         Reflect.defineMetadata(PARAMTYPES_METADATA, [Object], this.targetPrototype, methodNameOnController);
 
-        if (crudMethod === Method.SEARCH) {
-            Reflect.defineMetadata(HTTP_CODE_METADATA, HttpStatus.OK, targetMethod);
-        }
+
 
         const customDecorators = this.crudOptions.routes?.[crudMethod]?.decorators ?? [];
 
@@ -352,67 +343,41 @@ export class CrudRouteFactory {
             });
         }
         if (CRUD_POLICY[method].useBody) {
-            if (method === Method.SEARCH) {
-                const firstRequestType =
-                    paginationType === PaginationType.OFFSET ? RequestSearchFirstOffsetDto : RequestSearchFirstCursorDto;
-                const secondRequestType =
-                    paginationType === PaginationType.OFFSET ? RequestSearchNextOffsetDto : RequestSearchNextCursorDto;
-                Reflect.defineMetadata(DECORATORS.API_EXTRA_MODELS, [firstRequestType, secondRequestType], target);
-                parameterDecorators.push({
-                    description: [capitalizeFirstLetter(method), capitalizeFirstLetter(this.tableName), 'Dto'].join(''),
-                    required: true,
-                    in: 'body',
-                    type: String,
-                    schema: {
-                        oneOf: [
-                            {
-                                $ref: `#/components/schemas/${firstRequestType.name}`,
-                            },
-                            {
-                                $ref: `#/components/schemas/${secondRequestType.name}`,
-                            },
-                        ],
-                    },
-                    examples: {
-                        FirstRequest: { value: firstRequestType.getExample() },
-                        NextRequest: { value: secondRequestType.getExample() },
-                    },
-                });
-            } else {
-                const bodyType = (() => {
-                    const customBody = this.crudOptions.routes?.[method]?.swagger?.body;
-                    if (customBody) {
-                        return this.generalTypeGuard(customBody, method, 'body');
+
+            const bodyType = (() => {
+                const customBody = this.crudOptions.routes?.[method]?.swagger?.body;
+                if (customBody) {
+                    return this.generalTypeGuard(customBody, method, 'body');
+                }
+                return CreateRequestDto(this.crudOptions.entity, method);
+            })();
+            parameterDecorators.push(
+                method === Method.CREATE
+                    ? {
+                        description: [capitalizeFirstLetter(method), capitalizeFirstLetter(this.tableName), 'Dto'].join(''),
+                        required: true,
+                        in: 'body',
+                        type: bodyType,
+                        schema: {
+                            type: 'object',
+                            anyOf: [
+                                {
+                                    $ref: `#/components/schemas/${bodyType.name}`,
+                                },
+                                { type: 'array', items: { $ref: `#/components/schemas/${bodyType.name}` } },
+                            ],
+                        },
                     }
-                    return CreateRequestDto(this.crudOptions.entity, method);
-                })();
-                parameterDecorators.push(
-                    method === Method.CREATE
-                        ? {
-                              description: [capitalizeFirstLetter(method), capitalizeFirstLetter(this.tableName), 'Dto'].join(''),
-                              required: true,
-                              in: 'body',
-                              type: bodyType,
-                              schema: {
-                                  type: 'object',
-                                  anyOf: [
-                                      {
-                                          $ref: `#/components/schemas/${bodyType.name}`,
-                                      },
-                                      { type: 'array', items: { $ref: `#/components/schemas/${bodyType.name}` } },
-                                  ],
-                              },
-                          }
-                        : {
-                              description: [capitalizeFirstLetter(method), capitalizeFirstLetter(this.tableName), 'Dto'].join(''),
-                              required: true,
-                              in: 'body',
-                              type: bodyType,
-                              isArray: false,
-                          },
-                );
-            }
+                    : {
+                        description: [capitalizeFirstLetter(method), capitalizeFirstLetter(this.tableName), 'Dto'].join(''),
+                        required: true,
+                        in: 'body',
+                        type: bodyType,
+                        isArray: false,
+                    },
+            );
         }
+
         Reflect.defineMetadata(DECORATORS.API_PARAMETERS, parameterDecorators, target);
     }
 

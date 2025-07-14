@@ -5,14 +5,14 @@ import { validateSync } from 'class-validator';
 import { PaginationCursorDto, PaginationOffsetDto } from '../dto';
 import { PaginationType } from '../interface';
 
-import type { RequestSearchDto } from '../dto';
+
 import type { PaginationRequest } from '../interface';
 import type { FindOptionsWhere } from 'typeorm';
 
 const encoding = 'base64';
 
 export class PaginationHelper {
-    static serialize<T>(entity: FindOptionsWhere<T> | Array<FindOptionsWhere<T>> | RequestSearchDto<T> | Record<string, unknown>): string {
+    static serialize<T>(entity: FindOptionsWhere<T> | Array<FindOptionsWhere<T>> | Record<string, unknown>): string {
         return Buffer.from(JSON.stringify(entity)).toString(encoding);
     }
 

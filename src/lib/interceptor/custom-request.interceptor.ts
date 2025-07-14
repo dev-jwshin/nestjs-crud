@@ -16,9 +16,7 @@ export interface CustomReadManyRequestOptions {
 export interface CustomDeleteRequestOptions {
     softDeleted?: boolean;
 }
-export interface CustomSearchRequestOptions {
-    relations?: string[];
-}
+
 
 export class CustomRequestInterceptor implements NestInterceptor {
     async intercept(context: ExecutionContext, next: CallHandler<unknown>): Promise<Observable<unknown>> {
@@ -47,7 +45,7 @@ export class CustomRequestInterceptor implements NestInterceptor {
         | CustomReadOneRequestOptions
         | CustomReadManyRequestOptions
         | CustomDeleteRequestOptions
-        | CustomSearchRequestOptions
+
         | undefined
         | void
     > {

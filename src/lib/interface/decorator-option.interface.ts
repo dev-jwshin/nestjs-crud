@@ -121,38 +121,7 @@ export interface CrudOptions {
              */
             paginationKeys?: string[];
         } & Omit<RouteBaseOption, 'response'>;
-        [Method.SEARCH]?: {
-            /**
-             * Type of pagination to use. Currently 'offset' and 'cursor' are supported.
-             * @default PaginationType.CURSOR
-             */
-            paginationType?: PaginationType | `${PaginationType}`;
-            /**
-             * Default number of entities should be taken. See `crud.policy.ts` for more details.
-             * @default 20
-             */
-            numberOfTake?: number;
-            /**
-             * Max number of entities should be taken. See `crud.policy.ts` for more details.
-             * @default 100
-             */
-            limitOfTake?: number;
-            /**
-             * What relations of entity should be loaded. If set to false or an empty array, no relations will be loaded. See `crud.policy.ts` for more details.
-             * @default false
-             */
-            relations?: false | string[];
-            /**
-             * If set to true, soft-deleted entity could be included in the result. See `crud.policy.ts` for more details.
-             * @default true
-             */
-            softDelete?: boolean;
-            /**
-             * Keys to use for pagination.
-             * If not set, the keys will be taken from the entity's primary keys.
-             */
-            paginationKeys?: string[];
-        } & RouteBaseOption;
+
         [Method.CREATE]?: {
             swagger?: {
                 /**
@@ -167,7 +136,7 @@ export interface CrudOptions {
              */
             author?: Author;
         } & RouteBaseOption &
-            SaveOptions;
+        SaveOptions;
         [Method.UPDATE]?: {
             /**
              * Array of path parameters to use for the route
@@ -193,7 +162,7 @@ export interface CrudOptions {
              */
             author?: Author;
         } & RouteBaseOption &
-            SaveOptions;
+        SaveOptions;
         [Method.DESTROY]?: {
             /**
              * Array of path parameters to use for the route
@@ -218,7 +187,7 @@ export interface CrudOptions {
              */
             author?: Author;
         } & RouteBaseOption &
-            SaveOptions;
+        SaveOptions;
         [Method.UPSERT]?: {
             /**
              * Array of path parameters to use for the route
@@ -244,7 +213,7 @@ export interface CrudOptions {
              */
             author?: Author;
         } & RouteBaseOption &
-            SaveOptions;
+        SaveOptions;
         [Method.RECOVER]?: {
             /**
              * Array of path parameters to use for the route
@@ -264,7 +233,7 @@ export interface CrudOptions {
              */
             author?: Author;
         } & RouteBaseOption &
-            SaveOptions;
+        SaveOptions;
     };
     /**
      * An array of methods to generate routes for. If not specified, all routes will be generated.
