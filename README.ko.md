@@ -157,7 +157,7 @@ export class UserModule {}
 | **PUT** | `/users/:id` | 사용자 정보 수정 | `update` |
 | **DELETE** | `/users/:id` | 사용자 삭제 | `destroy` |
 | **POST** | `/users/upsert` | 사용자 생성 또는 수정 | `upsert` |
-| **POST** | `/users/search` | 사용자 검색 | `search` |
+
 | **POST** | `/users/:id/recover` | 삭제된 사용자 복구 | `recover` |
 
 ### 📊 통일된 응답 구조

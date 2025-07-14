@@ -157,7 +157,7 @@ export class UserModule {}
 | **PUT** | `/users/:id` | 사용자 정보 수정 | `update` |
 | **DELETE** | `/users/:id` | 사용자 삭제 | `destroy` |
 | **POST** | `/users/upsert` | 사용자 생성 또는 수정 | `upsert` |
-| **POST** | `/users/search` | 사용자 검색 | `search` |
+
 | **POST** | `/users/:id/recover` | 삭제된 사용자 복구 | `recover` |
 
 ### 📊 통일된 응답 구조
@@ -281,6 +281,53 @@ export class UserModule {}
     "operation": "create",
     "timestamp": "2024-01-15T10:30:00.000Z",
     "affectedCount": 2
+  }
+}
+```
+
+#### GET /users (index) - 페이지네이션 응답
+```json
+{
+  "data": [
+    { "id": 1, "name": "홍길동", "email": "hong@example.com" },
+    { "id": 2, "name": "김철수", "email": "kim@example.com" },
+    { "id": 3, "name": "박영희", "email": "park@example.com" }
+  ],
+  "metadata": {
+    "operation": "index",
+    "timestamp": "2024-01-15T11:00:00.000Z",
+    "affectedCount": 3,
+    "includedRelations": ["department", "posts"],
+    "pagination": {
+      "type": "offset",
+      "total": 150,
+      "page": 1,
+      "pages": 15,
+      "offset": 10,
+      "nextCursor": "eyJpZCI6M30="
+    }
+  }
+}
+```
+
+#### GET /users (cursor pagination)
+```json
+{
+  "data": [
+    { "id": 4, "name": "이민수", "email": "lee@example.com" },
+    { "id": 5, "name": "최유진", "email": "choi@example.com" }
+  ],
+  "metadata": {
+    "operation": "index",
+    "timestamp": "2024-01-15T11:00:00.000Z",
+    "affectedCount": 2,
+    "pagination": {
+      "type": "cursor",
+      "total": 150,
+      "limit": 2,
+      "totalPages": 75,
+      "nextCursor": "eyJpZCI6NX0="
+    }
   }
 }
 ```
@@ -845,6 +892,11 @@ GET /posts?include=comments&sort=-comments_count&page[limit]=20
 - [NestJS 공식 문서](https://nestjs.com/)
 - [TypeORM 공식 문서](https://typeorm.io/)
 - [class-validator 문서](https://github.com/typestack/class-validator)
+
+### 예제 프로젝트
+- [기본 CRUD 예제](./examples/basic-crud)
+- [관계가 있는 엔티티 예제](./examples/relations)
+- [인증이 포함된 예제](./examples/with-auth)
 
 ## 🤝 기여하기
 
