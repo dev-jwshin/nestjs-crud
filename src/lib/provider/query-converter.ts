@@ -164,7 +164,7 @@ export class QueryConverter<T = any> {
 
         switch (page.type) {
             case 'number':
-                if (page.number && page.size && page.size > 0) {
+                if (page.number && page.size > 0 && page.size > 0) {
                     pagination.skip = (page.number - 1) * page.size;
                     pagination.take = page.size;
                 }
@@ -182,7 +182,7 @@ export class QueryConverter<T = any> {
             case 'cursor':
                 // Cursor pagination requires additional logic in the service layer
                 // For now, just set the size
-                if (page.size && page.size > 0) {
+                if (page.size > 0 && page.size > 0) {
                     pagination.take = page.size;
                 }
                 // Note: cursor implementation would need to be handled separately
