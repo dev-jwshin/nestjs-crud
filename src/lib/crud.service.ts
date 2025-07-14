@@ -32,7 +32,7 @@ export class CrudService<T extends EntityType> {
         this.columnNames = this.repository.metadata.columns.map((column) => column.propertyPath);
     }
 
-    readonly reservedIndex = async (crudReadManyRequest: CrudReadManyRequest<T>): Promise<PaginationResponse<T>> => {
+    readonly reservedIndex = async (crudReadManyRequest: CrudReadManyRequest<T>): Promise<CrudArrayResponse<T>> => {
         crudReadManyRequest.excludedColumns(this.columnNames);
         const { entities, total } = await (async () => {
             const findEntities = this.repository.find({ ...crudReadManyRequest.findOptions });
@@ -50,7 +50,43 @@ export class CrudService<T extends EntityType> {
             ]);
             return { entities, total };
         })();
-        return crudReadManyRequest.toResponse(entities, total);
+
+        // Convert traditional pagination response to unified CRUD response
+        const paginationResponse = crudReadManyRequest.toResponse(entities, total);
+        const { data, metadata: paginationMetadata } = paginationResponse;
+
+        // Determine pagination type and create metadata
+        const paginationInfo: any = {
+            total: paginationMetadata.total,
+        };
+
+        let paginationType: 'offset' | 'cursor';
+
+        if ('page' in paginationMetadata) {
+            // Offset pagination
+            paginationType = 'offset';
+            paginationInfo.page = paginationMetadata.page;
+            paginationInfo.pages = paginationMetadata.pages;
+            paginationInfo.offset = paginationMetadata.offset;
+            paginationInfo.nextCursor = paginationMetadata.nextCursor;
+        } else {
+            // Cursor pagination
+            paginationType = 'cursor';
+            paginationInfo.limit = paginationMetadata.limit;
+            paginationInfo.totalPages = paginationMetadata.totalPages;
+            paginationInfo.nextCursor = paginationMetadata.nextCursor;
+        }
+
+        // Get additional metadata
+        const includedRelations = crudReadManyRequest.findOptions.relations as string[] | undefined;
+
+        return createCrudArrayResponse(data, 'index', {
+            pagination: {
+                type: paginationType,
+                ...paginationInfo,
+            },
+            includedRelations,
+        });
     };
 
     readonly reservedShow = async (crudReadOneRequest: CrudReadOneRequest<T>): Promise<CrudResponse<T>> => {

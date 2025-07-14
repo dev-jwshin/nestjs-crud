@@ -285,6 +285,53 @@ export class UserModule {}
 }
 ```
 
+#### GET /users (index) - 페이지네이션 응답
+```json
+{
+  "data": [
+    { "id": 1, "name": "홍길동", "email": "hong@example.com" },
+    { "id": 2, "name": "김철수", "email": "kim@example.com" },
+    { "id": 3, "name": "박영희", "email": "park@example.com" }
+  ],
+  "metadata": {
+    "operation": "index",
+    "timestamp": "2024-01-15T11:00:00.000Z",
+    "affectedCount": 3,
+    "includedRelations": ["department", "posts"],
+    "pagination": {
+      "type": "offset",
+      "total": 150,
+      "page": 1,
+      "pages": 15,
+      "offset": 10,
+      "nextCursor": "eyJpZCI6M30="
+    }
+  }
+}
+```
+
+#### GET /users (cursor pagination)
+```json
+{
+  "data": [
+    { "id": 4, "name": "이민수", "email": "lee@example.com" },
+    { "id": 5, "name": "최유진", "email": "choi@example.com" }
+  ],
+  "metadata": {
+    "operation": "index",
+    "timestamp": "2024-01-15T11:00:00.000Z",
+    "affectedCount": 2,
+    "pagination": {
+      "type": "cursor",
+      "total": 150,
+      "limit": 2,
+      "totalPages": 75,
+      "nextCursor": "eyJpZCI6NX0="
+    }
+  }
+}
+```
+
 ## 🔍 RESTful 쿼리 파라미터
 
 ### 📋 필터링 (Filtering)
