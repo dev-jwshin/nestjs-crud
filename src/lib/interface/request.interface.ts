@@ -1,4 +1,4 @@
-import type { Author, SaveOptions } from '.';
+import type { Author, SaveOptions, LifecycleHooks } from '.';
 
 import type { DeepPartial } from 'typeorm';
 
@@ -25,12 +25,14 @@ export interface CrudCreateOneRequest<T> extends CrudRequestBase {
     body: DeepPartial<T>;
     exclude: Set<string>;
     saveOptions?: SaveOptions;
+    hooks?: LifecycleHooks<T>;
 }
 
 export interface CrudCreateManyRequest<T> extends CrudRequestBase {
     body: Array<DeepPartial<T>>;
     exclude: Set<string>;
     saveOptions?: SaveOptions;
+    hooks?: LifecycleHooks<T>;
 }
 
 export function isCrudCreateManyRequest<T>(x: CrudCreateOneRequest<T> | CrudCreateManyRequest<T>): x is CrudCreateManyRequest<T> {

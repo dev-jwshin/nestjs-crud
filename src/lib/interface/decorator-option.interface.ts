@@ -1,6 +1,6 @@
 import type { Method, Sort, PaginationType, Author, EntityType } from '.';
 import type { NestInterceptor, Type } from '@nestjs/common';
-import type { ColumnType } from 'typeorm';
+import type { ColumnType, DeepPartial } from 'typeorm';
 
 interface RouteBaseOption {
     /**
@@ -137,6 +137,10 @@ export interface CrudOptions {
              * If `author.filter` is not found in the Request object, author.value will be used as default.
              */
             author?: Author;
+            /**
+             * 생명주기 훅 함수들을 설정합니다.
+             */
+            hooks?: LifecycleHooks;
         } & RouteBaseOption &
         SaveOptions;
         [Method.UPDATE]?: {
@@ -163,6 +167,10 @@ export interface CrudOptions {
              * If `author.filter` is not found in the Request object, author.value will be used as default.
              */
             author?: Author;
+            /**
+             * 생명주기 훅 함수들을 설정합니다.
+             */
+            hooks?: LifecycleHooks;
         } & RouteBaseOption &
         SaveOptions;
         [Method.DESTROY]?: {
@@ -214,6 +222,10 @@ export interface CrudOptions {
              * If `author.filter` is not found in the Request object, author.value will be used as default.
              */
             author?: Author;
+            /**
+             * 생명주기 훅 함수들을 설정합니다.
+             */
+            hooks?: LifecycleHooks;
         } & RouteBaseOption &
         SaveOptions;
         [Method.RECOVER]?: {
@@ -241,4 +253,55 @@ export interface CrudOptions {
      * An array of methods to generate routes for. If not specified, all routes will be generated.
      */
     only?: Array<Method | `${Method}`>;
+}
+
+/**
+ * 생명주기 훅 컨텍스트 정보
+ */
+export interface HookContext<T = any> {
+    /**
+     * 현재 실행 중인 CRUD 작업 타입
+     */
+    operation: Method;
+    /**
+     * 요청 파라미터 (예: { id: 1 })
+     */
+    params?: Record<string, any>;
+    /**
+     * 현재 엔티티 (update, upsert 시에만 제공)
+     */
+    currentEntity?: T;
+    /**
+     * 요청 객체에서 추가 정보
+     */
+    request?: any;
+}
+
+/**
+ * 생명주기 훅 함수 타입 정의
+ */
+export interface LifecycleHooks<T = any> {
+    /**
+     * 모델에 데이터를 할당하기 전에 실행됩니다.
+     * body 데이터를 수정하거나 검증할 수 있습니다.
+     */
+    assignBefore?: (body: DeepPartial<T>, context: HookContext<T>) => Promise<DeepPartial<T>> | DeepPartial<T>;
+
+    /**
+     * 모델에 데이터를 할당한 후에 실행됩니다.
+     * 생성된 엔티티를 추가로 수정할 수 있습니다.
+     */
+    assignAfter?: (entity: T, body: DeepPartial<T>, context: HookContext<T>) => Promise<T> | T;
+
+    /**
+     * 데이터베이스에 저장하기 전에 실행됩니다.
+     * 최종 검증이나 추가 처리를 할 수 있습니다.
+     */
+    saveBefore?: (entity: T, context: HookContext<T>) => Promise<T> | T;
+
+    /**
+     * 데이터베이스에 저장한 후에 실행됩니다.
+     * 후처리나 이벤트 발생 등을 할 수 있습니다.
+     */
+    saveAfter?: (entity: T, context: HookContext<T>) => Promise<T> | T;
 }

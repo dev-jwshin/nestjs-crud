@@ -13,7 +13,7 @@ import type { Request } from 'express';
 import type { Observable } from 'rxjs';
 import type { DeepPartial } from 'typeorm';
 
-interface NestedBaseEntityArray extends Array<NestedBaseEntityArray | DeepPartial<EntityType>> {}
+interface NestedBaseEntityArray extends Array<NestedBaseEntityArray | DeepPartial<EntityType>> { }
 type BaseEntityOrArray = DeepPartial<EntityType> | NestedBaseEntityArray;
 
 const method = Method.CREATE;
@@ -39,6 +39,7 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 saveOptions: {
                     listeners: createOptions.listeners,
                 },
+                hooks: createOptions.hooks,
             };
 
             this.crudLogger.logRequest(req, crudCreateRequest);

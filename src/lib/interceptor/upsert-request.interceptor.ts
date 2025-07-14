@@ -53,6 +53,7 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 saveOptions: {
                     listeners: upsertOptions.listeners,
                 },
+                hooks: upsertOptions.hooks,
             };
 
             this.crudLogger.logRequest(req, crudUpsertRequest);
