@@ -13,6 +13,7 @@ NestJS와 TypeORM을 기반으로 RESTful CRUD API를 자동으로 생성하는 
 - [기본 CRUD 작업](#기본-crud-작업)
 - [RESTful 쿼리 파라미터](#restful-쿼리-파라미터)
 - [고급 설정](#고급-설정)
+  - [생명주기 훅](#생명주기-훅-lifecycle-hooks)
 - [API 문서](#api-문서)
 - [예제](#예제)
 - [라이선스](#라이선스)
@@ -38,6 +39,7 @@ NestJS와 TypeORM을 기반으로 RESTful CRUD API를 자동으로 생성하는 
 - **복구**: 소프트 삭제된 데이터 복구
 - **Upsert**: 존재하면 업데이트, 없으면 생성
 - **작성자 추적**: 생성/수정/삭제 작성자 자동 기록
+- **생명주기 훅**: CRUD 작업의 각 단계에서 커스텀 로직 실행
 
 ## 📦 설치
 
@@ -439,6 +441,8 @@ GET /users?sort=department.name,name
 
 ### 🔗 관계 포함 (Including Relations)
 
+**⚠️ 중요한 변경사항**: `routes.relations` 옵션은 deprecated되었습니다. 이제 `include` 쿼리 파라미터만 사용됩니다.
+
 ```bash
 # 단일 관계
 GET /users?include=department
@@ -453,6 +457,40 @@ GET /posts?include=author,comments.author
 GET /users?include=department.company,posts.comments
 GET /orders?include=customer.address,items.product.category
 ```
+
+#### 변경 전후 비교
+
+```typescript
+// ❌ 이전 방식 (더 이상 작동하지 않음)
+@Crud({
+  entity: User,
+  routes: {
+    index: {
+      relations: ['department', 'posts'], // 기본적으로 관계 포함
+    }
+  }
+})
+
+// ✅ 새로운 방식
+@Crud({
+  entity: User,
+  routes: {
+    index: {
+      // relations 옵션 제거됨
+    }
+  }
+})
+
+// 관계가 필요한 경우 쿼리 파라미터로 명시적 요청
+GET /users?include=department,posts
+```
+
+#### 장점
+
+1. **명시적 요청**: 필요한 관계만 선택적으로 로드
+2. **성능 최적화**: 불필요한 관계 로딩 방지
+3. **N+1 문제 방지**: 필요한 관계만 JOIN으로 처리
+4. **캐시 효율성**: 관계별로 다른 캐시 전략 적용 가능
 
 ### 📄 페이지네이션 (Pagination)
 
@@ -566,10 +604,10 @@ GET /orders?filter[status_eq]=completed&
       numberOfTake: 20,
       sort: Sort.DESC,
       softDelete: false,
-      relations: ['department', 'posts'],
+      // relations: ['department', 'posts'], // ⚠️ Deprecated: include 파라미터 사용 권장
     },
     show: {
-      relations: ['department', 'posts', 'posts.comments'],
+      // relations: ['department', 'posts', 'posts.comments'], // ⚠️ Deprecated
       softDelete: true,
     },
     create: {
@@ -577,11 +615,31 @@ GET /orders?filter[status_eq]=completed&
         property: 'createdBy',
         filter: 'user.id',
       },
+      hooks: {
+        assignBefore: async (body, context) => {
+          // 이메일 정규화
+          if (body.email) {
+            body.email = body.email.toLowerCase().trim();
+          }
+          return body;
+        },
+        saveAfter: async (entity, context) => {
+          // 사용자 생성 이벤트 발송
+          await eventBus.publish('user.created', entity);
+          return entity;
+        },
+      },
     },
     update: {
       author: {
         property: 'updatedBy', 
         filter: 'user.id',
+      },
+      hooks: {
+        assignBefore: async (body, context) => {
+          body.updatedAt = new Date();
+          return body;
+        },
       },
     },
     destroy: {
@@ -597,6 +655,299 @@ export class UserController {
   constructor(public readonly crudService: UserService) {}
 }
 ```
+
+### 🔄 생명주기 훅 (Lifecycle Hooks)
+
+생명주기 훅을 통해 CRUD 작업의 각 단계에서 커스텀 로직을 실행할 수 있습니다.
+
+#### 훅 타입
+
+| 훅 | 실행 시점 | 용도 | 지원 라우트 |
+|---|----------|------|-------------|
+| `assignBefore` | 데이터 할당 **전** | 입력 검증, 변환 | create, update, upsert |
+| `assignAfter` | 데이터 할당 **후** | 엔티티 후처리 | create, update, upsert |
+| `saveBefore` | 저장 **전** | 최종 검증, 비즈니스 로직 | create, update, upsert |
+| `saveAfter` | 저장 **후** | 알림, 이벤트 발생 | create, update, upsert |
+
+#### 기본 사용법
+
+```typescript
+@Controller('users')
+@Crud({
+  entity: User,
+  routes: {
+    create: {
+      hooks: {
+        assignBefore: async (body, context) => {
+          // 이메일을 소문자로 변환
+          if (body.email) {
+            body.email = body.email.toLowerCase();
+          }
+          return body;
+        },
+        
+        assignAfter: async (entity, body, context) => {
+          // 기본 역할 설정
+          if (!entity.role) {
+            entity.role = 'user';
+          }
+          return entity;
+        },
+        
+        saveBefore: async (entity, context) => {
+          // 중복 이메일 검사
+          const existing = await userService.findByEmail(entity.email);
+          if (existing) {
+            throw new Error('이미 존재하는 이메일입니다');
+          }
+          return entity;
+        },
+        
+        saveAfter: async (entity, context) => {
+          // 환영 이메일 발송
+          await emailService.sendWelcomeEmail(entity.email);
+          return entity;
+        },
+      },
+    },
+    
+    update: {
+      hooks: {
+        assignBefore: async (body, context) => {
+          // 업데이트 시간 자동 설정
+          body.updatedAt = new Date();
+          
+          // 특정 필드는 수정 불가
+          delete body.id;
+          delete body.createdAt;
+          
+          return body;
+        },
+        
+        saveBefore: async (entity, context) => {
+          // 권한 확인
+          const userId = context.request?.user?.id;
+          if (entity.id !== userId) {
+            throw new Error('권한이 없습니다');
+          }
+          return entity;
+        },
+      },
+    },
+  },
+})
+export class UserController {
+  constructor(public readonly crudService: UserService) {}
+}
+```
+
+#### 고급 활용 예제
+
+```typescript
+@Controller('posts')
+@Crud({
+  entity: Post,
+  routes: {
+    create: {
+      hooks: {
+        assignBefore: async (body, context) => {
+          // 작성자 정보 자동 설정
+          const userId = context.request?.user?.id;
+          if (userId) {
+            body.authorId = userId;
+          }
+          
+          // 슬러그 자동 생성
+          if (body.title && !body.slug) {
+            body.slug = slugify(body.title);
+          }
+          
+          return body;
+        },
+        
+        assignAfter: async (entity, body, context) => {
+          // 게시글 상태 기본값 설정
+          if (!entity.status) {
+            entity.status = 'draft';
+          }
+          
+          // 발행 시 발행일 설정
+          if (entity.status === 'published' && !entity.publishedAt) {
+            entity.publishedAt = new Date();
+          }
+          
+          return entity;
+        },
+        
+        saveBefore: async (entity, context) => {
+          // 필수 필드 검증
+          if (!entity.title?.trim()) {
+            throw new Error('제목은 필수입니다');
+          }
+          
+          // 슬러그 중복 검사 및 해결
+          const existingPost = await postService.findBySlug(entity.slug);
+          if (existingPost) {
+            entity.slug = `${entity.slug}-${Date.now()}`;
+          }
+          
+          return entity;
+        },
+        
+        saveAfter: async (entity, context) => {
+          // 검색 인덱스 업데이트
+          await searchService.indexPost(entity);
+          
+          // 태그 처리
+          if (entity.tags?.length) {
+            await tagService.processPostTags(entity.id, entity.tags);
+          }
+          
+          // 발행된 게시글 알림
+          if (entity.status === 'published') {
+            await notificationService.notifyNewPost(entity);
+          }
+          
+          return entity;
+        },
+      },
+    },
+    
+    upsert: {
+      hooks: {
+        assignBefore: async (body, context) => {
+          const now = new Date();
+          body.updatedAt = now;
+          
+          // 새 데이터인 경우만 생성일 설정
+          if (!context.currentEntity) {
+            body.createdAt = now;
+          }
+          
+          return body;
+        },
+        
+        saveAfter: async (entity, context) => {
+          // 새로 생성된 경우와 업데이트된 경우 구분 처리
+          const isNew = !context.currentEntity;
+          
+          if (isNew) {
+            await analyticsService.trackPostCreated(entity);
+          } else {
+            await analyticsService.trackPostUpdated(entity);
+          }
+          
+          return entity;
+        },
+      },
+    },
+  },
+})
+export class PostController {
+  constructor(public readonly crudService: PostService) {}
+}
+```
+
+#### HookContext 활용
+
+```typescript
+// HookContext는 다음 정보를 제공합니다
+interface HookContext<T> {
+  operation: 'create' | 'update' | 'upsert';  // 작업 타입
+  params?: Record<string, any>;               // URL 파라미터  
+  currentEntity?: T;                          // 현재 엔티티 (update, upsert)
+  request?: any;                              // Express Request 객체
+}
+
+// 컨텍스트 활용 예시
+const hooks = {
+  assignBefore: async (body, context) => {
+    console.log(`작업 타입: ${context.operation}`);
+    
+    // 요청자 정보 활용
+    if (context.request?.user) {
+      body.lastModifiedBy = context.request.user.id;
+    }
+    
+    // URL 파라미터 활용
+    if (context.params?.parentId) {
+      body.parentId = context.params.parentId;
+    }
+    
+    // 기존 엔티티 정보 활용 (update, upsert만)
+    if (context.currentEntity) {
+      console.log('기존 데이터:', context.currentEntity);
+    }
+    
+    return body;
+  },
+};
+```
+
+#### 공통 훅 함수 재사용
+
+```typescript
+// 공통 훅 함수 정의
+const commonHooks = {
+  setTimestamps: async (body: any, context: HookContext) => {
+    const now = new Date();
+    body.updatedAt = now;
+    
+    if (context.operation === 'create') {
+      body.createdAt = now;
+    }
+    
+    return body;
+  },
+  
+  validateOwnership: async (entity: any, context: HookContext) => {
+    const userId = context.request?.user?.id;
+    if (entity.userId && entity.userId !== userId) {
+      const userRole = context.request?.user?.role;
+      if (userRole !== 'admin') {
+        throw new Error('권한이 없습니다');
+      }
+    }
+    return entity;
+  },
+  
+  publishEvent: async (entity: any, context: HookContext) => {
+    const eventName = `${context.operation}_${entity.constructor.name.toLowerCase()}`;
+    await eventBus.publish(eventName, entity);
+    return entity;
+  },
+};
+
+// 여러 컨트롤러에서 재사용
+@Crud({
+  entity: Order,
+  routes: {
+    create: {
+      hooks: {
+        assignBefore: commonHooks.setTimestamps,
+        saveBefore: commonHooks.validateOwnership,
+        saveAfter: commonHooks.publishEvent,
+      },
+    },
+    update: {
+      hooks: {
+        assignBefore: commonHooks.setTimestamps,
+        saveBefore: commonHooks.validateOwnership,
+        saveAfter: commonHooks.publishEvent,
+      },
+    },
+  },
+})
+export class OrderController {}
+```
+
+#### 주의사항
+
+1. **비동기 처리**: 모든 훅은 비동기 함수를 지원합니다
+2. **에러 처리**: 훅에서 에러 발생 시 전체 CRUD 작업이 중단됩니다
+3. **성능**: 복잡한 로직은 성능에 영향을 줄 수 있으므로 주의가 필요합니다
+4. **트랜잭션**: 훅은 별도의 데이터베이스 트랜잭션에서 실행됩니다
+5. **순서**: 정의된 순서대로 실행되므로 의존성을 고려해야 합니다
 
 ### 🔐 인증 및 권한
 
@@ -840,12 +1191,80 @@ export class Post {
   entity: Post,
   routes: {
     index: {
-      relations: ['author', 'tags'],
+      // relations: ['author', 'tags'], // ⚠️ Deprecated
       paginationType: PaginationType.OFFSET,
       numberOfTake: 10,
     },
     show: {
-      relations: ['author', 'comments', 'comments.author', 'tags'],
+      // relations: ['author', 'comments', 'comments.author', 'tags'], // ⚠️ Deprecated
+    },
+    create: {
+      hooks: {
+        assignBefore: async (body, context) => {
+          // 작성자 정보 자동 설정
+          if (context.request?.user?.id) {
+            body.authorId = context.request.user.id;
+          }
+          
+          // 슬러그 생성
+          if (body.title && !body.slug) {
+            body.slug = body.title
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '');
+          }
+          
+          return body;
+        },
+        
+        saveBefore: async (entity, context) => {
+          // 슬러그 중복 검사
+          const existing = await postService.findBySlug(entity.slug);
+          if (existing) {
+            entity.slug = `${entity.slug}-${Date.now()}`;
+          }
+          return entity;
+        },
+        
+        saveAfter: async (entity, context) => {
+          // 검색 인덱스 업데이트
+          await searchService.indexPost(entity);
+          
+          // 발행된 게시물 알림
+          if (entity.status === 'published') {
+            await notificationService.notifyFollowers(entity.authorId, entity);
+          }
+          
+          return entity;
+        },
+      },
+    },
+    update: {
+      hooks: {
+        assignBefore: async (body, context) => {
+          body.updatedAt = new Date();
+          
+          // 발행 상태 변경 시 발행일 설정
+          if (body.status === 'published' && context.currentEntity?.status !== 'published') {
+            body.publishedAt = new Date();
+          }
+          
+          return body;
+        },
+        
+        saveBefore: async (entity, context) => {
+          // 작성자 권한 확인
+          const userId = context.request?.user?.id;
+          if (entity.authorId !== userId) {
+            const userRole = context.request?.user?.role;
+            if (userRole !== 'admin' && userRole !== 'editor') {
+              throw new Error('수정 권한이 없습니다');
+            }
+          }
+          return entity;
+        },
+      },
     },
   },
 })
@@ -857,17 +1276,20 @@ export class PostController {
 ### 쿼리 예제
 
 ```bash
-# 공개된 게시물을 최신순으로 조회
+# 공개된 게시물을 최신순으로 조회 (작성자, 태그 포함)
 GET /posts?filter[status_eq]=published&sort=-created_at&include=author,tags&page[number]=1&page[size]=10
 
-# 특정 작성자의 게시물 검색
+# 특정 작성자의 게시물 검색 (작성자 정보 포함)
 GET /posts?filter[author.name_like]=%김%&filter[status_ne]=draft&include=author&sort=-created_at
 
-# 특정 태그를 포함하는 게시물
+# 특정 태그를 포함하는 게시물 (작성자, 태그 정보 포함)
 GET /posts?filter[tags.name_in]=javascript,typescript&include=author,tags&sort=-created_at
 
-# 댓글이 많은 게시물 (커스텀 쿼리 필요)
-GET /posts?include=comments&sort=-comments_count&page[limit]=20
+# 댓글과 댓글 작성자 정보를 포함한 게시물 조회
+GET /posts?include=author,comments,comments.author&sort=-created_at&page[limit]=20
+
+# 관계 없이 게시물만 조회 (기본값)
+GET /posts?filter[status_eq]=published&sort=-created_at&page[number]=1&page[size]=10
 ```
 
 ## 🚨 주의사항
