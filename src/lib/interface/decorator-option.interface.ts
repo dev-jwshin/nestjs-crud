@@ -84,6 +84,7 @@ export interface CrudOptions {
              */
             softDelete?: boolean;
             /**
+             * @deprecated 이 옵션은 더 이상 사용되지 않습니다. include 쿼리 파라미터를 사용하세요.
              * @default false
              */
             relations?: false | string[];
@@ -105,6 +106,7 @@ export interface CrudOptions {
              */
             numberOfTake?: number;
             /**
+             * @deprecated 이 옵션은 더 이상 사용되지 않습니다. include 쿼리 파라미터를 사용하세요.
              * What relations of entity should be loaded.
              * If set to false or an empty array, no relations will be loaded.
              * @default false

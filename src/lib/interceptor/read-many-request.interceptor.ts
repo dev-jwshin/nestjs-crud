@@ -98,8 +98,8 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
                 parsedQuery.sorts.length > 0
                     ? this.convertOrderToSort(findOptions.order)
                     : readManyOptions.sort
-                      ? Sort[readManyOptions.sort]
-                      : CRUD_POLICY[method].default.sort;
+                        ? Sort[readManyOptions.sort]
+                        : CRUD_POLICY[method].default.sort;
 
             const paginationKeys = readManyOptions.paginationKeys ?? factoryOption.primaryKeys.map(({ name }) => name);
             const numberOfTake =
@@ -162,13 +162,8 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
             if (Array.isArray(customReadManyRequestOptions?.relations)) {
                 return customReadManyRequestOptions.relations;
             }
-            if (crudOptions.routes?.[method]?.relations === false) {
-                return [];
-            }
-            if (crudOptions.routes?.[method] && Array.isArray(crudOptions.routes?.[method]?.relations)) {
-                return crudOptions.routes[method].relations;
-            }
-            return factoryOption.relations;
+            // 기본 관계포함 기능 제거 - include 파라미터가 없으면 관계 포함하지 않음
+            return [];
         }
 
         deserialize<T>({ pagination, findOptions, sort }: CrudReadManyRequest<T>): FindOptionsWhere<T> {

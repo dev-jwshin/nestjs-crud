@@ -83,13 +83,8 @@ export function ReadOneRequestInterceptor(crudOptions: CrudOptions, factoryOptio
             if (Array.isArray(customReadOneRequestOptions?.relations)) {
                 return customReadOneRequestOptions.relations;
             }
-            if (crudOptions.routes?.[method]?.relations === false) {
-                return [];
-            }
-            if (crudOptions.routes?.[method] && Array.isArray(crudOptions.routes?.[method]?.relations)) {
-                return crudOptions.routes[method].relations;
-            }
-            return factoryOption.relations;
+            // 기본 관계포함 기능 제거 - include 파라미터가 없으면 관계 포함하지 않음
+            return [];
         }
     }
     return mixin(MixinInterceptor);
