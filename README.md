@@ -846,11 +846,6 @@ GET /posts?include=comments&sort=-comments_count&page[limit]=20
 - [TypeORM 공식 문서](https://typeorm.io/)
 - [class-validator 문서](https://github.com/typestack/class-validator)
 
-### 예제 프로젝트
-- [기본 CRUD 예제](./examples/basic-crud)
-- [관계가 있는 엔티티 예제](./examples/relations)
-- [인증이 포함된 예제](./examples/with-auth)
-
 ## 🤝 기여하기
 
 버그 리포트, 기능 제안, 풀 리퀘스트를 환영합니다!
