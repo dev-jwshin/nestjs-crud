@@ -38,7 +38,6 @@ NestJS와 TypeORM을 기반으로 RESTful CRUD API를 자동으로 생성하는 
 - **소프트 삭제**: 데이터를 실제 삭제하지 않고 마킹
 - **복구**: 소프트 삭제된 데이터 복구
 - **Upsert**: 존재하면 업데이트, 없으면 생성
-- **작성자 추적**: 생성/수정/삭제 작성자 자동 기록
 - **생명주기 훅**: CRUD 작업의 각 단계에서 커스텀 로직 실행
 
 ## 📦 설치
@@ -610,45 +609,33 @@ GET /orders?filter[status_eq]=completed&
       // relations: ['department', 'posts', 'posts.comments'], // ⚠️ Deprecated
       softDelete: true,
     },
-    create: {
-      author: {
-        property: 'createdBy',
-        filter: 'user.id',
-      },
-      hooks: {
-        assignBefore: async (body, context) => {
-          // 이메일 정규화
-          if (body.email) {
-            body.email = body.email.toLowerCase().trim();
-          }
-          return body;
-        },
-        saveAfter: async (entity, context) => {
-          // 사용자 생성 이벤트 발송
-          await eventBus.publish('user.created', entity);
-          return entity;
+          create: {
+        hooks: {
+          assignBefore: async (body, context) => {
+            // 이메일 정규화
+            if (body.email) {
+              body.email = body.email.toLowerCase().trim();
+            }
+            return body;
+          },
+          saveAfter: async (entity, context) => {
+            // 사용자 생성 이벤트 발송
+            await eventBus.publish('user.created', entity);
+            return entity;
+          },
         },
       },
-    },
-    update: {
-      author: {
-        property: 'updatedBy', 
-        filter: 'user.id',
-      },
-      hooks: {
-        assignBefore: async (body, context) => {
-          body.updatedAt = new Date();
-          return body;
+          update: {
+        hooks: {
+          assignBefore: async (body, context) => {
+            body.updatedAt = new Date();
+            return body;
+          },
         },
       },
-    },
-    destroy: {
-      softDelete: true,
-      author: {
-        property: 'deletedBy',
-        filter: 'user.id',
+          destroy: {
+        softDelete: true,
       },
-    },
   },
 })
 export class UserController {
@@ -751,10 +738,10 @@ export class UserController {
     create: {
       hooks: {
         assignBefore: async (body, context) => {
-          // 작성자 정보 자동 설정
+          // 사용자 ID 자동 설정
           const userId = context.request?.user?.id;
           if (userId) {
-            body.authorId = userId;
+            body.userId = userId;
           }
           
           // 슬러그 자동 생성
@@ -1200,23 +1187,23 @@ export class Post {
     },
     create: {
       hooks: {
-        assignBefore: async (body, context) => {
-          // 작성자 정보 자동 설정
-          if (context.request?.user?.id) {
-            body.authorId = context.request.user.id;
-          }
-          
-          // 슬러그 생성
-          if (body.title && !body.slug) {
-            body.slug = body.title
-              .toLowerCase()
-              .replace(/[^a-z0-9]/g, '-')
-              .replace(/-+/g, '-')
-              .replace(/^-|-$/g, '');
-          }
-          
-          return body;
-        },
+                 assignBefore: async (body, context) => {
+           // 사용자 ID 자동 설정 (인증된 사용자)
+           if (context.request?.user?.id) {
+             body.userId = context.request.user.id;
+           }
+           
+           // 슬러그 생성
+           if (body.title && !body.slug) {
+             body.slug = body.title
+               .toLowerCase()
+               .replace(/[^a-z0-9]/g, '-')
+               .replace(/-+/g, '-')
+               .replace(/^-|-$/g, '');
+           }
+           
+           return body;
+         },
         
         saveBefore: async (entity, context) => {
           // 슬러그 중복 검사
@@ -1233,7 +1220,7 @@ export class Post {
           
           // 발행된 게시물 알림
           if (entity.status === 'published') {
-            await notificationService.notifyFollowers(entity.authorId, entity);
+            await notificationService.notifyFollowers(entity.userId, entity);
           }
           
           return entity;
@@ -1256,7 +1243,7 @@ export class Post {
         saveBefore: async (entity, context) => {
           // 작성자 권한 확인
           const userId = context.request?.user?.id;
-          if (entity.authorId !== userId) {
+          if (entity.userId !== userId) {
             const userRole = context.request?.user?.role;
             if (userRole !== 'admin' && userRole !== 'editor') {
               throw new Error('수정 권한이 없습니다');
