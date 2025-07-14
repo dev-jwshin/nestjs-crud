@@ -5,7 +5,6 @@ import { ReadOneRequestInterceptor, CreateRequestInterceptor } from './intercept
 import { DeleteRequestInterceptor } from './interceptor/delete-request.interceptor';
 import { ReadManyRequestInterceptor } from './interceptor/read-many-request.interceptor';
 import { RecoverRequestInterceptor } from './interceptor/recover-request.interceptor';
-
 import { UpdateRequestInterceptor } from './interceptor/update-request.interceptor';
 import { UpsertRequestInterceptor } from './interceptor/upsert-request.interceptor';
 import { Method, Sort, PaginationType } from './interface';

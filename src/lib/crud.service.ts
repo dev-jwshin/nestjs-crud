@@ -9,7 +9,7 @@ import type {
     CrudUpdateOneRequest,
     CrudUpsertRequest,
     CrudRecoverRequest,
-    PaginationResponse,
+    PaginationResponse as _PaginationResponse,
     CrudCreateOneRequest,
     CrudCreateManyRequest,
     EntityType,
@@ -108,7 +108,7 @@ export class CrudService<T extends EntityType> {
                 }
                 return createCrudResponse(entity, 'show', {
                     includedRelations: crudReadOneRequest.relations,
-                    excludedFields: crudReadOneRequest.excludedColumns ? Array.from(crudReadOneRequest.excludedColumns) : undefined,
+                    excludedFields: crudReadOneRequest.excludedColumns ? [...crudReadOneRequest.excludedColumns] : undefined,
                 });
             });
     };
@@ -167,7 +167,7 @@ export class CrudService<T extends EntityType> {
                     ? result.map((entity) => this.excludeEntity(entity, crudCreateRequest.exclude))
                     : this.excludeEntity(result[0], crudCreateRequest.exclude);
 
-                const excludedFields = crudCreateRequest.exclude.size > 0 ? Array.from(crudCreateRequest.exclude) : undefined;
+                const excludedFields = crudCreateRequest.exclude.size > 0 ? [...crudCreateRequest.exclude] : undefined;
 
                 return isMany
                     ? createCrudArrayResponse(processedResult as T[], 'create', { excludedFields })
@@ -188,7 +188,7 @@ export class CrudService<T extends EntityType> {
             const context: HookContext<T> = {
                 operation: 'upsert' as Method,
                 params: crudUpsertRequest.params,
-                currentEntity: entity || undefined,
+                currentEntity: entity ?? undefined,
             };
 
             // assignBefore 훅 실행
@@ -212,7 +212,7 @@ export class CrudService<T extends EntityType> {
                     savedEntity = await this.executeSaveAfterHook(crudUpsertRequest.hooks, savedEntity, context);
 
                     const processedEntity = this.excludeEntity(savedEntity, crudUpsertRequest.exclude);
-                    const excludedFields = crudUpsertRequest.exclude.size > 0 ? Array.from(crudUpsertRequest.exclude) : undefined;
+                    const excludedFields = crudUpsertRequest.exclude.size > 0 ? [...crudUpsertRequest.exclude] : undefined;
 
                     return createCrudResponse(processedEntity, 'upsert', {
                         isNew,
@@ -256,7 +256,7 @@ export class CrudService<T extends EntityType> {
                     updatedEntity = await this.executeSaveAfterHook(crudUpdateOneRequest.hooks, updatedEntity, context);
 
                     const processedEntity = this.excludeEntity(updatedEntity, crudUpdateOneRequest.exclude);
-                    const excludedFields = crudUpdateOneRequest.exclude.size > 0 ? Array.from(crudUpdateOneRequest.exclude) : undefined;
+                    const excludedFields = crudUpdateOneRequest.exclude.size > 0 ? [...crudUpdateOneRequest.exclude] : undefined;
 
                     return createCrudResponse(processedEntity, 'update', { excludedFields });
                 })
@@ -280,7 +280,7 @@ export class CrudService<T extends EntityType> {
                 : this.repository.remove(entity, crudDeleteOneRequest.saveOptions));
 
             const processedEntity = this.excludeEntity(entity, crudDeleteOneRequest.exclude);
-            const excludedFields = crudDeleteOneRequest.exclude.size > 0 ? Array.from(crudDeleteOneRequest.exclude) : undefined;
+            const excludedFields = crudDeleteOneRequest.exclude.size > 0 ? [...crudDeleteOneRequest.exclude] : undefined;
 
             return createCrudResponse(processedEntity, 'destroy', {
                 excludedFields,
@@ -299,7 +299,7 @@ export class CrudService<T extends EntityType> {
             await this.repository.recover(entity, crudRecoverRequest.saveOptions).catch(this.throwConflictException);
 
             const processedEntity = this.excludeEntity(entity, crudRecoverRequest.exclude);
-            const excludedFields = crudRecoverRequest.exclude.size > 0 ? Array.from(crudRecoverRequest.exclude) : undefined;
+            const excludedFields = crudRecoverRequest.exclude.size > 0 ? [...crudRecoverRequest.exclude] : undefined;
 
             return createCrudResponse(processedEntity, 'recover', {
                 excludedFields,

@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-types, @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any */
-import { HttpStatus, UnprocessableEntityException } from '@nestjs/common';
+import { HttpStatus as _HttpStatus, UnprocessableEntityException } from '@nestjs/common';
 import {
     CUSTOM_ROUTE_ARGS_METADATA,
-    HTTP_CODE_METADATA,
+    HTTP_CODE_METADATA as _HTTP_CODE_METADATA,
     INTERCEPTORS_METADATA,
     METHOD_METADATA,
     PARAMTYPES_METADATA,
@@ -16,7 +16,6 @@ import { MetadataUtils } from 'typeorm/metadata-builder/MetadataUtils';
 import { capitalizeFirstLetter } from './capitalize-first-letter';
 import { CRUD_ROUTE_ARGS } from './constants';
 import { CRUD_POLICY } from './crud.policy';
-
 import { CreateRequestDto, getPropertyNamesFromMetadata } from './dto/request.dto';
 import { Method, PaginationType, PAGINATION_SWAGGER_QUERY } from './interface';
 import { CrudLogger } from './provider/crud-logger';

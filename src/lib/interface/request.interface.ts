@@ -1,5 +1,4 @@
 import type { SaveOptions, LifecycleHooks } from '.';
-
 import type { DeepPartial } from 'typeorm';
 
 export type CrudRequestId<T> = keyof T | Array<keyof T>;

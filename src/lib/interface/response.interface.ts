@@ -97,7 +97,7 @@ export function createPaginatedResponse<T>(
 
 // Convert existing PaginationResponse to CrudArrayResponse
 export function convertPaginationToCrudResponse<T>(
-  paginationResponse: any // PaginationResponse<T> but avoiding circular dependency
+  paginationResponse: { data: T[]; metadata: any } // PaginationResponse<T> but avoiding circular dependency
 ): CrudArrayResponse<T> {
   const { data, metadata } = paginationResponse;
 

@@ -6,12 +6,12 @@ import _ from 'lodash';
 import { CreateParamsDto } from '../dto/params.dto';
 import { GROUP } from '../interface';
 
-import type { Column, CrudOptions, EntityType, Method } from '../interface';
+import type { Column, CrudOptions as _CrudOptions, EntityType, Method as _Method } from '../interface';
 import type { CrudLogger } from '../provider/crud-logger';
-import type { Request } from 'express';
+import type { Request as _Request } from 'express';
 
 export abstract class RequestAbstractInterceptor {
-    constructor(public readonly crudLogger: CrudLogger) { }
+    constructor(public readonly crudLogger: CrudLogger) {}
 
     async checkParams(
         entity: EntityType,
