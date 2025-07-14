@@ -164,6 +164,53 @@ export class UserModule {}
 
 모든 CRUD 작업은 메타데이터를 포함한 일관된 응답 구조를 제공합니다:
 
+#### GET /users (index) - 페이지네이션 응답
+```json
+{
+  "data": [
+    { "id": 1, "name": "홍길동", "email": "hong@example.com" },
+    { "id": 2, "name": "김철수", "email": "kim@example.com" },
+    { "id": 3, "name": "박영희", "email": "park@example.com" }
+  ],
+  "metadata": {
+    "operation": "index",
+    "timestamp": "2024-01-15T11:00:00.000Z",
+    "affectedCount": 3,
+    "includedRelations": ["department", "posts"],
+    "pagination": {
+      "type": "offset",
+      "total": 150,
+      "page": 1,
+      "pages": 15,
+      "offset": 10,
+      "nextCursor": "eyJpZCI6M30="
+    }
+  }
+}
+```
+
+#### GET /users (cursor pagination)
+```json
+{
+  "data": [
+    { "id": 4, "name": "이민수", "email": "lee@example.com" },
+    { "id": 5, "name": "최유진", "email": "choi@example.com" }
+  ],
+  "metadata": {
+    "operation": "index",
+    "timestamp": "2024-01-15T11:00:00.000Z",
+    "affectedCount": 2,
+    "pagination": {
+      "type": "cursor",
+      "total": 150,
+      "limit": 2,
+      "totalPages": 75,
+      "nextCursor": "eyJpZCI6NX0="
+    }
+  }
+}
+```
+
 #### GET /users/:id (show)
 ```json
 {
@@ -281,53 +328,6 @@ export class UserModule {}
     "operation": "create",
     "timestamp": "2024-01-15T10:30:00.000Z",
     "affectedCount": 2
-  }
-}
-```
-
-#### GET /users (index) - 페이지네이션 응답
-```json
-{
-  "data": [
-    { "id": 1, "name": "홍길동", "email": "hong@example.com" },
-    { "id": 2, "name": "김철수", "email": "kim@example.com" },
-    { "id": 3, "name": "박영희", "email": "park@example.com" }
-  ],
-  "metadata": {
-    "operation": "index",
-    "timestamp": "2024-01-15T11:00:00.000Z",
-    "affectedCount": 3,
-    "includedRelations": ["department", "posts"],
-    "pagination": {
-      "type": "offset",
-      "total": 150,
-      "page": 1,
-      "pages": 15,
-      "offset": 10,
-      "nextCursor": "eyJpZCI6M30="
-    }
-  }
-}
-```
-
-#### GET /users (cursor pagination)
-```json
-{
-  "data": [
-    { "id": 4, "name": "이민수", "email": "lee@example.com" },
-    { "id": 5, "name": "최유진", "email": "choi@example.com" }
-  ],
-  "metadata": {
-    "operation": "index",
-    "timestamp": "2024-01-15T11:00:00.000Z",
-    "affectedCount": 2,
-    "pagination": {
-      "type": "cursor",
-      "total": 150,
-      "limit": 2,
-      "totalPages": 75,
-      "nextCursor": "eyJpZCI6NX0="
-    }
   }
 }
 ```
