@@ -1,0 +1,63 @@
+# https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
+
+name: Node.js CI
+
+on:
+    push:
+        branches: ['main']
+    pull_request:
+        branches: ['main']
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+
+        strategy:
+            matrix:
+                node-version: [20.x, 22.x]
+        steps:
+            - uses: actions/checkout@v3
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v3
+              with:
+                  node-version: ${{ matrix.node-version }}
+                  #  https://stackoverflow.com/questions/61010294/how-to-cache-yarn-packages-in-github-actions
+                  cache: 'yarn'
+            - name: Install docker-compose
+              run: |
+                  curl -L "https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-$(uname -s | tr '[A-Z]' '[a-z]')-$(uname -m)" -o /usr/local/bin/docker-compose
+                  chmod +x /usr/local/bin/docker-compose
+            # https://github.com/kiranojhanp/fullstack-typescript-turborepo-starter/blob/main/.github/workflows/api.yaml
+            - name: Get yarn cache directory path
+              id: yarn-cache-dir-path
+              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+            
+            - name: Cache node modules
+              uses: actions/cache@v4
+              env:
+                  cache-name: cache-node-modules
+              id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+              with:
+                  path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
+            - name: Install Dependencies
+              run: yarn install --frozen-lockfile --prefer-offline
+            - name: Format Check
+              run: yarn format-check
+
+            - name: Lint
+              run: yarn lint
+
+            - name: Type Check
+              run: yarn type-check
+
+            - name: Test
+              run: yarn test:ci
+
+            - name: Coveralls
+              uses: coverallsapp/github-action@v2
+#  https://github.com/actions/typescript-action/blob/main/.github/workflows/codeql-analysis.yml
+
+#  https://github.com/actions/typescript-action/blob/main/.github/workflows/test.yml

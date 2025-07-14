@@ -1,0 +1,52 @@
+version: '3.7'
+
+services:
+    mysql:
+        image: mysql:latest
+        restart: always
+        environment:
+            MYSQL_DATABASE: $MYSQL_DATABASE_NAME
+            MYSQL_ROOT_PASSWORD: $MYSQL_DATABASE_PASSWORD
+        command:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+        ports:
+            - '3306:3306'
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_DATABASE_PASSWORD"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+
+    postgresql:
+        image: postgres:latest
+        restart: always
+        environment:
+            POSTGRES_DB: $POSTGRESQL_DATABASE_NAME
+            POSTGRES_USER: $POSTGRESQL_DATABASE_USERNAME
+            POSTGRES_PASSWORD: $POSTGRESQL_DATABASE_PASSWORD
+        ports:
+            - '5432:5432'
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U $POSTGRESQL_DATABASE_USERNAME -d $POSTGRESQL_DATABASE_NAME"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+
+    postgresql-slave:
+        image: postgres:latest
+        restart: always
+        environment:
+            POSTGRES_DB: $POSTGRESQL_DATABASE_NAME
+            POSTGRES_USER: $POSTGRESQL_DATABASE_USERNAME
+            POSTGRES_PASSWORD: $POSTGRESQL_DATABASE_PASSWORD
+        ports:
+            - '$POSTGRESQL_SLAVE_PORT:5432'
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U $POSTGRESQL_DATABASE_USERNAME -d $POSTGRESQL_DATABASE_NAME"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
