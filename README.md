@@ -1481,56 +1481,12 @@ GET /posts?filter[status_eq]=published&sort=-created_at&page[number]=1&page[size
 3. **페이지네이션 활용**: 대용량 데이터 처리 시 필수
 4. **캐싱 전략**: Redis 등을 활용한 응답 캐싱
 
-### 개발 가이드라인
-
-1. **단계적 적용**:
-   ```typescript
-   // 1단계: 기본 기능 구현
-   @Crud({ entity: User })
-   
-   // 2단계: 보안 정책 추가
-   @Crud({ 
-     entity: User,
-     allowedFilters: ['name', 'email'],
-     allowedParams: ['name', 'email', 'bio'],
-     allowedIncludes: ['department']
-   })
-   ```
-
-2. **테스트 전략**:
-   - 허용된 필터/파라미터/관계가 정상 작동하는지 확인
-   - 허용되지 않은 요청이 적절히 무시되는지 테스트
-   - 보안 정책 우선순위 테스트 (메서드별 > 전역 > 차단)
-
-3. **문서화**: 
-   - API 문서에 허용된 필터/관계 목록 명시
-   - 클라이언트 개발자에게 사용 가능한 옵션 가이드 제공
-
 ## 📚 추가 자료
 
 ### 관련 문서
 - [NestJS 공식 문서](https://nestjs.com/)
 - [TypeORM 공식 문서](https://typeorm.io/)
 - [class-validator 문서](https://github.com/typestack/class-validator)
-
-### 예제 프로젝트
-- [기본 CRUD 예제](./examples/basic-crud)
-- [관계가 있는 엔티티 예제](./examples/relations)
-- [인증이 포함된 예제](./examples/with-auth)
-
-## 🤝 기여하기
-
-버그 리포트, 기능 제안, 풀 리퀘스트를 환영합니다!
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 라이선스
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 [LICENSE](LICENSE.md) 파일을 참조하세요.
 
 ---
 
