@@ -30,6 +30,20 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
             if (Object.keys(req.params ?? {}).length > 0) {
                 Object.assign(req.body, req.params);
             }
+
+            // Filter body parameters based on allowedParams
+            const allowedParams = createOptions.allowedParams || crudOptions.allowedParams;
+            if (allowedParams && req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+                req.body = this.filterAllowedParams(req.body, allowedParams);
+            } else if (Array.isArray(req.body)) {
+                // Handle array of objects
+                req.body = req.body.map(item =>
+                    allowedParams && typeof item === 'object' && item !== null
+                        ? this.filterAllowedParams(item, allowedParams)
+                        : item
+                );
+            }
+
             const body = await this.validateBody(req.body);
 
             const crudCreateRequest: CrudCreateRequest<typeof crudOptions.entity> = {
@@ -44,6 +58,20 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
             this.crudLogger.logRequest(req, crudCreateRequest);
             (req as unknown as Record<string, unknown>)[CRUD_ROUTE_ARGS] = crudCreateRequest;
             return next.handle();
+        }
+
+        filterAllowedParams(body: any, allowedParams: string[]): any {
+            if (!body || typeof body !== 'object') {
+                return body;
+            }
+
+            const filtered: any = {};
+            for (const key of Object.keys(body)) {
+                if (allowedParams.includes(key)) {
+                    filtered[key] = body[key];
+                }
+            }
+            return filtered;
         }
 
         async validateBody(body: unknown): Promise<BaseEntityOrArray> {

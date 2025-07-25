@@ -43,6 +43,12 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 req.body[key] = value;
             }
 
+            // Filter body parameters based on allowedParams
+            const allowedParams = upsertOptions.allowedParams || crudOptions.allowedParams;
+            if (allowedParams && req.body && typeof req.body === 'object') {
+                req.body = this.filterAllowedParams(req.body, allowedParams);
+            }
+
             const body = await this.validateBody(req.body ?? {});
 
             const crudUpsertRequest: CrudUpsertRequest<typeof crudOptions.entity> = {
@@ -59,6 +65,20 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
             (req as unknown as Record<string, unknown>)[CRUD_ROUTE_ARGS] = crudUpsertRequest;
 
             return next.handle();
+        }
+
+        filterAllowedParams(body: any, allowedParams: string[]): any {
+            if (!body || typeof body !== 'object') {
+                return body;
+            }
+
+            const filtered: any = {};
+            for (const key of Object.keys(body)) {
+                if (allowedParams.includes(key)) {
+                    filtered[key] = body[key];
+                }
+            }
+            return filtered;
         }
 
         async validateBody(body: unknown) {

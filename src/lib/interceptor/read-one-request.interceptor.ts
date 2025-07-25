@@ -8,9 +8,11 @@ import { CRUD_ROUTE_ARGS, CUSTOM_REQUEST_OPTIONS } from '../constants';
 import { CRUD_POLICY } from '../crud.policy';
 import { RequestFieldsDto } from '../dto/request-fields.dto';
 import { Method } from '../interface';
+import { QueryParser } from '../provider';
 
 import type { CustomReadOneRequestOptions } from './custom-request.interceptor';
-import type { CrudOptions, FactoryOption, CrudReadOneRequest } from '../interface';
+import type { CrudOptions, FactoryOption, CrudReadOneRequest, QueryParserOptions } from '../interface';
+import type { IncludeOperation } from '../interface/query-parser.interface';
 import type { CallHandler, ExecutionContext, NestInterceptor, Type } from '@nestjs/common';
 import type { Request } from 'express';
 import type QueryString from 'qs';
@@ -35,13 +37,27 @@ export function ReadOneRequestInterceptor(crudOptions: CrudOptions, factoryOptio
                 ? customReadOneRequestOptions.softDeleted
                 : readOneOptions.softDelete ?? CRUD_POLICY[method].default.softDeleted;
 
+            // Parse include parameters with allowedIncludes filtering
+            // Priority: route-specific allowedIncludes > global CrudOptions allowedIncludes > undefined (block all includes)
+            const allowedIncludes = readOneOptions.allowedIncludes || crudOptions.allowedIncludes;
+
+            const queryParserOptions: QueryParserOptions = {
+                allowedIncludes,
+            };
+
+            const queryParser = new QueryParser(queryParserOptions);
+            const parsedQuery = queryParser.parse(req.query);
+
+            // Convert includes to string array for relations
+            const includeRelations = this.convertIncludes(parsedQuery.includes);
+
             const params = await this.checkParams(crudOptions.entity, req.params, factoryOption.columns);
             const crudReadOneRequest: CrudReadOneRequest<typeof crudOptions.entity> = {
                 params,
                 selectColumns: this.getFields(customReadOneRequestOptions?.fields, fieldsByRequest),
                 excludedColumns: readOneOptions.exclude,
                 softDeleted,
-                relations: this.getRelations(customReadOneRequestOptions),
+                relations: [...new Set([...includeRelations, ...this.getRelations(customReadOneRequestOptions)])],
             };
 
             this.crudLogger.logRequest(req, crudReadOneRequest);
@@ -77,6 +93,24 @@ export function ReadOneRequestInterceptor(crudOptions: CrudOptions, factoryOptio
             }
 
             return requestFields.fields;
+        }
+
+        convertIncludes(includes: IncludeOperation[]): string[] {
+            const relations: string[] = [];
+
+            for (const include of includes) {
+                if (include.nested && include.nested.length > 0) {
+                    // Handle nested includes recursively
+                    const nestedRelations = this.convertIncludes(include.nested);
+                    for (const nestedRelation of nestedRelations) {
+                        relations.push(`${include.relation}.${nestedRelation}`);
+                    }
+                } else {
+                    relations.push(include.relation);
+                }
+            }
+
+            return relations;
         }
 
         getRelations(customReadOneRequestOptions: CustomReadOneRequestOptions): string[] {

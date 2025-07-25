@@ -1,20 +1,17 @@
-import { mixin, UnprocessableEntityException } from '@nestjs/common';
-import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
+import { mixin } from '@nestjs/common';
 import _ from 'lodash';
 import { LessThan, MoreThan } from 'typeorm';
 
 import { RequestAbstractInterceptor } from '../abstract';
 import { CRUD_ROUTE_ARGS, CUSTOM_REQUEST_OPTIONS } from '../constants';
 import { CRUD_POLICY } from '../crud.policy';
-import { Method, Sort, GROUP, PaginationType } from '../interface';
+import { Method, Sort, PaginationType } from '../interface';
 import { PaginationHelper, QueryParser, QueryConverter } from '../provider';
 import { CrudReadManyRequest } from '../request';
 
 import type { CustomReadManyRequestOptions } from './custom-request.interceptor';
 import type { CrudOptions, FactoryOption, EntityType, QueryParserOptions } from '../interface';
 import type { CallHandler, ExecutionContext, NestInterceptor, Type } from '@nestjs/common';
-import type { ClassConstructor } from 'class-transformer';
 import type { Request } from 'express';
 import type { Observable } from 'rxjs';
 import type { FindOptionsWhere } from 'typeorm';
@@ -40,10 +37,15 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
             }
 
             // Create RESTful query parser with options
+            // Priority: route-specific allowedFilters > global CrudOptions allowedFilters > undefined (block all filters)
+            const allowedFilters = readManyOptions.allowedFilters || crudOptions.allowedFilters;
+            // Priority: route-specific allowedIncludes > global CrudOptions allowedIncludes > undefined (block all includes)
+            const allowedIncludes = readManyOptions.allowedIncludes || crudOptions.allowedIncludes;
+
             const queryParserOptions: QueryParserOptions = {
-                allowedFilters: factoryOption.columns?.map((col) => col.name),
+                allowedFilters,
                 allowedSorts: factoryOption.columns?.map((col) => col.name),
-                allowedIncludes: factoryOption.relations,
+                allowedIncludes,
                 maxPageSize: 100,
                 defaultPageSize: readManyOptions.numberOfTake ?? CRUD_POLICY[method].default.numberOfTake,
             };
@@ -57,10 +59,9 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
             // Convert to TypeORM FindOptions
             const findOptions = queryConverter.convertToFindOptions(parsedQuery);
 
-            // Merge with existing legacy query handling for backward compatibility
-            const legacyQuery = await (async () => {
+            // Handle cursor pagination
+            const legacyQuery = (() => {
                 if (parsedQuery.page?.type === 'cursor') {
-                    // For cursor pagination, use existing logic
                     const pagination = PaginationHelper.getPaginationRequest(paginationType, requestQuery);
                     if (PaginationHelper.isNextPage(pagination)) {
                         const isQueryValid = pagination.setQuery(pagination.query);
@@ -68,11 +69,10 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
                             return {};
                         }
                     }
-                    const query = await this.validateQuery(requestQuery);
-                    pagination.setWhere(PaginationHelper.serialize(query));
-                    return query;
+                    pagination.setWhere(PaginationHelper.serialize({}));
+                    return {};
                 }
-                return await this.validateQuery(requestQuery);
+                return {};
             })();
 
             // Handle pagination - prefer new page params over legacy
@@ -125,38 +125,7 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
             return next.handle();
         }
 
-        async validateQuery(query: Record<string, unknown>) {
-            if (_.isNil(query)) {
-                return {};
-            }
 
-            if ('limit' in query) {
-                delete query.limit;
-            }
-            if ('offset' in query) {
-                delete query.offset;
-            }
-            if ('nextCursor' in query) {
-                delete query.nextCursor;
-            }
-
-            const transformed = plainToInstance(crudOptions.entity as ClassConstructor<EntityType>, query, {
-                groups: [GROUP.SHOW],
-            });
-            const errorList = await validate(transformed, {
-                groups: [GROUP.SHOW],
-                whitelist: true,
-                forbidNonWhitelisted: false,
-                stopAtFirstError: true,
-                forbidUnknownValues: false,
-            });
-
-            if (errorList.length > 0) {
-                this.crudLogger.log(errorList, 'ValidationError');
-                throw new UnprocessableEntityException(errorList);
-            }
-            return transformed;
-        }
 
         getRelations(customReadManyRequestOptions: CustomReadManyRequestOptions): string[] {
             if (Array.isArray(customReadManyRequestOptions?.relations)) {

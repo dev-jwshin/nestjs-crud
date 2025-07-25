@@ -64,6 +64,28 @@ export interface CrudOptions {
     logging?: boolean;
 
     /**
+     * Array of column names that are allowed to be filtered.
+     * If not specified, no columns can be filtered (all filters are blocked).
+     * @example ['name', 'email', 'age']
+     */
+    allowedFilters?: string[];
+
+    /**
+     * Array of column names that are allowed in request parameters.
+     * If not specified, no columns can be used in request parameters (all params are blocked).
+     * Only applies to CREATE, UPDATE, and UPSERT operations.
+     * @example ['name', 'email', 'age']
+     */
+    allowedParams?: string[];
+
+    /**
+     * Array of relation names that are allowed to be included via include query parameter.
+     * If not specified, no relations can be included (all includes are blocked).
+     * @example ['department', 'posts', 'posts.comments']
+     */
+    allowedIncludes?: string[];
+
+    /**
      * Configures each CRUD method
      */
     routes?: {
@@ -84,10 +106,24 @@ export interface CrudOptions {
              */
             softDelete?: boolean;
             /**
-             * @deprecated 이 옵션은 더 이상 사용되지 않습니다. include 쿼리 파라미터를 사용하세요.
+             * @deprecated 이 옵션은 더 이상 사용되지 않습니다. allowedIncludes를 사용하세요.
              * @default false
              */
             relations?: false | string[];
+            /**
+             * Array of column names that are allowed to be filtered.
+             * If not specified, uses the global allowedFilters from CrudOptions.
+             * If both are not specified, no columns can be filtered.
+             * @example ['name', 'email', 'age']
+             */
+            allowedFilters?: string[];
+            /**
+             * Array of relation names that are allowed to be included via include query parameter.
+             * If not specified, uses the global allowedIncludes from CrudOptions.
+             * If both are not specified, no relations can be included.
+             * @example ['department', 'posts', 'posts.comments']
+             */
+            allowedIncludes?: string[];
         } & RouteBaseOption;
         [Method.INDEX]?: {
             /**
@@ -106,7 +142,7 @@ export interface CrudOptions {
              */
             numberOfTake?: number;
             /**
-             * @deprecated 이 옵션은 더 이상 사용되지 않습니다. include 쿼리 파라미터를 사용하세요.
+             * @deprecated 이 옵션은 더 이상 사용되지 않습니다. allowedIncludes를 사용하세요.
              * What relations of entity should be loaded.
              * If set to false or an empty array, no relations will be loaded.
              * @default false
@@ -122,6 +158,20 @@ export interface CrudOptions {
              * If not set, the keys will be taken from the entity's primary keys.
              */
             paginationKeys?: string[];
+            /**
+             * Array of column names that are allowed to be filtered.
+             * If not specified, uses the global allowedFilters from CrudOptions.
+             * If both are not specified, no columns can be filtered.
+             * @example ['name', 'email', 'age']
+             */
+            allowedFilters?: string[];
+            /**
+             * Array of relation names that are allowed to be included via include query parameter.
+             * If not specified, uses the global allowedIncludes from CrudOptions.
+             * If both are not specified, no relations can be included.
+             * @example ['department', 'posts', 'posts.comments']
+             */
+            allowedIncludes?: string[];
         } & Omit<RouteBaseOption, 'response'>;
 
         [Method.CREATE]?: {
@@ -136,6 +186,14 @@ export interface CrudOptions {
              * 생명주기 훅 함수들을 설정합니다.
              */
             hooks?: LifecycleHooks;
+
+            /**
+             * Array of column names that are allowed in request parameters.
+             * If not specified, uses the global allowedParams from CrudOptions.
+             * If both are not specified, no columns can be used in request parameters.
+             * @example ['name', 'email', 'age']
+             */
+            allowedParams?: string[];
         } & RouteBaseOption &
         SaveOptions;
         [Method.UPDATE]?: {
@@ -159,6 +217,13 @@ export interface CrudOptions {
              * 생명주기 훅 함수들을 설정합니다.
              */
             hooks?: LifecycleHooks;
+            /**
+             * Array of column names that are allowed in request parameters.
+             * If not specified, uses the global allowedParams from CrudOptions.
+             * If both are not specified, no columns can be used in request parameters.
+             * @example ['name', 'email', 'age']
+             */
+            allowedParams?: string[];
         } & RouteBaseOption &
         SaveOptions;
         [Method.DESTROY]?: {
@@ -200,6 +265,13 @@ export interface CrudOptions {
              * 생명주기 훅 함수들을 설정합니다.
              */
             hooks?: LifecycleHooks;
+            /**
+             * Array of column names that are allowed in request parameters.
+             * If not specified, uses the global allowedParams from CrudOptions.
+             * If both are not specified, no columns can be used in request parameters.
+             * @example ['name', 'email', 'age']
+             */
+            allowedParams?: string[];
         } & RouteBaseOption &
         SaveOptions;
         [Method.RECOVER]?: {

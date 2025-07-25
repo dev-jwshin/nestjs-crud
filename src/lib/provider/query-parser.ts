@@ -10,7 +10,7 @@ import type {
 } from '../interface/query-parser.interface';
 
 export class QueryParser {
-    constructor(private readonly options: QueryParserOptions = {}) {}
+    constructor(private readonly options: QueryParserOptions = {}) { }
 
     parse(query: Record<string, unknown>): ParsedQuery {
         return {
@@ -61,7 +61,7 @@ export class QueryParser {
 
     private createFilterOperation(field: string, operator: FilterOperator, value: unknown): FilterOperation | null {
         // Check if field is allowed
-        if (this.options.allowedFilters && !this.options.allowedFilters.includes(field)) {
+        if (!this.options.allowedFilters || !this.options.allowedFilters.includes(field)) {
             return null;
         }
 
@@ -189,7 +189,7 @@ export class QueryParser {
             if (!includeField) continue;
 
             // Check if include is allowed
-            if (this.options.allowedIncludes && !this.options.allowedIncludes.includes(includeField)) {
+            if (!this.options.allowedIncludes || !this.options.allowedIncludes.includes(includeField)) {
                 continue;
             }
 
