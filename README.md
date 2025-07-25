@@ -13,6 +13,7 @@ NestJS와 TypeORM을 기반으로 RESTful CRUD API를 자동으로 생성하는 
 - [기본 CRUD 작업](#기본-crud-작업)
 - [RESTful 쿼리 파라미터](#restful-쿼리-파라미터)
 - [고급 설정](#고급-설정)
+  - [보안 제어 설정](#보안-제어-설정)
   - [생명주기 훅](#생명주기-훅-lifecycle-hooks)
 - [API 문서](#api-문서)
 - [예제](#예제)
@@ -39,6 +40,12 @@ NestJS와 TypeORM을 기반으로 RESTful CRUD API를 자동으로 생성하는 
 - **복구**: 소프트 삭제된 데이터 복구
 - **Upsert**: 존재하면 업데이트, 없으면 생성
 - **생명주기 훅**: CRUD 작업의 각 단계에서 커스텀 로직 실행
+
+### 🔒 보안 및 제어 기능
+- **필터링 제한**: allowedFilters로 허용된 컬럼만 필터링 가능
+- **파라미터 제한**: allowedParams로 허용된 컬럼만 요청 파라미터로 사용 가능
+- **관계 포함 제한**: allowedIncludes로 허용된 관계만 include 가능
+- **기본 차단 정책**: 미설정 시 모든 필터링/파라미터/관계 포함 차단
 
 ## 📦 설치
 
@@ -440,10 +447,13 @@ GET /users?sort=department.name,name
 
 ### 🔗 관계 포함 (Including Relations)
 
-**⚠️ 중요한 변경사항**: `routes.relations` 옵션은 deprecated되었습니다. 이제 `include` 쿼리 파라미터만 사용됩니다.
+**⚠️ 중요한 변경사항**: 
+- `routes.relations` 옵션은 deprecated되었습니다. 
+- 이제 `allowedIncludes` 설정과 `include` 쿼리 파라미터를 함께 사용합니다.
+- **보안 강화**: allowedIncludes를 설정하지 않으면 모든 관계 포함이 차단됩니다.
 
 ```bash
-# 단일 관계
+# 단일 관계 (allowedIncludes에 허용된 관계만)
 GET /users?include=department
 GET /posts?include=author
 
@@ -460,7 +470,7 @@ GET /orders?include=customer.address,items.product.category
 #### 변경 전후 비교
 
 ```typescript
-// ❌ 이전 방식 (더 이상 작동하지 않음)
+// ❌ 이전 방식 (deprecated)
 @Crud({
   entity: User,
   routes: {
@@ -470,12 +480,13 @@ GET /orders?include=customer.address,items.product.category
   }
 })
 
-// ✅ 새로운 방식
+// ✅ 새로운 방식 (보안 강화)
 @Crud({
   entity: User,
+  allowedIncludes: ['department', 'posts'], // 허용된 관계 명시
   routes: {
     index: {
-      // relations 옵션 제거됨
+      allowedIncludes: ['department', 'posts', 'posts.comments'], // 메서드별 추가 허용
     }
   }
 })
@@ -484,12 +495,43 @@ GET /orders?include=customer.address,items.product.category
 GET /users?include=department,posts
 ```
 
+#### 보안 정책
+
+```typescript
+// 1. allowedIncludes 미설정 → 모든 관계 차단
+@Crud({
+  entity: User,
+  // allowedIncludes 없음 → 모든 include 무시됨
+})
+
+// 2. 전역 설정
+@Crud({
+  entity: User,
+  allowedIncludes: ['department'], // department만 허용
+})
+
+// 3. 메서드별 설정 (우선순위 높음)
+@Crud({
+  entity: User,
+  allowedIncludes: ['department'], // 전역: department만
+  routes: {
+    index: {
+      allowedIncludes: ['department', 'posts'], // INDEX는 posts도 추가 허용
+    },
+    show: {
+      // allowedIncludes 없음 → 전역 설정 사용: department만
+    },
+  },
+})
+```
+
 #### 장점
 
-1. **명시적 요청**: 필요한 관계만 선택적으로 로드
-2. **성능 최적화**: 불필요한 관계 로딩 방지
-3. **N+1 문제 방지**: 필요한 관계만 JOIN으로 처리
-4. **캐시 효율성**: 관계별로 다른 캐시 전략 적용 가능
+1. **보안 강화**: 명시적으로 허용된 관계만 포함 가능
+2. **명시적 요청**: 필요한 관계만 선택적으로 로드
+3. **성능 최적화**: 불필요한 관계 로딩 방지
+4. **N+1 문제 방지**: 필요한 관계만 JOIN으로 처리
+5. **세밀한 제어**: 메서드별로 다른 관계 포함 정책 적용
 
 ### 📄 페이지네이션 (Pagination)
 
@@ -590,6 +632,116 @@ GET /orders?filter[status_eq]=completed&
 
 ## ⚙️ 고급 설정
 
+### 🔒 보안 제어 설정
+
+#### 필터링 제한 - allowedFilters
+
+```typescript
+@Controller('users')
+@Crud({
+  entity: User,
+  allowedFilters: ['name', 'email', 'status'], // 전역: 이 컬럼들만 필터링 허용
+  routes: {
+    index: {
+      allowedFilters: ['name', 'email', 'status', 'createdAt'], // INDEX는 더 많은 컬럼 허용
+    },
+    show: {
+      allowedFilters: ['name'], // SHOW는 name만 허용
+    },
+  },
+})
+export class UserController {
+  constructor(public readonly crudService: UserService) {}
+}
+```
+
+**동작 예시:**
+```bash
+# ✅ 허용된 컬럼 - 정상 작동
+GET /users?filter[name_like]=%김%
+GET /users?filter[email_eq]=test@example.com
+
+# ❌ 허용되지 않은 컬럼 - 필터 무시됨
+GET /users?filter[password_eq]=secret  # password가 allowedFilters에 없으면 무시
+```
+
+#### 파라미터 제한 - allowedParams
+
+```typescript
+@Controller('users')  
+@Crud({
+  entity: User,
+  allowedParams: ['name', 'email'], // 전역: 이 컬럼들만 요청 파라미터로 허용
+  routes: {
+    create: {
+      allowedParams: ['name', 'email', 'status'], // CREATE는 status 추가 허용
+    },
+    update: {
+      allowedParams: ['name'], // UPDATE는 name만 허용
+    },
+    upsert: {
+      // allowedParams 없음 -> 전역 설정 사용: name, email만
+    },
+  },
+})
+export class UserController {
+  constructor(public readonly crudService: UserService) {}
+}
+```
+
+**동작 예시:**
+```typescript
+// 설정: allowedParams: ['name', 'email']
+
+// ✅ 허용된 파라미터만 처리됨
+POST /users
+{
+  "name": "홍길동",        // ✅ 처리됨
+  "email": "hong@test.com", // ✅ 처리됨
+  "password": "secret",     // ❌ 제거됨 (allowedParams에 없음)
+  "internal_id": 123        // ❌ 제거됨 (allowedParams에 없음)
+}
+
+// 실제 처리되는 데이터:
+{
+  "name": "홍길동",
+  "email": "hong@test.com"
+}
+```
+
+#### 관계 포함 제한 - allowedIncludes
+
+```typescript
+@Controller('posts')
+@Crud({
+  entity: Post,
+  allowedIncludes: ['author'], // 전역: author 관계만 포함 허용
+  routes: {
+    index: {
+      allowedIncludes: ['author', 'comments', 'tags'], // INDEX는 더 많은 관계 허용
+    },
+    show: {
+      allowedIncludes: ['author', 'comments.author'], // SHOW는 중첩 관계까지 허용
+    },
+  },
+})
+export class PostController {
+  constructor(public readonly crudService: PostService) {}
+}
+```
+
+**동작 예시:**
+```bash
+# ✅ 허용된 관계만 포함됨
+GET /posts?include=author           # ✅ 포함됨
+GET /posts?include=comments         # ✅ 포함됨 (INDEX에서)
+GET /posts?include=author,comments  # ✅ 둘 다 포함됨
+
+# ❌ 허용되지 않은 관계는 무시됨
+GET /posts?include=author,likes,comments  # ✅ author,comments만 포함됨 (likes 무시)
+GET /posts?include=profile               # ❌ 모든 관계 무시됨 (profile 허용안됨)
+```
+
 ### 🎛️ CRUD 옵션 설정
 
 ```typescript
@@ -597,17 +749,22 @@ GET /orders?filter[status_eq]=completed&
 @Crud({
   entity: User,
   only: ['index', 'show', 'create', 'update'], // 특정 메서드만 활성화
+  allowedFilters: ['name', 'email', 'status'], // 허용된 필터 컬럼
+  allowedParams: ['name', 'email', 'bio'],     // 허용된 요청 파라미터
+  allowedIncludes: ['department', 'posts'],    // 허용된 관계 포함
   routes: {
     index: {
       paginationType: PaginationType.OFFSET,
       numberOfTake: 20,
       sort: Sort.DESC,
       softDelete: false,
-      // relations: ['department', 'posts'], // ⚠️ Deprecated: include 파라미터 사용 권장
+      allowedFilters: ['name', 'email', 'status', 'createdAt'], // 메서드별 필터 설정
+      allowedIncludes: ['department', 'posts', 'posts.comments'], // 메서드별 관계 설정
     },
     show: {
-      // relations: ['department', 'posts', 'posts.comments'], // ⚠️ Deprecated
       softDelete: true,
+      allowedFilters: ['name', 'email'], // SHOW는 제한적 필터링
+      allowedIncludes: ['department'], // SHOW는 기본 관계만
     },
           create: {
         hooks: {
@@ -1176,14 +1333,19 @@ export class Post {
 @Controller('posts')
 @Crud({
   entity: Post,
+  // 보안 제어 설정
+  allowedFilters: ['title', 'status', 'author.name'], // 허용된 필터 컬럼
+  allowedParams: ['title', 'content', 'status'], // 허용된 요청 파라미터
+  allowedIncludes: ['author'], // 전역: author 관계만 허용
   routes: {
     index: {
-      // relations: ['author', 'tags'], // ⚠️ Deprecated
       paginationType: PaginationType.OFFSET,
       numberOfTake: 10,
+      allowedFilters: ['title', 'status', 'author.name', 'createdAt'], // INDEX는 생성일 필터 추가
+      allowedIncludes: ['author', 'tags'], // INDEX는 태그도 포함 허용
     },
     show: {
-      // relations: ['author', 'comments', 'comments.author', 'tags'], // ⚠️ Deprecated
+      allowedIncludes: ['author', 'comments', 'comments.author', 'tags'], // SHOW는 댓글까지 허용
     },
     create: {
       hooks: {
@@ -1264,36 +1426,85 @@ export class PostController {
 
 ```bash
 # 공개된 게시물을 최신순으로 조회 (작성자, 태그 포함)
+# ✅ status, createdAt은 allowedFilters에 있고, author,tags는 allowedIncludes에 있음
 GET /posts?filter[status_eq]=published&sort=-created_at&include=author,tags&page[number]=1&page[size]=10
 
 # 특정 작성자의 게시물 검색 (작성자 정보 포함)
+# ✅ author.name은 allowedFilters에 있고, author는 allowedIncludes에 있음
 GET /posts?filter[author.name_like]=%김%&filter[status_ne]=draft&include=author&sort=-created_at
 
-# 특정 태그를 포함하는 게시물 (작성자, 태그 정보 포함)
-GET /posts?filter[tags.name_in]=javascript,typescript&include=author,tags&sort=-created_at
+# ❌ 허용되지 않은 필터는 무시됨
+GET /posts?filter[internal_id_gt]=100&filter[status_eq]=published  # internal_id 필터는 무시됨
 
-# 댓글과 댓글 작성자 정보를 포함한 게시물 조회
-GET /posts?include=author,comments,comments.author&sort=-created_at&page[limit]=20
+# ❌ 허용되지 않은 관계는 무시됨  
+GET /posts?include=author,categories,tags  # categories는 allowedIncludes에 없으므로 무시됨
 
-# 관계 없이 게시물만 조회 (기본값)
+# 댓글과 댓글 작성자 정보를 포함한 게시물 조회 (SHOW 엔드포인트에서만 가능)
+GET /posts/1?include=author,comments,comments.author&sort=-created_at
+
+# 관계 없이 게시물만 조회 (include 파라미터 없음)
 GET /posts?filter[status_eq]=published&sort=-created_at&page[number]=1&page[size]=10
 ```
+
+**보안 동작 설명:**
+- `allowedFilters: ['title', 'status', 'author.name', 'createdAt']` - 이 컬럼들만 필터링 가능
+- `allowedIncludes: ['author', 'tags', 'comments', 'comments.author']` - 이 관계들만 포함 가능
+- 허용되지 않은 필터나 관계는 자동으로 무시됨
 
 ## 🚨 주의사항
 
 ### 보안 고려사항
 
-1. **민감한 필드 제외**: 비밀번호 등 민감한 정보는 응답에서 제외
-2. **인증/권한 검사**: 적절한 Guard 사용
-3. **입력 검증**: class-validator로 철저한 검증
-4. **SQL 인젝션 방지**: TypeORM의 파라미터화된 쿼리 사용
+1. **보안 기본 정책**: 
+   - `allowedFilters`, `allowedParams`, `allowedIncludes` 미설정 시 모든 접근 차단
+   - 명시적으로 허용된 컬럼/관계만 사용 가능
+   - 프로덕션 환경에서는 반드시 허용 목록 설정 권장
+
+2. **민감한 필드 보호**: 
+   - 비밀번호, 내부 ID 등은 `allowedFilters`, `allowedParams`에서 제외
+   - 응답에서도 `exclude` 옵션으로 민감한 정보 제외
+
+3. **인증/권한 검사**: 적절한 Guard 사용
+4. **입력 검증**: class-validator로 철저한 검증
+5. **SQL 인젝션 방지**: TypeORM의 파라미터화된 쿼리 사용
 
 ### 성능 최적화
 
-1. **관계 로딩 제한**: 필요한 관계만 포함
-2. **페이지네이션 활용**: 대용량 데이터 처리 시 필수
-3. **인덱스 설정**: 자주 사용되는 필터 필드에 인덱스 추가
+1. **관계 로딩 제한**: 
+   - `allowedIncludes`로 필요한 관계만 허용
+   - 중첩 관계는 신중하게 허용 (N+1 문제 주의)
+
+2. **필터링 최적화**:
+   - 자주 사용되는 `allowedFilters` 필드에 데이터베이스 인덱스 추가
+   - 복잡한 조건의 필터는 성능 테스트 필수
+
+3. **페이지네이션 활용**: 대용량 데이터 처리 시 필수
 4. **캐싱 전략**: Redis 등을 활용한 응답 캐싱
+
+### 개발 가이드라인
+
+1. **단계적 적용**:
+   ```typescript
+   // 1단계: 기본 기능 구현
+   @Crud({ entity: User })
+   
+   // 2단계: 보안 정책 추가
+   @Crud({ 
+     entity: User,
+     allowedFilters: ['name', 'email'],
+     allowedParams: ['name', 'email', 'bio'],
+     allowedIncludes: ['department']
+   })
+   ```
+
+2. **테스트 전략**:
+   - 허용된 필터/파라미터/관계가 정상 작동하는지 확인
+   - 허용되지 않은 요청이 적절히 무시되는지 테스트
+   - 보안 정책 우선순위 테스트 (메서드별 > 전역 > 차단)
+
+3. **문서화**: 
+   - API 문서에 허용된 필터/관계 목록 명시
+   - 클라이언트 개발자에게 사용 가능한 옵션 가이드 제공
 
 ## 📚 추가 자료
 
