@@ -1,4 +1,5 @@
 import { ConflictException, Logger, NotFoundException } from '@nestjs/common';
+import { instanceToPlain } from 'class-transformer';
 import _ from 'lodash';
 
 import { isCrudCreateManyRequest, createCrudResponse, createCrudArrayResponse } from './interface';
@@ -58,6 +59,9 @@ export class CrudService<T extends EntityType> {
         const paginationResponse = crudReadManyRequest.toResponse(entities, total);
         const { data, metadata: paginationMetadata } = paginationResponse;
 
+        // Transform entities to plain objects to apply @Exclude decorators
+        const transformedData = this.transformEntityToPlain(data);
+
         // Determine pagination type and create metadata
         const paginationInfo: any = {
             total: paginationMetadata.total,
@@ -83,7 +87,7 @@ export class CrudService<T extends EntityType> {
         // Get additional metadata
         const includedRelations = crudReadManyRequest.findOptions.relations as string[] | undefined;
 
-        return createCrudArrayResponse(data, 'index', {
+        return createCrudArrayResponse(transformedData, 'index', {
             pagination: {
                 type: paginationType,
                 ...paginationInfo,
@@ -106,7 +110,9 @@ export class CrudService<T extends EntityType> {
                 if (_.isNil(entity)) {
                     throw new NotFoundException();
                 }
-                return createCrudResponse(entity, 'show', {
+                // Transform entity to plain object to apply @Exclude decorators
+                const transformedEntity = this.transformEntityToPlain(entity);
+                return createCrudResponse(transformedEntity, 'show', {
                     includedRelations: crudReadOneRequest.relations,
                     excludedFields: crudReadOneRequest.excludedColumns ? [...crudReadOneRequest.excludedColumns] : undefined,
                 });
@@ -167,11 +173,14 @@ export class CrudService<T extends EntityType> {
                     ? result.map((entity) => this.excludeEntity(entity, crudCreateRequest.exclude))
                     : this.excludeEntity(result[0], crudCreateRequest.exclude);
 
+                // Transform entities to plain objects to apply @Exclude decorators
+                const transformedResult = this.transformEntityToPlain(processedResult);
+
                 const excludedFields = crudCreateRequest.exclude.size > 0 ? [...crudCreateRequest.exclude] : undefined;
 
                 return isMany
-                    ? createCrudArrayResponse(processedResult as T[], 'create', { excludedFields })
-                    : createCrudResponse(processedResult as T, 'create', { excludedFields });
+                    ? createCrudArrayResponse(transformedResult, 'create', { excludedFields })
+                    : createCrudResponse(transformedResult, 'create', { excludedFields });
             })
             .catch(this.throwConflictException);
     };
@@ -212,9 +221,12 @@ export class CrudService<T extends EntityType> {
                     savedEntity = await this.executeSaveAfterHook(crudUpsertRequest.hooks, savedEntity, context);
 
                     const processedEntity = this.excludeEntity(savedEntity, crudUpsertRequest.exclude);
+
+                    // Transform entity to plain object to apply @Exclude decorators
+                    const transformedEntity = this.transformEntityToPlain(processedEntity);
                     const excludedFields = crudUpsertRequest.exclude.size > 0 ? [...crudUpsertRequest.exclude] : undefined;
 
-                    return createCrudResponse(processedEntity, 'upsert', {
+                    return createCrudResponse(transformedEntity, 'upsert', {
                         isNew,
                         excludedFields
                     });
@@ -256,9 +268,12 @@ export class CrudService<T extends EntityType> {
                     updatedEntity = await this.executeSaveAfterHook(crudUpdateOneRequest.hooks, updatedEntity, context);
 
                     const processedEntity = this.excludeEntity(updatedEntity, crudUpdateOneRequest.exclude);
+
+                    // Transform entity to plain object to apply @Exclude decorators
+                    const transformedEntity = this.transformEntityToPlain(processedEntity);
                     const excludedFields = crudUpdateOneRequest.exclude.size > 0 ? [...crudUpdateOneRequest.exclude] : undefined;
 
-                    return createCrudResponse(processedEntity, 'update', { excludedFields });
+                    return createCrudResponse(transformedEntity, 'update', { excludedFields });
                 })
                 .catch(this.throwConflictException);
         });
@@ -280,9 +295,12 @@ export class CrudService<T extends EntityType> {
                 : this.repository.remove(entity, crudDeleteOneRequest.saveOptions));
 
             const processedEntity = this.excludeEntity(entity, crudDeleteOneRequest.exclude);
+
+            // Transform entity to plain object to apply @Exclude decorators
+            const transformedEntity = this.transformEntityToPlain(processedEntity);
             const excludedFields = crudDeleteOneRequest.exclude.size > 0 ? [...crudDeleteOneRequest.exclude] : undefined;
 
-            return createCrudResponse(processedEntity, 'destroy', {
+            return createCrudResponse(transformedEntity, 'destroy', {
                 excludedFields,
                 wasSoftDeleted: crudDeleteOneRequest.softDeleted
             });
@@ -299,9 +317,12 @@ export class CrudService<T extends EntityType> {
             await this.repository.recover(entity, crudRecoverRequest.saveOptions).catch(this.throwConflictException);
 
             const processedEntity = this.excludeEntity(entity, crudRecoverRequest.exclude);
+
+            // Transform entity to plain object to apply @Exclude decorators
+            const transformedEntity = this.transformEntityToPlain(processedEntity);
             const excludedFields = crudRecoverRequest.exclude.size > 0 ? [...crudRecoverRequest.exclude] : undefined;
 
-            return createCrudResponse(processedEntity, 'recover', {
+            return createCrudResponse(transformedEntity, 'recover', {
                 excludedFields,
                 wasSoftDeleted
             });
@@ -332,6 +353,13 @@ export class CrudService<T extends EntityType> {
             delete entity[excludeKey as unknown as keyof T];
         }
         return entity;
+    }
+
+    /**
+     * entity를 plain object로 변환하여 @Exclude 데코레이터를 적용합니다.
+     */
+    private transformEntityToPlain(entity: T | T[]): any {
+        return instanceToPlain(entity);
     }
 
     private throwConflictException(error: Error): never {
