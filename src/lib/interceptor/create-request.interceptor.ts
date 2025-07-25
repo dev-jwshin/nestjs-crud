@@ -51,7 +51,7 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 return Promise.all(body.map((b) => this.validateBody(b)));
             }
             const transformed = plainToInstance(crudOptions.entity as ClassConstructor<EntityType>, body, { groups: [GROUP.CREATE] });
-            const errorList = await validate(transformed, { groups: [GROUP.CREATE], whitelist: true, forbidNonWhitelisted: true });
+            const errorList = await validate(transformed, { groups: [GROUP.CREATE], whitelist: true, forbidNonWhitelisted: false });
             if (errorList.length > 0) {
                 this.crudLogger.log(errorList, 'ValidationError');
                 throw new UnprocessableEntityException(errorList);

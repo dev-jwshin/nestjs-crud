@@ -61,7 +61,7 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
             const errorList = await validate(transformed, {
                 groups: [GROUP.UPDATE],
                 whitelist: true,
-                forbidNonWhitelisted: true,
+                forbidNonWhitelisted: false,
                 stopAtFirstError: true,
             });
 

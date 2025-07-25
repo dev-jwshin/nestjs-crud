@@ -146,7 +146,7 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
             const errorList = await validate(transformed, {
                 groups: [GROUP.SHOW],
                 whitelist: true,
-                forbidNonWhitelisted: true,
+                forbidNonWhitelisted: false,
                 stopAtFirstError: true,
                 forbidUnknownValues: false,
             });
