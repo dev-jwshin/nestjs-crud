@@ -1093,6 +1093,196 @@ export class OrderController {}
 4. **트랜잭션**: 훅은 별도의 데이터베이스 트랜잭션에서 실행됩니다
 5. **순서**: 정의된 순서대로 실행되므로 의존성을 고려해야 합니다
 
+### 🛡️ 요청 본문 검증 데코레이터
+
+nestjs-crud는 다양한 요청 본문 처리 데코레이터를 제공합니다:
+
+#### 데코레이터 비교표
+
+| 데코레이터 | allowedParams 필터링 | class-validator 검증 | 오류 처리 | 사용 시기 |
+|-----------|---------------------|---------------------|----------|----------|
+| `@FilteredBody()` | ✅ | ❌ | 조용히 제거 | 단순 필터링만 필요 |
+| `@TypedFilteredBody<T>()` | ✅ | ❌ | 조용히 제거 | 타입 안전성 + 필터링 |
+| `@ValidatedBody()` | ✅ | ❌ | 오류 발생 | 엄격한 필드 검증 |
+| `@ClassValidatedBody()` | ✅ | ✅ | 혼합 | **완전한 검증** (권장) |
+
+#### @ClassValidatedBody - 완전한 검증 데코레이터
+
+`@ClassValidatedBody`는 **이중 보안**을 제공하는 강력한 데코레이터입니다:
+
+1. **1차: allowedParams 필터링** (조용히 제거)
+2. **2차: Entity 검증** (오류 반환)
+
+```typescript
+import { Controller, Post, Put } from '@nestjs/common';
+import { Crud, ClassValidatedBody } from 'nestjs-crud';
+import { User } from './user.entity';
+
+@Crud({
+  entity: User,
+  allowedParams: ['name', 'email', 'phone'], // 전역 설정
+  routes: {
+    create: { 
+      allowedParams: ['name', 'email', 'password'] // 🎯 메서드별 설정 우선
+    },
+    update: { 
+      allowedParams: ['name', 'phone'] // 🎯 update는 다른 필드 허용
+    }
+  }
+})
+@Controller('users')
+export class UserController {
+  
+  @Post()
+  async create(@ClassValidatedBody() createUserDto: any) {
+    // 🎯 create 메서드 설정 사용: ['name', 'email', 'password']
+    // 🤫 허용되지 않은 필드는 조용히 제거 (admin: true 등)
+    // ⚠️ Entity의 @IsEmail() 등으로 검증 후 오류 반환
+    
+    const user = User.create(createUserDto);
+    return await User.save(user);
+  }
+
+  @Put(':id')
+  async update(@ClassValidatedBody() updateUserDto: any) {
+    // 🎯 update 메서드 설정 사용: ['name', 'phone']
+    // 🤫 email, password 등은 조용히 제거됨
+    
+    // 비즈니스 로직...
+  }
+}
+```
+
+#### 동작 원리
+
+```typescript
+// 클라이언트 요청
+POST /users
+{
+  "name": "홍길동",
+  "email": "invalid-email",    // ❌ @IsEmail() 검증 실패
+  "password": "secret123",     // ✅ create 메서드에서 허용
+  "admin": true,               // ❌ 허용되지 않음 → 조용히 제거
+  "hacker": "malicious"        // ❌ 허용되지 않음 → 조용히 제거
+}
+
+// 1차 필터링 결과 (오류 없음)
+{
+  "name": "홍길동", 
+  "email": "invalid-email",
+  "password": "secret123"
+}
+
+// 2차 Entity 검증 결과 (오류 발생)
+{
+  "statusCode": 400,
+  "message": "데이터 검증 실패: email: email must be an email",
+  "error": "Bad Request"
+}
+```
+
+#### 메서드별 우선순위
+
+메서드별 `allowedParams` 설정이 전역 설정보다 **우선적으로 적용**됩니다:
+
+```typescript
+@Crud({
+  entity: User,
+  allowedParams: ['name', 'email', 'phone'], // 전역: 기본값
+  routes: {
+    create: { allowedParams: ['name', 'email', 'password'] }, // CREATE 전용
+    update: { allowedParams: ['name', 'phone'] },             // UPDATE 전용
+    // upsert는 routes 설정 없음 → 전역 설정 사용
+  }
+})
+```
+
+**실제 적용 결과:**
+- `POST /users` → `['name', 'email', 'password']` 사용
+- `PUT /users/:id` → `['name', 'phone']` 사용  
+- `POST /users/upsert` → `['name', 'email', 'phone']` 사용 (전역)
+
+#### 완전한 사용 예시
+
+```typescript
+// user.entity.ts
+@Entity()
+export class User {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @Column({ unique: true })
+  @IsEmail()
+  email: string;
+
+  @Column({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  password?: string;
+
+  @Column({ nullable: true })
+  @IsOptional()
+  @IsPhoneNumber('KR')
+  phone?: string;
+
+  @Column({ default: 'user' })
+  @Exclude() // 응답에서 제외
+  role: string;
+}
+
+// user.controller.ts
+@Crud({
+  entity: User,
+  allowedParams: ['name', 'email', 'phone'],
+  routes: {
+    create: {
+      allowedParams: ['name', 'email', 'password'],
+    },
+    update: {
+      allowedParams: ['name', 'phone'],
+    },
+  },
+})
+@Controller('users')
+export class UserController {
+  
+  @Post()
+  async create(@ClassValidatedBody() createUserDto: any) {
+    // ✅ name, email, password만 허용
+    // ✅ @IsEmail(), @IsString(), @MinLength(8) 검증 수행
+    
+    const user = User.create(createUserDto);
+    const savedUser = await User.save(user);
+    return crudResponse(savedUser);
+  }
+
+  @Put(':id')
+  async update(@Param('id') id: number, @ClassValidatedBody() updateUserDto: any) {
+    // ✅ name, phone만 허용 (email, password 제거됨)
+    // ✅ @IsString(), @IsPhoneNumber() 검증 수행
+    
+    const user = await User.findOne({ where: { id } });
+    Object.assign(user, updateUserDto);
+    const savedUser = await User.save(user);
+    return crudResponse(savedUser);
+  }
+}
+```
+
+#### 장점
+
+1. **🔒 이중 보안**: 필터링 + 검증으로 완벽한 보호
+2. **🎯 메서드별 제어**: CRUD 작업마다 다른 필드 허용
+3. **🤫 조용한 보안**: 해커가 알 수 없는 필드 제거
+4. **⚠️ 명확한 검증**: 데이터 형식 오류는 명확히 알림
+5. **🚀 자동화**: 한 줄로 완전한 보안 구현
+
 ### 🔐 인증 및 권한
 
 ```typescript
