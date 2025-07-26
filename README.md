@@ -1283,6 +1283,199 @@ export class UserController {
 4. **⚠️ 명확한 검증**: 데이터 형식 오류는 명확히 알림
 5. **🚀 자동화**: 한 줄로 완전한 보안 구현
 
+### 🚨 통일된 오류 응답 (CrudExceptionFilter)
+
+nestjs-crud는 **선택적으로** 모든 HTTP 예외의 응답 형식을 통일할 수 있는 Exception Filter를 제공합니다.
+
+#### 기본 NestJS vs CRUD Filter 비교
+
+```typescript
+// ❌ 기본 NestJS 오류 응답
+{
+  "message": "Not Found",        // 문자열
+  "statusCode": 404
+}
+
+// ✅ CrudExceptionFilter 적용 후
+{
+  "message": ["Not Found"],      // 항상 배열 ✨
+  "statusCode": 404
+}
+```
+
+#### 사용법
+
+**1. 전역 적용 (권장)**
+```typescript
+// main.ts
+import { NestFactory } from '@nestjs/core';
+import { CrudExceptionFilter } from 'nestjs-crud';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  
+  // ✅ 전역으로 적용 - 모든 HTTP 예외를 통일된 형식으로 변환
+  app.useGlobalFilters(new CrudExceptionFilter());
+  
+  await app.listen(3000);
+}
+bootstrap();
+```
+
+**2. 컨트롤러별 적용**
+```typescript
+import { Controller, UseFilters } from '@nestjs/common';
+import { Crud, CrudExceptionFilter } from 'nestjs-crud';
+
+@Controller('users')
+@UseFilters(CrudExceptionFilter) // 🎯 이 컨트롤러에만 적용
+@Crud({
+  entity: User,
+})
+export class UserController {
+  constructor(public readonly crudService: UserService) {}
+}
+```
+
+**3. 메서드별 적용**
+```typescript
+import { Post, UseFilters } from '@nestjs/common';
+import { CrudExceptionFilter, ClassValidatedBody } from 'nestjs-crud';
+
+@Controller('users')
+export class UserController {
+  
+  @Post()
+  @UseFilters(CrudExceptionFilter) // 🎯 이 메서드에만 적용
+  async create(@ClassValidatedBody() createUserDto: any) {
+    // 비즈니스 로직...
+  }
+}
+```
+
+#### 다양한 오류 시나리오 처리
+
+**Validation 오류 (class-validator)**
+```typescript
+// 요청
+POST /users
+{
+  "name": "",           // @IsNotEmpty() 위반
+  "email": "invalid"    // @IsEmail() 위반
+}
+
+// ✅ CrudExceptionFilter 응답
+{
+  "message": [
+    "name should not be empty",
+    "email must be an email"
+  ],
+  "statusCode": 400
+}
+```
+
+**Not Found 오류**
+```typescript
+// 요청
+GET /users/999999
+
+// ✅ CrudExceptionFilter 응답  
+{
+  "message": ["사용자를 찾을 수 없습니다"],
+  "statusCode": 404
+}
+```
+
+**권한 오류**
+```typescript
+// 요청 (권한 없는 사용자)
+DELETE /users/1
+
+// ✅ CrudExceptionFilter 응답
+{
+  "message": ["삭제 권한이 없습니다"],
+  "statusCode": 403
+}
+```
+
+**내부 서버 오류**
+```typescript
+// 데이터베이스 연결 실패 등
+{
+  "message": ["Internal Server Error"],
+  "statusCode": 500
+}
+```
+
+#### 커스텀 Exception과 함께 사용
+
+```typescript
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+
+@Controller('users')
+@UseFilters(CrudExceptionFilter)
+export class UserController {
+  
+  @Get(':id')
+  async findOne(@Param('id') id: number) {
+    const user = await this.userService.findById(id);
+    
+    if (!user) {
+      // ✅ 자동으로 배열 형식으로 변환됨
+      throw new NotFoundException('사용자를 찾을 수 없습니다');
+    }
+    
+    return user;
+  }
+  
+  @Post()
+  async create(@ClassValidatedBody() createUserDto: any) {
+    // 중복 이메일 검사
+    const existing = await this.userService.findByEmail(createUserDto.email);
+    
+    if (existing) {
+      // ✅ 자동으로 배열 형식으로 변환됨
+      throw new BadRequestException('이미 존재하는 이메일입니다');
+    }
+    
+    return await this.userService.create(createUserDto);
+  }
+}
+```
+
+#### 장점
+
+1. **🎯 일관성**: 모든 오류 응답이 통일된 형식
+2. **🔄 자동 변환**: 기존 Exception을 자동으로 배열 형식으로 변환
+3. **🎛️ 선택적 사용**: 필요한 곳에만 적용 가능
+4. **📱 프론트엔드 친화적**: 항상 배열이므로 처리 로직 단순화
+5. **🛡️ class-validator 호환**: 여러 검증 오류를 배열로 자연스럽게 처리
+
+#### 프론트엔드 처리 예시
+
+```typescript
+// React/Vue/Angular 등에서의 오류 처리
+try {
+  const response = await fetch('/api/users', {
+    method: 'POST',
+    body: JSON.stringify(userData)
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    
+    // ✅ message가 항상 배열이므로 처리가 단순함
+    error.message.forEach(msg => {
+      console.error(msg);
+      // UI에 오류 메시지 표시
+    });
+  }
+} catch (error) {
+  console.error('Request failed:', error);
+}
+```
+
 ### 🔐 인증 및 권한
 
 ```typescript
