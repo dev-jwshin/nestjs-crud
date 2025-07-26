@@ -3,9 +3,10 @@ import tseslint from 'typescript-eslint';
 import TsParser from '@typescript-eslint/parser';
 import UnicornPlugin from 'eslint-plugin-unicorn';
 import ImportPlugin from 'eslint-plugin-import';
+import { fixupPluginRules } from '@eslint/compat';
 
 const plugins = {
-    import: ImportPlugin,
+    import: fixupPluginRules(ImportPlugin),
     unicorn: UnicornPlugin,
 };
 export default [
@@ -48,7 +49,7 @@ export default [
             '@typescript-eslint/no-explicit-any': 'warn',
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true }],
             '@typescript-eslint/array-type': ['error', { default: 'array-simple' }],
-            '@typescript-eslint/ban-types': [
+            '@typescript-eslint/no-restricted-types': [
                 'error',
                 {
                     types: {
@@ -67,14 +68,14 @@ export default [
                     },
                 },
             ],
-            '@typescript-eslint/quotes': [
+            'quotes': [
                 'error',
                 'single',
                 {
                     avoidEscape: true,
                 },
             ],
-            '@typescript-eslint/semi': ['error', 'always'],
+            'semi': ['error', 'always'],
             '@typescript-eslint/no-for-in-array': 'error',
             '@typescript-eslint/naming-convention': [
                 'error',

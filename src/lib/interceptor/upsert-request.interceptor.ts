@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ConflictException, mixin, UnprocessableEntityException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -44,7 +45,7 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
             }
 
             // Filter body parameters based on allowedParams
-            const allowedParams = upsertOptions.allowedParams || crudOptions.allowedParams;
+            const allowedParams = upsertOptions.allowedParams ?? crudOptions.allowedParams;
             if (allowedParams && req.body && typeof req.body === 'object') {
                 req.body = this.filterAllowedParams(req.body, allowedParams);
             }
@@ -91,7 +92,7 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 this.crudLogger.log(
                     `Cannot include value of primary key (primary key: ${(
                         factoryOption.primaryKeys ?? []
-                    ).toLocaleString()}, body key: ${bodyKeys.toLocaleString()}`,
+                    ).map(key => key.name).toLocaleString()}, body key: ${bodyKeys.toLocaleString()}`,
                 );
                 throw new UnprocessableEntityException('Cannot include value of primary key');
             }

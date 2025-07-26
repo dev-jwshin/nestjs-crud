@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Method, Sort, PaginationType, EntityType } from '.';
 import type { NestInterceptor, Type } from '@nestjs/common';
 import type { ColumnType, DeepPartial } from 'typeorm';

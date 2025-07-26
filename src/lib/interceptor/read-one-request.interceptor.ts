@@ -39,7 +39,7 @@ export function ReadOneRequestInterceptor(crudOptions: CrudOptions, factoryOptio
 
             // Parse include parameters with allowedIncludes filtering
             // Priority: route-specific allowedIncludes > global CrudOptions allowedIncludes > undefined (block all includes)
-            const allowedIncludes = readOneOptions.allowedIncludes || crudOptions.allowedIncludes;
+            const allowedIncludes = readOneOptions.allowedIncludes ?? crudOptions.allowedIncludes;
 
             const queryParserOptions: QueryParserOptions = {
                 allowedIncludes,
