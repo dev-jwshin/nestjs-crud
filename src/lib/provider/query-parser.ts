@@ -10,7 +10,7 @@ import type {
 } from '../interface/query-parser.interface';
 
 export class QueryParser {
-    constructor(private readonly options: QueryParserOptions = {}) { }
+    constructor(private readonly options: QueryParserOptions = {}) {}
 
     parse(query: Record<string, unknown>): ParsedQuery {
         return {
@@ -61,7 +61,7 @@ export class QueryParser {
 
     private createFilterOperation(field: string, operator: FilterOperator, value: unknown): FilterOperation | null {
         // Check if field is allowed
-        if (!this.options.allowedFilters || !this.options.allowedFilters.includes(field)) {
+        if (!this.options.allowedFilters?.includes(field)) {
             return null;
         }
 
@@ -110,6 +110,7 @@ export class QueryParser {
             return value;
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         const stringValue = String(value);
 
         switch (operator) {
@@ -146,6 +147,7 @@ export class QueryParser {
             return [];
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         const sortString = String(sortParam);
         const sortFields = sortString.split(',').map((s) => s.trim());
         const sorts: SortOperation[] = [];
@@ -181,6 +183,7 @@ export class QueryParser {
             return [];
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         const includeString = String(includeParam);
         const includeFields = includeString.split(',').map((s) => s.trim());
         const includes: IncludeOperation[] = [];
@@ -189,7 +192,7 @@ export class QueryParser {
             if (!includeField) continue;
 
             // Check if include is allowed
-            if (!this.options.allowedIncludes || !this.options.allowedIncludes.includes(includeField)) {
+            if (!this.options.allowedIncludes?.includes(includeField)) {
                 continue;
             }
 
@@ -234,6 +237,7 @@ export class QueryParser {
         if (pageCursor) {
             return {
                 type: 'cursor',
+                // eslint-disable-next-line @typescript-eslint/no-base-to-string
                 cursor: String(pageCursor),
                 size: pageSize ? this.parsePageNumber(pageSize) : this.options.defaultPageSize,
             };

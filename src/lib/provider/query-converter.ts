@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Between, In, Like, ILike, MoreThan, MoreThanOrEqual, LessThan, LessThanOrEqual, Not, IsNull, Equal } from 'typeorm';
 
 import { FilterOperator } from '../interface/query-parser.interface';

@@ -1,21 +1,23 @@
-/* eslint-disable @typescript-eslint/ban-types */
+
 import type { ContextType, ExecutionContext, Type } from '@nestjs/common';
 import type { HttpArgumentsHost, RpcArgumentsHost, WsArgumentsHost } from '@nestjs/common/interfaces';
 
 /**
  * util class to mocking ExecutionContext
  */
-export class ExecutionContextHost implements ExecutionContext {
-    private contextType = 'http';
+export class ExecutionContextHostMock implements ExecutionContext {
+    private contextType: string = 'http';
 
     constructor(
         private readonly args: unknown[],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         private readonly constructorRef?: Type<any>,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
         private readonly handler?: Function,
     ) {}
 
     setType<TContext extends string = ContextType>(type: TContext): void {
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         type && (this.contextType = type);
     }
 
@@ -27,6 +29,7 @@ export class ExecutionContextHost implements ExecutionContext {
         return this.constructorRef!;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     getHandler(): Function {
         return this.handler!;
     }

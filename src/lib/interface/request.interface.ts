@@ -3,6 +3,7 @@ import type { DeepPartial } from 'typeorm';
 
 export type CrudRequestId<T> = keyof T | Array<keyof T>;
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface CrudRequestBase {
 }
 

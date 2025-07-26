@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { mixin } from '@nestjs/common';
 import _ from 'lodash';
 import { LessThan, MoreThan } from 'typeorm';
@@ -10,7 +11,7 @@ import { PaginationHelper, QueryParser, QueryConverter } from '../provider';
 import { CrudReadManyRequest } from '../request';
 
 import type { CustomReadManyRequestOptions } from './custom-request.interceptor';
-import type { CrudOptions, FactoryOption, EntityType, QueryParserOptions } from '../interface';
+import type { CrudOptions, FactoryOption, EntityType as _EntityType, QueryParserOptions } from '../interface';
 import type { CallHandler, ExecutionContext, NestInterceptor, Type } from '@nestjs/common';
 import type { Request } from 'express';
 import type { Observable } from 'rxjs';
@@ -24,7 +25,6 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
         }
 
         async intercept(context: ExecutionContext, next: CallHandler<unknown>): Promise<Observable<unknown>> {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const req: Record<string, any> = context.switchToHttp().getRequest<Request>();
             const readManyOptions = crudOptions.routes?.[method] ?? {};
 
@@ -38,9 +38,9 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
 
             // Create RESTful query parser with options
             // Priority: route-specific allowedFilters > global CrudOptions allowedFilters > undefined (block all filters)
-            const allowedFilters = readManyOptions.allowedFilters || crudOptions.allowedFilters;
+            const allowedFilters = readManyOptions.allowedFilters ?? crudOptions.allowedFilters;
             // Priority: route-specific allowedIncludes > global CrudOptions allowedIncludes > undefined (block all includes)
-            const allowedIncludes = readManyOptions.allowedIncludes || crudOptions.allowedIncludes;
+            const allowedIncludes = readManyOptions.allowedIncludes ?? crudOptions.allowedIncludes;
 
             const queryParserOptions: QueryParserOptions = {
                 allowedFilters,

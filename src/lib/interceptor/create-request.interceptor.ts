@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { mixin, UnprocessableEntityException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -13,6 +14,7 @@ import type { Request } from 'express';
 import type { Observable } from 'rxjs';
 import type { DeepPartial } from 'typeorm';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface NestedBaseEntityArray extends Array<NestedBaseEntityArray | DeepPartial<EntityType>> { }
 type BaseEntityOrArray = DeepPartial<EntityType> | NestedBaseEntityArray;
 
@@ -32,7 +34,7 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
             }
 
             // Filter body parameters based on allowedParams
-            const allowedParams = createOptions.allowedParams || crudOptions.allowedParams;
+            const allowedParams = createOptions.allowedParams ?? crudOptions.allowedParams;
             if (allowedParams && req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
                 req.body = this.filterAllowedParams(req.body, allowedParams);
             } else if (Array.isArray(req.body)) {

@@ -36,4 +36,5 @@ const config: Config = {
     setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
 };
 
+// eslint-disable-next-line import/no-default-export
 export default config;

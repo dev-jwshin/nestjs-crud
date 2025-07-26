@@ -38,6 +38,7 @@ type MethodPolicy<T extends Method> = {
     ? DefaultOptionsReadMany
     : DefaultOptions;
 };
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface DefaultOptions { }
 interface DefaultOptionsReadOne extends DefaultOptions {
     softDeleted: boolean;

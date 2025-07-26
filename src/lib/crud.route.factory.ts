@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/ban-types, @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any */
 import { HttpStatus as _HttpStatus, UnprocessableEntityException } from '@nestjs/common';
 import {
     CUSTOM_ROUTE_ARGS_METADATA,
@@ -107,7 +107,9 @@ export class CrudRouteFactory {
         })();
         this.entity.tableName = tableName;
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
         const inheritanceTree = MetadataUtils.getInheritanceTree(entity as Function);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
         const columnList = getMetadataArgsStorage().columns.filter(({ target }) => inheritanceTree.includes(target as Function));
 
         const entityColumns = columnList.map(({ propertyName, options }) => ({
@@ -124,6 +126,7 @@ export class CrudRouteFactory {
         }
 
         this.entity.relations = getMetadataArgsStorage().relations.flatMap(({ target, propertyName }) =>
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
             inheritanceTree.includes(target as Function) ? [propertyName] : [],
         );
     }
@@ -267,7 +270,7 @@ export class CrudRouteFactory {
         }
     }
 
-    private applySwaggerDecorator(method: Method, params: string[], target: Object, paginationType?: PaginationType) {
+    private applySwaggerDecorator(method: Method, params: string[], target: Record<string, unknown>, paginationType?: PaginationType) {
         if (this.crudOptions.routes?.[method]?.swagger?.hide) {
             Reflect.defineMetadata(DECORATORS.API_EXCLUDE_ENDPOINT, { disable: true }, target);
             return;
@@ -302,7 +305,7 @@ export class CrudRouteFactory {
         }
     }
 
-    private defineParameterSwagger(method: Method, params: string[], target: Object, paginationType?: PaginationType) {
+    private defineParameterSwagger(method: Method, params: string[], target: Record<string, unknown>, paginationType?: PaginationType) {
         const parameterDecorators: ParameterDecorators[] = params.map((param) => ({
             name: param,
             required: true,
@@ -392,6 +395,7 @@ export class CrudRouteFactory {
     }
 
     private writeMethodOnController(crudMethod: Method): string {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const entity = this.crudOptions.entity;
         const controllerMethodName: string = this.controllerMethodName(crudMethod);
 
