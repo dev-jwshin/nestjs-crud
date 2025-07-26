@@ -4,3 +4,4 @@ export * from './query-converter';
 export * from './query-parser';
 export * from './typeorm-query-builder.helper';
 export * from './crud-logger';
+export * from './crud-exception.filter';
