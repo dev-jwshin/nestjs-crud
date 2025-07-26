@@ -10,7 +10,6 @@ export interface CrudArrayResponse<T> {
 }
 
 export interface CrudResponseMetadata {
-  operation: 'create' | 'show' | 'update' | 'destroy' | 'upsert' | 'recover' | 'index';
   timestamp: string;
   affectedCount?: number;
   isNew?: boolean; // for upsert operations
@@ -33,16 +32,104 @@ export interface PaginationMetadata {
 
 export type CrudMethodResponse<T> = CrudResponse<T> | CrudArrayResponse<T>;
 
+// Overloaded crudResponse function signatures
+export function crudResponse<T>(
+  data: T[],
+  options?: {
+    paginationType?: 'offset' | 'cursor';
+    limit?: number;
+    page?: number;
+    excludedFields?: string[];
+    includedRelations?: string[];
+  }
+): CrudArrayResponse<T>;
+
+export function crudResponse<T>(
+  data: T,
+  options?: {
+    excludedFields?: string[];
+    includedRelations?: string[];
+  }
+): CrudResponse<T>;
+
+// Implementation
+export function crudResponse<T>(
+  data: T | T[],
+  options?: {
+    paginationType?: 'offset' | 'cursor';
+    limit?: number;
+    page?: number;
+    excludedFields?: string[];
+    includedRelations?: string[];
+  }
+): CrudResponse<T> | CrudArrayResponse<T> {
+  const {
+    paginationType = 'offset',
+    limit = 20,
+    page = 1,
+    excludedFields,
+    includedRelations,
+  } = options || {};
+
+  const baseMetadata = {
+    timestamp: new Date().toISOString(),
+    ...(excludedFields && { excludedFields }),
+    ...(includedRelations && { includedRelations }),
+  };
+
+  // Handle array data (with pagination)
+  if (Array.isArray(data)) {
+    const total = data.length;
+    const pages = Math.ceil(total / limit);
+
+    // Create base64 encoded cursor for consistency
+    const nextCursor = Buffer.from(JSON.stringify({
+      nextCursor: Buffer.from(`${total}`).toString('base64'),
+      total
+    })).toString('base64');
+
+    const paginationInfo: PaginationMetadata = {
+      type: paginationType,
+      total,
+      page,
+      pages,
+      offset: total, // All data is shown, so offset equals total
+      nextCursor,
+    };
+
+    if (paginationType === 'cursor') {
+      paginationInfo.limit = limit;
+      paginationInfo.totalPages = pages;
+    }
+
+    return {
+      data,
+      metadata: {
+        ...baseMetadata,
+        affectedCount: total,
+        pagination: paginationInfo,
+      },
+    } as CrudArrayResponse<T>;
+  }
+
+  // Handle single object data (without pagination)
+  return {
+    data,
+    metadata: {
+      ...baseMetadata,
+      affectedCount: 1,
+    },
+  } as CrudResponse<T>;
+}
+
 // Helper function to create standardized responses
 export function createCrudResponse<T>(
   data: T,
-  operation: CrudResponseMetadata['operation'],
   options?: Partial<CrudResponseMetadata>
 ): CrudResponse<T> {
   return {
     data,
     metadata: {
-      operation,
       timestamp: new Date().toISOString(),
       affectedCount: Array.isArray(data) ? data.length : 1,
       ...options,
@@ -52,13 +139,11 @@ export function createCrudResponse<T>(
 
 export function createCrudArrayResponse<T>(
   data: T[],
-  operation: CrudResponseMetadata['operation'],
   options?: Partial<CrudResponseMetadata>
 ): CrudArrayResponse<T> {
   return {
     data,
     metadata: {
-      operation,
       timestamp: new Date().toISOString(),
       affectedCount: data.length,
       ...options,
@@ -79,12 +164,11 @@ export function createPaginatedResponse<T>(
     totalPages?: number;
     nextCursor?: string;
   },
-  options?: Partial<Omit<CrudResponseMetadata, 'operation' | 'pagination'>>
+  options?: Partial<Omit<CrudResponseMetadata, 'pagination'>>
 ): CrudArrayResponse<T> {
   return {
     data,
     metadata: {
-      operation: 'index',
       timestamp: new Date().toISOString(),
       affectedCount: data.length,
       pagination: {

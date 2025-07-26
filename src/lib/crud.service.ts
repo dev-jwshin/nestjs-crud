@@ -88,7 +88,7 @@ export class CrudService<T extends EntityType> {
         // Get additional metadata
         const includedRelations = crudReadManyRequest.findOptions.relations as string[] | undefined;
 
-        return createCrudArrayResponse(transformedData, 'index', {
+        return createCrudArrayResponse(transformedData, {
             pagination: {
                 type: paginationType,
                 ...paginationInfo,
@@ -113,7 +113,7 @@ export class CrudService<T extends EntityType> {
                 }
                 // Transform entity to plain object to apply @Exclude decorators
                 const transformedEntity = this.transformEntityToPlain(entity);
-                return createCrudResponse(transformedEntity, 'show', {
+                return createCrudResponse(transformedEntity, {
                     includedRelations: crudReadOneRequest.relations,
                     excludedFields: crudReadOneRequest.excludedColumns ? [...crudReadOneRequest.excludedColumns] : undefined,
                 });
@@ -180,8 +180,8 @@ export class CrudService<T extends EntityType> {
                 const excludedFields = crudCreateRequest.exclude.size > 0 ? [...crudCreateRequest.exclude] : undefined;
 
                 return isMany
-                    ? createCrudArrayResponse(transformedResult, 'create', { excludedFields })
-                    : createCrudResponse(transformedResult, 'create', { excludedFields });
+                    ? createCrudArrayResponse(transformedResult, { excludedFields })
+                    : createCrudResponse(transformedResult, { excludedFields });
             })
             .catch(this.throwConflictException);
     };
@@ -227,7 +227,7 @@ export class CrudService<T extends EntityType> {
                     const transformedEntity = this.transformEntityToPlain(processedEntity);
                     const excludedFields = crudUpsertRequest.exclude.size > 0 ? [...crudUpsertRequest.exclude] : undefined;
 
-                    return createCrudResponse(transformedEntity, 'upsert', {
+                    return createCrudResponse(transformedEntity, {
                         isNew,
                         excludedFields
                     });
@@ -274,7 +274,7 @@ export class CrudService<T extends EntityType> {
                     const transformedEntity = this.transformEntityToPlain(processedEntity);
                     const excludedFields = crudUpdateOneRequest.exclude.size > 0 ? [...crudUpdateOneRequest.exclude] : undefined;
 
-                    return createCrudResponse(transformedEntity, 'update', { excludedFields });
+                    return createCrudResponse(transformedEntity, { excludedFields });
                 })
                 .catch(this.throwConflictException);
         });
@@ -301,7 +301,7 @@ export class CrudService<T extends EntityType> {
             const transformedEntity = this.transformEntityToPlain(processedEntity);
             const excludedFields = crudDeleteOneRequest.exclude.size > 0 ? [...crudDeleteOneRequest.exclude] : undefined;
 
-            return createCrudResponse(transformedEntity, 'destroy', {
+            return createCrudResponse(transformedEntity, {
                 excludedFields,
                 wasSoftDeleted: crudDeleteOneRequest.softDeleted
             });
@@ -323,7 +323,7 @@ export class CrudService<T extends EntityType> {
             const transformedEntity = this.transformEntityToPlain(processedEntity);
             const excludedFields = crudRecoverRequest.exclude.size > 0 ? [...crudRecoverRequest.exclude] : undefined;
 
-            return createCrudResponse(transformedEntity, 'recover', {
+            return createCrudResponse(transformedEntity, {
                 excludedFields,
                 wasSoftDeleted
             });
