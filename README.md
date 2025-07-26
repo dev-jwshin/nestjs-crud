@@ -344,6 +344,26 @@ export class UserModule {}
 
 ### 📋 필터링 (Filtering)
 
+#### ⚠️ 중요: 쿼리 파라미터 형식
+
+nestjs-crud는 **underscore 구분자 방식**을 사용합니다. MongoDB 스타일의 `$` 연산자는 지원하지 않습니다.
+
+```bash
+# ✅ 올바른 형식 (underscore 구분자)
+GET /users?filter[email_eq]=test@example.com
+GET /users?filter[age_gte]=18
+GET /users?filter[name_like]=%김%
+
+# ❌ 지원하지 않는 형식 (MongoDB 스타일)
+GET /users?filter[email][$eq]=test@example.com     # 작동하지 않음
+GET /users?filter[age][$gte]=18                    # 작동하지 않음
+GET /users?filter[name][$like]=%김%                 # 작동하지 않음
+```
+
+**파싱 방식:**
+- `filter[field_operator]=value` → ✅ 정상 작동
+- `filter[field][$operator]=value` → ❌ 필터 무시됨
+
 #### 기본 비교 연산자
 
 ```bash
