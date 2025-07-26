@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { instanceToPlain } from 'class-transformer';
+
 export interface CrudResponse<T> {
   data: T;
   metadata?: CrudResponseMetadata;
@@ -32,6 +34,53 @@ export interface PaginationMetadata {
 
 export type CrudMethodResponse<T> = CrudResponse<T> | CrudArrayResponse<T>;
 
+// Extract pagination info from query parameters
+function extractPaginationFromQuery(query: any): {
+  paginationType?: 'offset' | 'cursor';
+  limit?: number;
+  page?: number;
+  offset?: number;
+} {
+  const result: any = {};
+
+  // Handle page[limit], page[offset], page[number] format
+  if (query.page) {
+    if (typeof query.page === 'object') {
+      if (query.page.limit !== undefined) {
+        result.limit = parseInt(query.page.limit, 10) || 20;
+      }
+      if (query.page.offset !== undefined) {
+        result.offset = parseInt(query.page.offset, 10) || 0;
+        result.paginationType = 'offset';
+      }
+      if (query.page.number !== undefined) {
+        result.page = parseInt(query.page.number, 10) || 1;
+        result.paginationType = 'offset';
+      }
+    }
+  }
+
+  // Handle direct limit, offset, page parameters
+  if (query.limit !== undefined) {
+    result.limit = parseInt(query.limit, 10) || 20;
+  }
+  if (query.offset !== undefined) {
+    result.offset = parseInt(query.offset, 10) || 0;
+    result.paginationType = 'offset';
+  }
+  if (query.page !== undefined && typeof query.page !== 'object') {
+    result.page = parseInt(query.page, 10) || 1;
+    result.paginationType = 'offset';
+  }
+
+  // Default pagination type
+  if (!result.paginationType) {
+    result.paginationType = 'offset';
+  }
+
+  return result;
+}
+
 // Overloaded crudResponse function signatures
 export function crudResponse<T>(
   data: T[],
@@ -41,7 +90,8 @@ export function crudResponse<T>(
     page?: number;
     excludedFields?: string[];
     includedRelations?: string[];
-  }
+  },
+  request?: { query?: any }
 ): CrudArrayResponse<T>;
 
 export function crudResponse<T>(
@@ -49,7 +99,8 @@ export function crudResponse<T>(
   options?: {
     excludedFields?: string[];
     includedRelations?: string[];
-  }
+  },
+  request?: { query?: any }
 ): CrudResponse<T>;
 
 // Implementation
@@ -61,15 +112,23 @@ export function crudResponse<T>(
     page?: number;
     excludedFields?: string[];
     includedRelations?: string[];
-  }
+  },
+  request?: { query?: any }
 ): CrudResponse<T> | CrudArrayResponse<T> {
+  // Extract pagination info from query if request is provided
+  const queryPagination = request?.query ? extractPaginationFromQuery(request.query) : {};
+
+  // Merge options with query pagination (options take precedence)
   const {
-    paginationType = 'offset',
-    limit = 20,
-    page = 1,
+    paginationType = queryPagination.paginationType || 'offset',
+    limit = options?.limit ?? queryPagination.limit ?? 20,
+    page = options?.page ?? queryPagination.page ?? 1,
     excludedFields,
     includedRelations,
-  } = options || {};
+  } = { ...queryPagination, ...options };
+
+  // Transform data to plain object to apply @Exclude decorators
+  const transformedData = instanceToPlain(data);
 
   const baseMetadata = {
     timestamp: new Date().toISOString(),
@@ -78,9 +137,12 @@ export function crudResponse<T>(
   };
 
   // Handle array data (with pagination)
-  if (Array.isArray(data)) {
-    const total = data.length;
+  if (Array.isArray(transformedData)) {
+    const total = transformedData.length;
     const pages = Math.ceil(total / limit);
+
+    // Calculate offset for pagination
+    const offset = queryPagination.offset ?? ((page - 1) * limit + transformedData.length);
 
     // Create base64 encoded cursor for consistency
     const nextCursor = Buffer.from(JSON.stringify({
@@ -93,7 +155,7 @@ export function crudResponse<T>(
       total,
       page,
       pages,
-      offset: total, // All data is shown, so offset equals total
+      offset,
       nextCursor,
     };
 
@@ -103,7 +165,7 @@ export function crudResponse<T>(
     }
 
     return {
-      data,
+      data: transformedData,
       metadata: {
         ...baseMetadata,
         affectedCount: total,
@@ -114,7 +176,7 @@ export function crudResponse<T>(
 
   // Handle single object data (without pagination)
   return {
-    data,
+    data: transformedData,
     metadata: {
       ...baseMetadata,
       affectedCount: 1,
