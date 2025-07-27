@@ -100,7 +100,7 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
             const transformed = plainToInstance(crudOptions.entity as unknown as ClassConstructor<EntityType>, body, {
                 groups: [GROUP.UPSERT],
             });
-            const errorList = await validate(transformed, { groups: [GROUP.UPSERT], whitelist: true, forbidNonWhitelisted: false });
+            const errorList = await validate(transformed, { groups: [GROUP.UPSERT], whitelist: true, forbidNonWhitelisted: false, forbidUnknownValues: false });
 
             if (errorList.length > 0) {
                 this.crudLogger.log(errorList, 'ValidationError');

@@ -84,6 +84,7 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 groups: [GROUP.UPDATE],
                 whitelist: true,
                 forbidNonWhitelisted: false,
+                forbidUnknownValues: false,
                 stopAtFirstError: true,
             });
 
