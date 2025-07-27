@@ -8,4 +8,4 @@ export enum Method {
     RECOVER = 'recover',
 }
 
-export const GROUP = { ...Method, PARAMS: 'params' as const };
+

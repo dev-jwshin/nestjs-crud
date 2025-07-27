@@ -4,14 +4,14 @@ import { validate } from 'class-validator';
 import _ from 'lodash';
 
 import { CreateParamsDto } from '../dto/params.dto';
-import { GROUP } from '../interface';
+
 
 import type { Column, CrudOptions as _CrudOptions, EntityType, Method as _Method } from '../interface';
 import type { CrudLogger } from '../provider/crud-logger';
 import type { Request as _Request } from 'express';
 
 export abstract class RequestAbstractInterceptor {
-    constructor(public readonly crudLogger: CrudLogger) {}
+    constructor(public readonly crudLogger: CrudLogger) { }
 
     async checkParams(
         entity: EntityType,
@@ -30,7 +30,7 @@ export abstract class RequestAbstractInterceptor {
             throw exception;
         }
         const transformed = plainToInstance(CreateParamsDto(entity, paramsKey as unknown as Array<keyof EntityType>), params);
-        const errorList = await validate(transformed, { groups: [GROUP.PARAMS], forbidUnknownValues: false });
+        const errorList = await validate(transformed, { forbidUnknownValues: false });
         if (errorList.length > 0) {
             this.crudLogger.log(errorList, 'ValidationError');
             throw exception;

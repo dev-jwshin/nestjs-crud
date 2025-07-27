@@ -5,7 +5,7 @@ import { validate } from 'class-validator';
 
 import { RequestAbstractInterceptor } from '../abstract';
 import { CRUD_ROUTE_ARGS } from '../constants';
-import { GROUP, Method } from '../interface';
+import { Method } from '../interface';
 
 import type { CrudOptions, FactoryOption, CrudCreateRequest, EntityType } from '../interface';
 import type { CallHandler, ExecutionContext, NestInterceptor, Type } from '@nestjs/common';
@@ -80,8 +80,8 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
             if (Array.isArray(body)) {
                 return Promise.all(body.map((b) => this.validateBody(b)));
             }
-            const transformed = plainToInstance(crudOptions.entity as ClassConstructor<EntityType>, body, { groups: [GROUP.CREATE] });
-            const errorList = await validate(transformed, { groups: [GROUP.CREATE], whitelist: true, forbidNonWhitelisted: false, forbidUnknownValues: false });
+            const transformed = plainToInstance(crudOptions.entity as ClassConstructor<EntityType>, body);
+            const errorList = await validate(transformed, { whitelist: true, forbidNonWhitelisted: false, forbidUnknownValues: false });
             if (errorList.length > 0) {
                 this.crudLogger.log(errorList, 'ValidationError');
                 throw new UnprocessableEntityException(errorList);

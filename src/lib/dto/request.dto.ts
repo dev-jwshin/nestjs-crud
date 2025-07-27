@@ -12,7 +12,7 @@ import type { ValidationMetadata } from 'class-validator/types/metadata/Validati
 export function CreateRequestDto(parentClass: EntityType, group: Method): Type<unknown> {
     const propertyNamesAppliedValidation = getPropertyNamesFromMetadata(parentClass, group);
 
-    class PickClass extends PickType(parentClass as Type<EntityType>, propertyNamesAppliedValidation as Array<keyof EntityType>) {}
+    class PickClass extends PickType(parentClass as Type<EntityType>, propertyNamesAppliedValidation as Array<keyof EntityType>) { }
     const requestDto = mixin(PickClass);
     Object.defineProperty(requestDto, 'name', {
         value: `${capitalizeFirstLetter(group)}${parentClass.name}Dto`,
@@ -32,7 +32,6 @@ export function getPropertyNamesFromMetadata(parentClass: EntityType, group: Met
     const propertyNamesAppliedValidation = [
         ...new Set(
             targetMetadata
-                .filter(({ groups, always }) => always === true || (groups ?? []).includes(group))
                 .map(({ propertyName }) => propertyName),
         ),
     ];
