@@ -31,7 +31,7 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 req.body = this.filterAllowedParams(req.body, allowedParams);
             }
 
-            const body = await this.validateBody(req.body ?? {});
+            const body = await this.validateBody(req.body ?? {}, updatedOptions);
 
             const params = await this.checkParams(crudOptions.entity, req.params, factoryOption.columns);
             const crudUpdateOneRequest: CrudUpdateOneRequest<typeof crudOptions.entity> = {
@@ -64,7 +64,7 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
             return filtered;
         }
 
-        async validateBody(body: unknown) {
+        async validateBody(body: unknown, methodOptions: any = {}) {
             if (_.isNil(body) || !_.isObject(body)) {
                 throw new UnprocessableEntityException();
             }
@@ -80,11 +80,15 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
             }
 
             const transformed = plainToInstance(crudOptions.entity as ClassConstructor<EntityType>, body);
+            // Priority: method-specific > global > default (true for UPDATE)
+            const skipMissingProperties = methodOptions.skipMissingProperties ?? crudOptions.skipMissingProperties ?? true;
+
             const errorList = await validate(transformed, {
                 whitelist: true,
                 forbidNonWhitelisted: false,
                 forbidUnknownValues: false,
                 stopAtFirstError: true,
+                skipMissingProperties,
             });
 
             if (errorList.length > 0) {

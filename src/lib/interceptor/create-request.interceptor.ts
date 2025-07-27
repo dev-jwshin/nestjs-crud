@@ -46,7 +46,7 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 );
             }
 
-            const body = await this.validateBody(req.body);
+            const body = await this.validateBody(req.body, createOptions);
 
             const crudCreateRequest: CrudCreateRequest<typeof crudOptions.entity> = {
                 body,
@@ -76,12 +76,20 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
             return filtered;
         }
 
-        async validateBody(body: unknown): Promise<BaseEntityOrArray> {
+        async validateBody(body: unknown, methodOptions: any = {}): Promise<BaseEntityOrArray> {
             if (Array.isArray(body)) {
-                return Promise.all(body.map((b) => this.validateBody(b)));
+                return Promise.all(body.map((b) => this.validateBody(b, methodOptions)));
             }
             const transformed = plainToInstance(crudOptions.entity as ClassConstructor<EntityType>, body);
-            const errorList = await validate(transformed, { whitelist: true, forbidNonWhitelisted: false, forbidUnknownValues: false });
+            // Priority: method-specific > global > default (false for CREATE)
+            const skipMissingProperties = methodOptions.skipMissingProperties ?? crudOptions.skipMissingProperties ?? false;
+
+            const errorList = await validate(transformed, {
+                whitelist: true,
+                forbidNonWhitelisted: false,
+                forbidUnknownValues: false,
+                skipMissingProperties,
+            });
             if (errorList.length > 0) {
                 this.crudLogger.log(errorList, 'ValidationError');
                 throw new UnprocessableEntityException(errorList);

@@ -65,6 +65,13 @@ export interface CrudOptions {
     logging?: boolean;
 
     /**
+     * Skip validation of properties that do not exist in the validating object.
+     * This is useful for UPDATE operations where you want to validate only the provided fields.
+     * @default true for UPDATE operations, false for CREATE operations
+     */
+    skipMissingProperties?: boolean;
+
+    /**
      * Array of column names that are allowed to be filtered.
      * If not specified, no columns can be filtered (all filters are blocked).
      * @example ['name', 'email', 'age']
@@ -195,6 +202,13 @@ export interface CrudOptions {
              * @example ['name', 'email', 'age']
              */
             allowedParams?: string[];
+
+            /**
+             * Skip validation of properties that do not exist in the validating object.
+             * If not specified, uses the global skipMissingProperties from CrudOptions.
+             * @default false for CREATE operations
+             */
+            skipMissingProperties?: boolean;
         } & RouteBaseOption &
         SaveOptions;
         [Method.UPDATE]?: {
@@ -225,6 +239,13 @@ export interface CrudOptions {
              * @example ['name', 'email', 'age']
              */
             allowedParams?: string[];
+
+            /**
+             * Skip validation of properties that do not exist in the validating object.
+             * If not specified, uses the global skipMissingProperties from CrudOptions.
+             * @default true for UPDATE operations
+             */
+            skipMissingProperties?: boolean;
         } & RouteBaseOption &
         SaveOptions;
         [Method.DESTROY]?: {
@@ -273,6 +294,13 @@ export interface CrudOptions {
              * @example ['name', 'email', 'age']
              */
             allowedParams?: string[];
+
+            /**
+             * Skip validation of properties that do not exist in the validating object.
+             * If not specified, uses the global skipMissingProperties from CrudOptions.
+             * @default true for UPSERT operations
+             */
+            skipMissingProperties?: boolean;
         } & RouteBaseOption &
         SaveOptions;
         [Method.RECOVER]?: {

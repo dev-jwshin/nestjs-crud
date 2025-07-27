@@ -50,7 +50,7 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 req.body = this.filterAllowedParams(req.body, allowedParams);
             }
 
-            const body = await this.validateBody(req.body ?? {});
+            const body = await this.validateBody(req.body ?? {}, upsertOptions);
 
             const crudUpsertRequest: CrudUpsertRequest<typeof crudOptions.entity> = {
                 params,
@@ -82,7 +82,7 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
             return filtered;
         }
 
-        async validateBody(body: unknown) {
+        async validateBody(body: unknown, methodOptions: any = {}) {
             if (_.isNil(body) || !_.isObject(body)) {
                 throw new UnprocessableEntityException();
             }
@@ -98,7 +98,15 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
             }
 
             const transformed = plainToInstance(crudOptions.entity as unknown as ClassConstructor<EntityType>, body);
-            const errorList = await validate(transformed, { whitelist: true, forbidNonWhitelisted: false, forbidUnknownValues: false });
+            // Priority: method-specific > global > default (true for UPSERT)
+            const skipMissingProperties = methodOptions.skipMissingProperties ?? crudOptions.skipMissingProperties ?? true;
+
+            const errorList = await validate(transformed, {
+                whitelist: true,
+                forbidNonWhitelisted: false,
+                forbidUnknownValues: false,
+                skipMissingProperties,
+            });
 
             if (errorList.length > 0) {
                 this.crudLogger.log(errorList, 'ValidationError');
