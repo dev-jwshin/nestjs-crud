@@ -1047,29 +1047,147 @@ export class PostController {
     return entity;
   }
 
-  // 여러 훅을 함께 사용 가능
-  @BeforeUpdate()
-  @BeforeUpsert()
-  async beforeModify(body: any, context: any) {
-    // CREATE와 UPDATE 모두에서 실행될 공통 로직
-    body.updatedAt = new Date();
+     // 여러 훅을 함께 사용 가능
+   @BeforeUpdate()
+   @BeforeUpsert()
+   async beforeModify(body: any, context: any) {
+     // CREATE와 UPDATE 모두에서 실행될 공통 로직
+     body.updatedAt = new Date();
+     
+     if (context.operation === 'create') {
+       body.createdAt = new Date();
+     }
+     
+     return body;
+   }
+ }
+ ```
+
+##### 🔗 여러 훅의 체인 실행
+
+**같은 데코레이터를 여러 메서드에 사용하면, 정의 순서대로 체인으로 실행됩니다:**
+
+```typescript
+@Crud({
+  entity: User,
+  allowedParams: ['name', 'email', 'password'],
+})
+@Controller('users')
+export class UserController {
+  constructor(public readonly crudService: UserService) {}
+
+  // 🔗 첫 번째 CREATE 훅
+  @BeforeCreate()
+  async validateData(body: any, context: any) {
+    console.log('1️⃣ 데이터 검증 중...');
     
-    if (context.operation === 'create') {
-      body.createdAt = new Date();
+    if (!body.email) {
+      throw new Error('이메일은 필수입니다');
     }
     
-    return body;
+    body.step1 = 'validated';
+    return body; // ✅ 수정된 body가 다음 훅으로 전달됨
+  }
+
+  // 🔗 두 번째 CREATE 훅 (첫 번째 훅의 결과를 받음)
+  @BeforeCreate()
+  async hashPassword(body: any, context: any) {
+    console.log('2️⃣ 패스워드 암호화 중...');
+    console.log('이전 단계 결과:', body.step1); // ✅ 'validated' 출력
+    
+    if (body.password) {
+      body.password = await bcrypt.hash(body.password, 10);
+    }
+    
+    body.step2 = 'encrypted';
+    return body; // ✅ 최종 수정된 body 반환
+  }
+
+  // 🔗 세 번째 CREATE 훅 (두 번째 훅의 결과를 받음)
+  @BeforeCreate()
+  async setDefaults(body: any, context: any) {
+    console.log('3️⃣ 기본값 설정 중...');
+    console.log('이전 단계들 결과:', body.step1, body.step2); // ✅ 'validated', 'encrypted' 출력
+    
+    body.provider = body.provider || 'local';
+    body.role = body.role || 'user';
+    body.step3 = 'completed';
+    
+    return body; // ✅ 최종 완성된 body
   }
 }
 ```
 
-##### 장점
+**실행 순서:**
+```bash
+POST /users
+{
+  "name": "홍길동",
+  "email": "hong@example.com",
+  "password": "mypassword"
+}
 
-1. **🎯 직관적**: 메서드 이름으로 역할이 명확함
-2. **🧹 깔끔한 코드**: routes 설정이 복잡하지 않음
-3. **🔄 재사용성**: 상속을 통한 공통 훅 구현 가능
-4. **🛡️ 타입 안전성**: TypeScript 타입 체크 지원
-5. **✨ IntelliSense**: IDE에서 자동 완성 지원
+# 콘솔 출력:
+# 1️⃣ 데이터 검증 중...
+# 2️⃣ 패스워드 암호화 중...
+# 이전 단계 결과: validated
+# 3️⃣ 기본값 설정 중...
+# 이전 단계들 결과: validated encrypted
+
+# 최종 저장되는 데이터:
+{
+  "name": "홍길동",
+  "email": "hong@example.com", 
+  "password": "$2b$10$...", // ✅ 암호화됨
+  "provider": "local",      // ✅ 기본값 설정됨
+  "role": "user",          // ✅ 기본값 설정됨
+  "step1": "validated",    // ✅ 체인으로 전달됨
+  "step2": "encrypted",    // ✅ 체인으로 전달됨
+  "step3": "completed"     // ✅ 최종 처리됨
+}
+ ```
+
+##### ⚡ 간단한 테스트 예시
+
+```typescript
+// 간단한 테스트를 위한 최소 예시
+@Crud({
+  entity: User,
+  allowedParams: ['name', 'email', 'password'],
+})
+@Controller('users')
+export class UserController {
+  constructor(public readonly crudService: UserService) {}
+
+  @BeforeCreate()
+  async step1(body: any, context: any) {
+    body.step1 = 'first';
+    console.log('Step 1:', body);
+    return body;
+  }
+
+  @BeforeCreate()
+  async step2(body: any, context: any) {
+    body.step2 = 'second';
+    console.log('Step 2:', body); // step1이 있는지 확인
+    return body;
+  }
+}
+
+// POST /users { "name": "test" }
+// 콘솔 출력:
+// Step 1: { name: "test", step1: "first" }
+// Step 2: { name: "test", step1: "first", step2: "second" }
+```
+
+##### 장점
+ 
+ 1. **🎯 직관적**: 메서드 이름으로 역할이 명확함
+ 2. **🧹 깔끔한 코드**: routes 설정이 복잡하지 않음
+ 3. **🔗 체인 실행**: 여러 훅이 순차적으로 실행되며 데이터가 자동 전달됨
+ 4. **🔄 재사용성**: 상속을 통한 공통 훅 구현 가능
+ 5. **🛡️ 타입 안전성**: TypeScript 타입 체크 지원
+ 6. **✨ IntelliSense**: IDE에서 자동 완성 지원
 
 #### 🛠️ 방법 2: Routes 설정 방식 (기존)
 

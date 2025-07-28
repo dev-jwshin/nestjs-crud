@@ -134,28 +134,43 @@ export class CrudRouteFactory {
 
             // 각 훅 타입별로 메서드들을 등록
             Object.entries(hooks).forEach(([hookType, hookMetadataList]) => {
-                const hookFunctions = hookMetadataList.map(hookMetadata => {
-                    return async (data: any, context: any) => {
+                // 여러 훅을 체인으로 실행하는 함수 생성
+                const chainedHookFunction = async (data: any, context: any) => {
+                    let result = data;
+
+                    // 각 훅을 순차적으로 실행하면서 결과를 다음 훅으로 전달
+                    for (const hookMetadata of hookMetadataList) {
                         const controllerInstance = new this.target();
                         const methodName = hookMetadata.methodName;
 
                         if (typeof controllerInstance[methodName] === 'function') {
-                            return await controllerInstance[methodName](data, context);
+                            result = await controllerInstance[methodName](result, context);
                         }
+                    }
 
-                        return data;
-                    };
-                });
+                    return result;
+                };
 
                 // 기존 훅이 있으면 배열로 합치고, 없으면 새로 생성
                 if (routeHooks[hookType]) {
-                    if (Array.isArray(routeHooks[hookType])) {
-                        routeHooks[hookType].push(...hookFunctions);
-                    } else {
-                        routeHooks[hookType] = [routeHooks[hookType], ...hookFunctions];
-                    }
+                    // 기존 훅과 새로운 체인드 훅을 결합
+                    const existingHook = routeHooks[hookType];
+                    routeHooks[hookType] = async (data: any, context: any) => {
+                        // 기존 훅 먼저 실행
+                        let result = data;
+                        if (Array.isArray(existingHook)) {
+                            for (const hook of existingHook) {
+                                result = await hook(result, context);
+                            }
+                        } else {
+                            result = await existingHook(result, context);
+                        }
+
+                        // 그 다음 새로운 체인드 훅 실행
+                        return await chainedHookFunction(result, context);
+                    };
                 } else {
-                    routeHooks[hookType] = hookFunctions.length === 1 ? hookFunctions[0] : hookFunctions;
+                    routeHooks[hookType] = chainedHookFunction;
                 }
             });
         });
