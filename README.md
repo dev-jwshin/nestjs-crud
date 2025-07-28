@@ -15,6 +15,8 @@ NestJS와 TypeORM을 기반으로 RESTful CRUD API를 자동으로 생성하는 
 - [고급 설정](#고급-설정)
   - [보안 제어 설정](#보안-제어-설정)
   - [생명주기 훅](#생명주기-훅-lifecycle-hooks)
+    - [데코레이터 방식 (NEW! 권장)](#🎯-방법-1-데코레이터-방식-new--권장)
+    - [Routes 설정 방식 (기존)](#🛠️-방법-2-routes-설정-방식-기존)
 - [API 문서](#api-문서)
 - [예제](#예제)
 - [라이선스](#라이선스)
@@ -40,6 +42,8 @@ NestJS와 TypeORM을 기반으로 RESTful CRUD API를 자동으로 생성하는 
 - **복구**: 소프트 삭제된 데이터 복구
 - **Upsert**: 존재하면 업데이트, 없으면 생성
 - **생명주기 훅**: CRUD 작업의 각 단계에서 커스텀 로직 실행
+  - **데코레이터 방식 🆕**: `@BeforeCreate()`, `@AfterUpdate()` 등 직관적인 메서드 데코레이터
+  - **Routes 설정 방식**: 기존 `routes.hooks` 설정 방식
 
 ### 🔒 보안 및 제어 기능
 - **필터링 제한**: allowedFilters로 허용된 컬럼만 필터링 가능
@@ -122,9 +126,10 @@ export class UserService extends CrudService<User> {
 ```typescript
 // user.controller.ts
 import { Controller } from '@nestjs/common';
-import { Crud } from 'nestjs-crud';
+import { Crud, BeforeCreate } from 'nestjs-crud';
 import { UserService } from './user.service';
 import { User } from './user.entity';
+import * as bcrypt from 'bcrypt';
 
 @Controller('users')
 @Crud({
@@ -132,6 +137,15 @@ import { User } from './user.entity';
 })
 export class UserController {
   constructor(public readonly crudService: UserService) {}
+
+  // 🆕 NEW! 생명주기 훅 데코레이터로 간단하게 로직 추가
+  @BeforeCreate()
+  async hashPassword(body: any, context: any) {
+    if (body.password) {
+      body.password = await bcrypt.hash(body.password, 10);
+    }
+    return body;
+  }
 }
 ```
 
@@ -832,6 +846,232 @@ export class UserController {
 | `assignAfter` | 데이터 할당 **후** | 엔티티 후처리 | create, update, upsert |
 | `saveBefore` | 저장 **전** | 최종 검증, 비즈니스 로직 | create, update, upsert |
 | `saveAfter` | 저장 **후** | 알림, 이벤트 발생 | create, update, upsert |
+
+#### 🎯 방법 1: 데코레이터 방식 (NEW! 🆕 권장)
+
+**클래스 메서드에 데코레이터를 달아서 직관적으로 사용하는 방식입니다.**
+
+##### 사용 가능한 데코레이터
+
+**기본 데코레이터:**
+```typescript
+@BeforeCreate()  // CREATE 전에 실행 (assignBefore)
+@AfterCreate()   // CREATE 후에 실행 (saveAfter)
+@BeforeUpdate()  // UPDATE 전에 실행 (assignBefore)
+@AfterUpdate()   // UPDATE 후에 실행 (saveAfter)
+@BeforeUpsert()  // UPSERT 전에 실행 (assignBefore)
+@AfterUpsert()   // UPSERT 후에 실행 (saveAfter)
+```
+
+**세밀한 제어용 데코레이터:**
+```typescript
+@AssignBefore('create')  // CREATE의 assignBefore 단계
+@AssignAfter('create')   // CREATE의 assignAfter 단계
+@SaveBefore('create')    // CREATE의 saveBefore 단계
+@SaveAfter('create')     // CREATE의 saveAfter 단계
+
+@AssignBefore('update')  // UPDATE의 assignBefore 단계
+@SaveBefore('update')    // UPDATE의 saveBefore 단계
+// ... 기타 등등
+```
+
+##### 실제 사용 예시
+
+```typescript
+import {
+  Controller,
+  Post,
+  Put,
+} from '@nestjs/common';
+import { 
+  Crud, 
+  BeforeCreate,
+  AfterCreate,
+  BeforeUpdate,
+  AfterUpdate
+} from 'nestjs-crud';
+import { User } from './user.entity';
+import { UserService } from './user.service';
+import * as bcrypt from 'bcrypt';
+
+@Crud({
+  entity: User,
+  allowedParams: ['name', 'email', 'password', 'phone'],
+})
+@Controller('users')
+export class UserController {
+  constructor(public readonly crudService: UserService) {}
+
+  // 🔐 CREATE 전에 password 암호화
+  @BeforeCreate()
+  async hashPasswordOnCreate(body: any, context: any) {
+    if (body.password) {
+      console.log('CREATE: password 암호화 중...');
+      body.password = await bcrypt.hash(body.password, 10);
+    }
+    
+    // 기본값 설정
+    body.provider = body.provider || 'local';
+    body.role = body.role || 'user';
+    
+    return body;
+  }
+
+  // 📧 CREATE 후에 환영 이메일 발송
+  @AfterCreate()
+  async sendWelcomeEmail(entity: User, context: any) {
+    console.log(`새 사용자 생성 완료: ${entity.email} (ID: ${entity.id})`);
+    
+    // 환영 이메일 발송 로직
+    // await this.emailService.sendWelcomeEmail(entity);
+    
+    return entity;
+  }
+
+  // 🔐 UPDATE 전에도 password 암호화
+  @BeforeUpdate()
+  async hashPasswordOnUpdate(body: any, context: any) {
+    if (body.password) {
+      console.log('UPDATE: password 암호화 중...');
+      body.password = await bcrypt.hash(body.password, 10);
+    }
+    
+    // 업데이트 시간 자동 설정
+    body.updatedAt = new Date();
+    
+    return body;
+  }
+
+  // 📝 UPDATE 후에 로그 기록
+  @AfterUpdate()
+  async logUserUpdate(entity: User, context: any) {
+    console.log(`사용자 업데이트 완료: ${entity.email} (ID: ${entity.id})`);
+    
+    // 업데이트 로그 기록
+    // await this.auditService.logUserUpdate(entity, context.request?.user);
+    
+    return entity;
+  }
+}
+```
+
+##### 실행 순서와 매개변수
+
+**Create 과정에서의 훅:**
+```typescript
+@BeforeCreate()  // = @AssignBefore('create')
+async beforeCreate(body: any, context: HookContext) {
+  // body: 요청 데이터
+  // context: { operation: 'create', params: {}, currentEntity: undefined }
+  return body; // 수정된 body 반환
+}
+
+@AfterCreate()   // = @SaveAfter('create')
+async afterCreate(entity: User, context: HookContext) {
+  // entity: 저장된 엔티티
+  // context: { operation: 'create', params: {}, currentEntity: undefined }
+  return entity; // 수정된 entity 반환
+}
+```
+
+**Update 과정에서의 훅:**
+```typescript
+@BeforeUpdate()  // = @AssignBefore('update')
+async beforeUpdate(body: any, context: HookContext) {
+  // body: 업데이트할 데이터
+  // context: { operation: 'update', params: { id: 5 }, currentEntity: User }
+  return body;
+}
+
+@AfterUpdate()   // = @SaveAfter('update')  
+async afterUpdate(entity: User, context: HookContext) {
+  // entity: 업데이트된 엔티티
+  // context: { operation: 'update', params: { id: 5 }, currentEntity: User }
+  return entity;
+}
+```
+
+##### 고급 활용 예시
+
+```typescript
+@Crud({
+  entity: Post,
+  allowedParams: ['title', 'content', 'status'],
+})
+@Controller('posts')
+export class PostController {
+  constructor(public readonly crudService: PostService) {}
+
+  @BeforeCreate()
+  async beforeCreatePost(body: any, context: any) {
+    // 사용자 ID 자동 설정
+    const userId = context.request?.user?.id;
+    if (userId) {
+      body.userId = userId;
+    }
+    
+    // 슬러그 자동 생성
+    if (body.title && !body.slug) {
+      body.slug = body.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    }
+    
+    return body;
+  }
+
+  @SaveBefore('create')
+  async validateBeforeSave(entity: Post, context: any) {
+    // 슬러그 중복 검사 및 해결
+    const existingPost = await this.crudService.findBySlug(entity.slug);
+    if (existingPost) {
+      entity.slug = `${entity.slug}-${Date.now()}`;
+    }
+    
+    return entity;
+  }
+
+  @AfterCreate()
+  async afterCreatePost(entity: Post, context: any) {
+    // 검색 인덱스 업데이트
+    // await this.searchService.indexPost(entity);
+    
+    // 발행된 게시글 알림
+    if (entity.status === 'published') {
+      // await this.notificationService.notifyNewPost(entity);
+      console.log(`새 게시글 발행: ${entity.title}`);
+    }
+    
+    return entity;
+  }
+
+  // 여러 훅을 함께 사용 가능
+  @BeforeUpdate()
+  @BeforeUpsert()
+  async beforeModify(body: any, context: any) {
+    // CREATE와 UPDATE 모두에서 실행될 공통 로직
+    body.updatedAt = new Date();
+    
+    if (context.operation === 'create') {
+      body.createdAt = new Date();
+    }
+    
+    return body;
+  }
+}
+```
+
+##### 장점
+
+1. **🎯 직관적**: 메서드 이름으로 역할이 명확함
+2. **🧹 깔끔한 코드**: routes 설정이 복잡하지 않음
+3. **🔄 재사용성**: 상속을 통한 공통 훅 구현 가능
+4. **🛡️ 타입 안전성**: TypeScript 타입 체크 지원
+5. **✨ IntelliSense**: IDE에서 자동 완성 지원
+
+#### 🛠️ 방법 2: Routes 설정 방식 (기존)
 
 #### 기본 사용법
 
