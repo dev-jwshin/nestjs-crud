@@ -17,6 +17,7 @@ import { capitalizeFirstLetter } from './capitalize-first-letter';
 import { CRUD_ROUTE_ARGS } from './constants';
 import { CRUD_POLICY } from './crud.policy';
 import { CreateRequestDto, getPropertyNamesFromMetadata } from './dto/request.dto';
+import { getLifecycleHooks, LifecycleHookMetadata } from './dto/lifecycle-hooks.decorator';
 import { Method, PaginationType, PAGINATION_SWAGGER_QUERY } from './interface';
 import { CrudLogger } from './provider/crud-logger';
 
@@ -80,12 +81,84 @@ export class CrudRouteFactory {
     }
 
     init(): void {
+        // 데코레이터 기반 생명주기 훅 처리
+        this.processLifecycleHooks();
+
         for (const method of Object.values(Method)) {
             if (!this.enabledMethod(method)) {
                 continue;
             }
             this.createMethod(method);
         }
+    }
+
+    private processLifecycleHooks(): void {
+        const lifecycleHooks = getLifecycleHooks(this.target);
+
+        if (lifecycleHooks.length === 0) {
+            return;
+        }
+
+        // routes 객체가 없으면 초기화
+        if (!this.crudOptions.routes) {
+            this.crudOptions.routes = {};
+        }
+
+        // 메서드별로 훅을 그룹화
+        const hooksByMethod = lifecycleHooks.reduce((acc, hook) => {
+            if (!acc[hook.methodType]) {
+                acc[hook.methodType] = {};
+            }
+            if (!acc[hook.methodType][hook.hookType]) {
+                acc[hook.methodType][hook.hookType] = [];
+            }
+            acc[hook.methodType][hook.hookType].push(hook);
+            return acc;
+        }, {} as Record<string, Record<string, LifecycleHookMetadata[]>>);
+
+        // 각 메서드의 훅을 routes 설정에 적용
+        Object.entries(hooksByMethod).forEach(([methodType, hooks]) => {
+            const method = methodType as keyof typeof this.crudOptions.routes;
+
+            // 메서드 설정이 없으면 초기화
+            if (!this.crudOptions.routes![method]) {
+                this.crudOptions.routes![method] = {} as any;
+            }
+
+            // hooks 설정이 없으면 초기화
+            if (!(this.crudOptions.routes![method] as any).hooks) {
+                (this.crudOptions.routes![method] as any).hooks = {};
+            }
+
+            const routeHooks = (this.crudOptions.routes![method] as any).hooks;
+
+            // 각 훅 타입별로 메서드들을 등록
+            Object.entries(hooks).forEach(([hookType, hookMetadataList]) => {
+                const hookFunctions = hookMetadataList.map(hookMetadata => {
+                    return async (data: any, context: any) => {
+                        const controllerInstance = new this.target();
+                        const methodName = hookMetadata.methodName;
+
+                        if (typeof controllerInstance[methodName] === 'function') {
+                            return await controllerInstance[methodName](data, context);
+                        }
+
+                        return data;
+                    };
+                });
+
+                // 기존 훅이 있으면 배열로 합치고, 없으면 새로 생성
+                if (routeHooks[hookType]) {
+                    if (Array.isArray(routeHooks[hookType])) {
+                        routeHooks[hookType].push(...hookFunctions);
+                    } else {
+                        routeHooks[hookType] = [routeHooks[hookType], ...hookFunctions];
+                    }
+                } else {
+                    routeHooks[hookType] = hookFunctions.length === 1 ? hookFunctions[0] : hookFunctions;
+                }
+            });
+        });
     }
 
     private entityInformation(entity: EntityType): void {
