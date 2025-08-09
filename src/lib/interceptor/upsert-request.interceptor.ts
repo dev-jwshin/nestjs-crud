@@ -8,11 +8,11 @@ import { RequestAbstractInterceptor } from '../abstract';
 import { CRUD_ROUTE_ARGS } from '../constants';
 import { Method } from '../interface';
 
-import type { CrudOptions, CrudUpsertRequest, EntityType, FactoryOption } from '../interface';
 import type { CallHandler, ExecutionContext, NestInterceptor, Type } from '@nestjs/common';
 import type { ClassConstructor } from 'class-transformer';
 import type { Request } from 'express';
 import type { Observable } from 'rxjs';
+import type { CrudOptions, CrudUpsertRequest, EntityType, FactoryOption } from '../interface';
 
 const method = Method.UPSERT;
 export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption: FactoryOption): Type<NestInterceptor> {
@@ -83,36 +83,69 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
         }
 
         async validateBody(body: unknown, methodOptions: any = {}) {
+            console.log('🔍 UPSERT validateBody called with:', {
+                bodyKeys: body && typeof body === 'object' ? Object.keys(body) : 'invalid body',
+                methodOptions,
+            });
+
             if (_.isNil(body) || !_.isObject(body)) {
-                throw new UnprocessableEntityException();
+                console.log('❌ Invalid body type for UPSERT');
+                throw new UnprocessableEntityException('Body must be a valid object');
             }
+
             const bodyKeys = Object.keys(body);
+            console.log('📋 Body keys:', bodyKeys);
+
+            // Primary key 체크
             const bodyContainsPrimaryKey = (factoryOption.primaryKeys ?? []).some((primaryKey) => bodyKeys.includes(primaryKey.name));
             if (bodyContainsPrimaryKey) {
+                const primaryKeyNames = (factoryOption.primaryKeys ?? []).map((key) => key.name);
+                console.log('❌ Primary key modification attempt in UPSERT:', { primaryKeyNames, bodyKeys });
+
                 this.crudLogger.log(
-                    `Cannot include value of primary key (primary key: ${(
-                        factoryOption.primaryKeys ?? []
-                    ).map(key => key.name).toLocaleString()}, body key: ${bodyKeys.toLocaleString()}`,
+                    `Cannot include value of primary key (primary key: ${primaryKeyNames.toLocaleString()}, body key: ${bodyKeys.toLocaleString()}`,
                 );
                 throw new UnprocessableEntityException('Cannot include value of primary key');
             }
 
-            const transformed = plainToInstance(crudOptions.entity as unknown as ClassConstructor<EntityType>, body);
-            // Priority: method-specific > global > default (true for UPSERT)
-            const skipMissingProperties = methodOptions.skipMissingProperties ?? crudOptions.skipMissingProperties ?? true;
+            // 🎯 allowedParams 추출 (메서드별 우선, 전역 fallback)
+            const allowedParams = methodOptions.allowedParams ?? crudOptions.allowedParams;
+            console.log('🎯 Using allowedParams for UPSERT validation:', allowedParams);
 
-            const errorList = await validate(transformed, {
-                whitelist: true,
-                forbidNonWhitelisted: false,
-                forbidUnknownValues: false,
-                skipMissingProperties,
-            });
+            try {
+                const transformed = plainToInstance(crudOptions.entity as unknown as ClassConstructor<EntityType>, body);
+                console.log('📝 Transformed fields:', Object.keys(transformed as object));
 
-            if (errorList.length > 0) {
-                this.crudLogger.log(errorList, 'ValidationError');
-                throw new UnprocessableEntityException(errorList);
+                // Priority: method-specific > global > default (true for UPSERT)
+                const skipMissingProperties = methodOptions.skipMissingProperties ?? crudOptions.skipMissingProperties ?? true;
+                console.log('⚙️ UPSERT validation options:', { skipMissingProperties, allowedParams });
+
+                const errorList = await validate(transformed, {
+                    whitelist: true,
+                    forbidNonWhitelisted: false,
+                    forbidUnknownValues: false,
+                    skipMissingProperties,
+                });
+
+                if (errorList.length > 0) {
+                    console.log(
+                        '❌ UPSERT validation failed:',
+                        errorList.map((e) => ({
+                            property: e.property,
+                            constraints: e.constraints,
+                            value: e.value,
+                        })),
+                    );
+                    this.crudLogger.log(errorList, 'ValidationError');
+                    throw new UnprocessableEntityException(errorList);
+                }
+
+                console.log('✅ UPSERT validation passed');
+                return transformed;
+            } catch (error) {
+                console.log('💥 UPSERT validation error:', error);
+                throw error;
             }
-            return transformed;
         }
     }
 

@@ -4,25 +4,43 @@ import { getMetadataStorage } from 'class-validator';
 import { getMetadataArgsStorage } from 'typeorm';
 
 import { capitalizeFirstLetter } from '../capitalize-first-letter';
+import { globalMetadataCache } from './metadata-cache-manager';
 
-import type { EntityType, Method } from '../interface';
 import type { Type } from '@nestjs/common';
 import type { MetadataStorage } from 'class-validator';
 import type { ValidationMetadata } from 'class-validator/types/metadata/ValidationMetadata';
+import type { EntityType, Method } from '../interface';
 
-export function CreateRequestDto(parentClass: EntityType, group: Method): Type<unknown> {
-    const propertyNamesAppliedValidation = getPropertyNamesFromMetadata(parentClass, group);
+export function CreateRequestDto(parentClass: EntityType, group: Method, allowedParams?: string[]): Type<unknown> {
+    console.log(`🏗️ Creating DTO for ${parentClass.name} (${group}) with allowedParams:`, allowedParams);
 
-    class PickClass extends PickType(parentClass as Type<EntityType>, propertyNamesAppliedValidation as Array<keyof EntityType>) { }
+    // 🚀 캐시에서 DTO 확인
+    const cachedDto = globalMetadataCache.getDtoClass(parentClass, group, allowedParams);
+    if (cachedDto) {
+        console.log(`✅ Using cached DTO for ${parentClass.name} (${group})`);
+        return cachedDto;
+    }
+
+    const propertyNamesAppliedValidation = getPropertyNamesFromMetadata(parentClass, group, allowedParams);
+
+    class PickClass extends PickType(parentClass as Type<EntityType>, propertyNamesAppliedValidation as Array<keyof EntityType>) {}
     const requestDto = mixin(PickClass);
+    const dtoName = `${capitalizeFirstLetter(group)}${parentClass.name}Dto`;
+
     Object.defineProperty(requestDto, 'name', {
-        value: `${capitalizeFirstLetter(group)}${parentClass.name}Dto`,
+        value: dtoName,
     });
 
+    // 🚀 캐시에 DTO 저장
+    globalMetadataCache.setDtoClass(parentClass, group, allowedParams, requestDto);
+
+    console.log(`✅ Created and cached DTO: ${dtoName} with fields:`, propertyNamesAppliedValidation);
     return requestDto;
 }
 
-export function getPropertyNamesFromMetadata(parentClass: EntityType, group: Method): string[] {
+export function getPropertyNamesFromMetadata(parentClass: EntityType, group: Method, allowedParams?: string[]): string[] {
+    console.log(`🔍 getPropertyNamesFromMetadata for ${parentClass.name}:`, { group, allowedParams });
+
     const metadataStorage: MetadataStorage = getMetadataStorage();
 
     // class-validator 메타데이터에서 검증 데코레이터가 있는 필드들 가져오기
@@ -32,6 +50,7 @@ export function getPropertyNamesFromMetadata(parentClass: EntityType, group: Met
     )(...getTargetValidationMetadatasArgs);
 
     const propertyNamesFromValidation = targetMetadata.map(({ propertyName }) => propertyName);
+    console.log('📋 Fields with class-validator decorators:', propertyNamesFromValidation);
 
     // TypeORM 메타데이터에서 엔티티의 모든 컬럼들 가져오기
     const typeormMetadata = getMetadataArgsStorage();
@@ -57,15 +76,50 @@ export function getPropertyNamesFromMetadata(parentClass: EntityType, group: Met
     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     const columnList = typeormMetadata.columns.filter(({ target }) => inheritanceTree.includes(target as Function));
 
-    const propertyNamesFromColumns = columnList.map(({ propertyName }) => propertyName);
+    // relation은 제외 (성능상 이유)
+    const relationList = typeormMetadata.relations.filter(({ target }) => inheritanceTree.includes(target as Function));
+    const relationPropertyNames = relationList.map((r) => r.propertyName);
 
-    // class-validator와 TypeORM 컬럼 메타데이터를 합쳐서 중복 제거
-    const allPropertyNames = [
-        ...new Set([
-            ...propertyNamesFromValidation,
-            ...propertyNamesFromColumns,
-        ]),
-    ];
+    const propertyNamesFromColumns = columnList
+        .filter((column) => !relationPropertyNames.includes(column.propertyName))
+        .map(({ propertyName }) => propertyName);
 
-    return allPropertyNames;
+    console.log('🗃️ TypeORM column fields (excluding relations):', propertyNamesFromColumns);
+    console.log('🔗 Excluded relation fields:', relationPropertyNames);
+
+    // 🎯 allowedParams 우선 보장 로직
+    let finalPropertyNames: string[];
+
+    if (allowedParams && allowedParams.length > 0) {
+        console.log('🎯 Using allowedParams priority logic');
+
+        // allowedParams에 포함된 모든 필드는 반드시 포함
+        const guaranteedFields = new Set<string>(allowedParams);
+
+        // 기존 검증 필드들과 TypeORM 컬럼 필드들도 추가
+        propertyNamesFromValidation.forEach((field) => guaranteedFields.add(field));
+        propertyNamesFromColumns.forEach((field) => guaranteedFields.add(field));
+
+        finalPropertyNames = Array.from(guaranteedFields);
+
+        console.log('✅ Guaranteed fields (allowedParams priority):', finalPropertyNames);
+
+        // allowedParams에 있지만 entity에 없는 필드 경고
+        const entityFields = new Set([...propertyNamesFromValidation, ...propertyNamesFromColumns]);
+        const unknownParams = allowedParams.filter((param) => !entityFields.has(param));
+
+        if (unknownParams.length > 0) {
+            console.warn('⚠️ allowedParams contains fields not found in entity:', unknownParams);
+        }
+    } else {
+        // allowedParams가 없으면 기존 로직 사용
+        console.log('📝 Using default logic (no allowedParams specified)');
+
+        finalPropertyNames = [...new Set([...propertyNamesFromValidation, ...propertyNamesFromColumns])];
+
+        console.log('📋 Default combined fields:', finalPropertyNames);
+    }
+
+    console.log(`🏁 Final DTO fields for ${parentClass.name}:`, finalPropertyNames);
+    return finalPropertyNames;
 }

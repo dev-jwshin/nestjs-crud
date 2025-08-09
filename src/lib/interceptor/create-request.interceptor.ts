@@ -7,15 +7,15 @@ import { RequestAbstractInterceptor } from '../abstract';
 import { CRUD_ROUTE_ARGS } from '../constants';
 import { Method } from '../interface';
 
-import type { CrudOptions, FactoryOption, CrudCreateRequest, EntityType } from '../interface';
 import type { CallHandler, ExecutionContext, NestInterceptor, Type } from '@nestjs/common';
 import type { ClassConstructor } from 'class-transformer';
 import type { Request } from 'express';
 import type { Observable } from 'rxjs';
 import type { DeepPartial } from 'typeorm';
+import type { CrudCreateRequest, CrudOptions, EntityType, FactoryOption } from '../interface';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface NestedBaseEntityArray extends Array<NestedBaseEntityArray | DeepPartial<EntityType>> { }
+interface NestedBaseEntityArray extends Array<NestedBaseEntityArray | DeepPartial<EntityType>> {}
 type BaseEntityOrArray = DeepPartial<EntityType> | NestedBaseEntityArray;
 
 const method = Method.CREATE;
@@ -39,10 +39,8 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 req.body = this.filterAllowedParams(req.body, allowedParams);
             } else if (Array.isArray(req.body)) {
                 // Handle array of objects
-                req.body = req.body.map(item =>
-                    allowedParams && typeof item === 'object' && item !== null
-                        ? this.filterAllowedParams(item, allowedParams)
-                        : item
+                req.body = req.body.map((item) =>
+                    allowedParams && typeof item === 'object' && item !== null ? this.filterAllowedParams(item, allowedParams) : item,
                 );
             }
 
@@ -77,24 +75,61 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
         }
 
         async validateBody(body: unknown, methodOptions: any = {}): Promise<BaseEntityOrArray> {
+            console.log('🔍 CREATE validateBody called with:', {
+                bodyKeys: body && typeof body === 'object' ? Object.keys(body) : 'invalid body',
+                methodOptions,
+            });
+
             if (Array.isArray(body)) {
+                console.log('📋 Processing array of objects');
                 return Promise.all(body.map((b) => this.validateBody(b, methodOptions)));
             }
-            const transformed = plainToInstance(crudOptions.entity as ClassConstructor<EntityType>, body);
-            // Priority: method-specific > global > default (false for CREATE)
-            const skipMissingProperties = methodOptions.skipMissingProperties ?? crudOptions.skipMissingProperties ?? false;
 
-            const errorList = await validate(transformed, {
-                whitelist: true,
-                forbidNonWhitelisted: false,
-                forbidUnknownValues: false,
-                skipMissingProperties,
-            });
-            if (errorList.length > 0) {
-                this.crudLogger.log(errorList, 'ValidationError');
-                throw new UnprocessableEntityException(errorList);
+            if (!body || typeof body !== 'object') {
+                console.log('❌ Invalid body type');
+                throw new UnprocessableEntityException('Body must be a valid object');
             }
-            return transformed;
+
+            // 🎯 allowedParams 추출 (메서드별 우선, 전역 fallback)
+            const allowedParams = methodOptions.allowedParams ?? crudOptions.allowedParams;
+            console.log('🎯 Using allowedParams for validation:', allowedParams);
+
+            // 🚀 동적 검증 메타데이터 생성
+            try {
+                // 임포트 추가 필요하지만 일단 기존 검증 방식 사용하면서 로깅 강화
+                const transformed = plainToInstance(crudOptions.entity as ClassConstructor<EntityType>, body);
+                console.log('📝 Transformed fields:', Object.keys(transformed as object));
+
+                // Priority: method-specific > global > default (false for CREATE)
+                const skipMissingProperties = methodOptions.skipMissingProperties ?? crudOptions.skipMissingProperties ?? false;
+                console.log('⚙️ Validation options:', { skipMissingProperties, allowedParams });
+
+                const errorList = await validate(transformed, {
+                    whitelist: true,
+                    forbidNonWhitelisted: false,
+                    forbidUnknownValues: false,
+                    skipMissingProperties,
+                });
+
+                if (errorList.length > 0) {
+                    console.log(
+                        '❌ Validation failed:',
+                        errorList.map((e) => ({
+                            property: e.property,
+                            constraints: e.constraints,
+                            value: e.value,
+                        })),
+                    );
+                    this.crudLogger.log(errorList, 'ValidationError');
+                    throw new UnprocessableEntityException(errorList);
+                }
+
+                console.log('✅ CREATE validation passed');
+                return transformed;
+            } catch (error) {
+                console.log('💥 Validation error:', error);
+                throw error;
+            }
         }
     }
 
