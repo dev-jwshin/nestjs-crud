@@ -3,75 +3,75 @@
 [![npm version](https://badge.fury.io/js/nestjs-crud.svg)](https://badge.fury.io/js/nestjs-crud)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A powerful library that automatically generates RESTful CRUD APIs based on NestJS and TypeORM.
+NestJS와 TypeORM을 기반으로 RESTful CRUD API를 자동으로 생성하는 강력한 라이브러리입니다.
 
-## 📋 Table of Contents
+## 📋 목차
 
--   [Features](#features)
--   [Installation](#installation)
--   [Quick Start](#quick-start)
--   [Basic CRUD Operations](#basic-crud-operations)
--   [RESTful Query Parameters](#restful-query-parameters)
--   [Advanced Configuration](#advanced-configuration)
-    -   [Security Control Settings](#security-control-settings)
-    -   [Lifecycle Hooks](#lifecycle-hooks)
-        -   [Decorator Approach (NEW! Recommended)](#🎯-method-1-decorator-approach-new--recommended)
-        -   [Routes Configuration Approach (Legacy)](#🛠️-method-2-routes-configuration-approach-legacy)
--   [API Documentation](#api-documentation)
--   [Examples](#examples)
--   [License](#license)
+-   [특징](#특징)
+-   [설치](#설치)
+-   [빠른 시작](#빠른-시작)
+-   [기본 CRUD 작업](#기본-crud-작업)
+-   [RESTful 쿼리 파라미터](#restful-쿼리-파라미터)
+-   [고급 설정](#고급-설정)
+    -   [보안 제어 설정](#보안-제어-설정)
+    -   [생명주기 훅](#생명주기-훅-lifecycle-hooks)
+        -   [데코레이터 방식 (NEW! 권장)](#🎯-방법-1-데코레이터-방식-new--권장)
+        -   [Routes 설정 방식 (기존)](#🛠️-방법-2-routes-설정-방식-기존)
+-   [API 문서](#api-문서)
+-   [예제](#예제)
+-   [라이선스](#라이선스)
 
-## ✨ Features
+## ✨ 특징
 
-### 🚀 Core Features
+### 🚀 핵심 기능
 
--   **Automatic CRUD Route Generation**: Auto-generate APIs based on TypeORM entities
--   **RESTful Standard Compliance**: API endpoints following industry standards
--   **Automatic Swagger Generation**: Auto-generate and maintain API documentation
--   **Powerful Validation**: Data validation through class-validator
--   **Full TypeScript Support**: Type safety and IntelliSense support
+-   **자동 CRUD 라우트 생성**: TypeORM 엔티티 기반 자동 API 생성
+-   **RESTful 표준 준수**: 업계 표준을 따르는 API 엔드포인트
+-   **Swagger 자동 생성**: API 문서 자동 생성 및 유지보수
+-   **강력한 유효성 검사**: class-validator를 통한 데이터 검증
+-   **TypeScript 완전 지원**: 타입 안전성과 IntelliSense 지원
 
-### 🔍 Advanced Query Features
+### 🔍 고급 쿼리 기능
 
--   **Filtering**: Support for 30+ filter operators
--   **Sorting**: Multi-field sorting support
--   **Relation Inclusion**: Relationship data loading with nested relation support
--   **Pagination**: Support for Offset, Cursor, and Number-based pagination
--   **Search**: Complex search condition support
+-   **필터링**: 30가지 이상의 필터 연산자 지원
+-   **정렬**: 다중 필드 정렬 지원
+-   **관계 포함**: 중첩 관계까지 지원하는 관계 데이터 로드
+-   **페이지네이션**: Offset, Cursor, Number 방식 지원
+-   **검색**: 복잡한 검색 조건 지원
 
-### 🛠 Database Features
+### 🛠 데이터베이스 기능
 
--   **Soft Delete**: Mark data as deleted without actual deletion
--   **Recovery**: Recover soft-deleted data
--   **Upsert**: Update if exists, create if doesn't exist
--   **Lifecycle Hooks**: Execute custom logic at each stage of CRUD operations
-    -   **Decorator Approach 🆕**: Intuitive method decorators like `@BeforeCreate()`, `@AfterUpdate()`
-    -   **Routes Configuration Approach**: Legacy `routes.hooks` configuration approach
+-   **소프트 삭제**: 데이터를 실제 삭제하지 않고 마킹
+-   **복구**: 소프트 삭제된 데이터 복구
+-   **Upsert**: 존재하면 업데이트, 없으면 생성
+-   **생명주기 훅**: CRUD 작업의 각 단계에서 커스텀 로직 실행
+    -   **데코레이터 방식 🆕**: `@BeforeCreate()`, `@AfterUpdate()` 등 직관적인 메서드 데코레이터
+    -   **Routes 설정 방식**: 기존 `routes.hooks` 설정 방식
 
-### 🔒 Security and Control Features
+### 🔒 보안 및 제어 기능
 
--   **Filter Restrictions**: Only columns specified in allowedFilters can be filtered
--   **Parameter Restrictions**: Only columns specified in allowedParams can be used as request parameters
--   **Relation Inclusion Restrictions**: Only relations specified in allowedIncludes can be included
--   **Default Block Policy**: If not configured, all filtering/parameters/relation inclusion is blocked
+-   **필터링 제한**: allowedFilters로 허용된 컬럼만 필터링 가능
+-   **파라미터 제한**: allowedParams로 허용된 컬럼만 요청 파라미터로 사용 가능
+-   **관계 포함 제한**: allowedIncludes로 허용된 관계만 include 가능
+-   **기본 차단 정책**: 미설정 시 모든 필터링/파라미터/관계 포함 차단
 
-## 📦 Installation
+## 📦 설치
 
 ```bash
 npm install nestjs-crud
-# or
+# 또는
 yarn add nestjs-crud
 ```
 
-### Required Dependencies
+### 필수 의존성
 
 ```bash
 npm install @nestjs/common @nestjs/core typeorm class-validator class-transformer
 ```
 
-## 🚀 Quick Start
+## 🚀 빠른 시작
 
-### 1. Create Entity
+### 1. 엔티티 생성
 
 ```typescript
 // user.entity.ts
@@ -104,7 +104,7 @@ export class User {
 }
 ```
 
-### 2. Create Service
+### 2. 서비스 생성
 
 ```typescript
 // user.service.ts
@@ -125,7 +125,7 @@ export class UserService extends CrudService<User> {
 }
 ```
 
-### 3. Create Controller
+### 3. 컨트롤러 생성
 
 ```typescript
 // user.controller.ts
@@ -142,7 +142,7 @@ import * as bcrypt from 'bcrypt';
 export class UserController {
     constructor(public readonly crudService: UserService) {}
 
-    // 🆕 NEW! Add logic easily with lifecycle hook decorators
+    // 🆕 NEW! 생명주기 훅 데코레이터로 간단하게 로직 추가
     @BeforeCreate()
     async hashPassword(body: any, context: any) {
         if (body.password) {
@@ -153,7 +153,7 @@ export class UserController {
 }
 ```
 
-### 4. Module Configuration
+### 4. 모듈 설정
 
 ```typescript
 // user.module.ts
@@ -171,32 +171,33 @@ import { User } from './user.entity';
 export class UserModule {}
 ```
 
-## 🎯 Basic CRUD Operations
+## 🎯 기본 CRUD 작업
 
-The above configuration automatically generates the following API endpoints:
+위 설정으로 다음 API 엔드포인트가 자동 생성됩니다:
 
-| HTTP Method | Endpoint             | Description             | Method Name |
-| ----------- | -------------------- | ----------------------- | ----------- |
-| **GET**     | `/users`             | Get list of users       | `index`     |
-| **GET**     | `/users/:id`         | Get specific user       | `show`      |
-| **POST**    | `/users`             | Create new user         | `create`    |
-| **PUT**     | `/users/:id`         | Update user information | `update`    |
-| **DELETE**  | `/users/:id`         | Delete user             | `destroy`   |
-| **POST**    | `/users/upsert`      | Create or update user   | `upsert`    |
-| **POST**    | `/users/:id/recover` | Recover deleted user    | `recover`   |
+| HTTP 메서드 | 엔드포인트      | 설명                  | 메서드명  |
+| ----------- | --------------- | --------------------- | --------- |
+| **GET**     | `/users`        | 사용자 목록 조회      | `index`   |
+| **GET**     | `/users/:id`    | 특정 사용자 조회      | `show`    |
+| **POST**    | `/users`        | 새 사용자 생성        | `create`  |
+| **PUT**     | `/users/:id`    | 사용자 정보 수정      | `update`  |
+| **DELETE**  | `/users/:id`    | 사용자 삭제           | `destroy` |
+| **POST**    | `/users/upsert` | 사용자 생성 또는 수정 | `upsert`  |
 
-### 📊 Unified Response Structure
+| **POST** | `/users/:id/recover` | 삭제된 사용자 복구 | `recover` |
 
-All CRUD operations provide a consistent response structure with metadata:
+### 📊 통일된 응답 구조
 
-#### GET /users (index) - Pagination Response
+모든 CRUD 작업은 메타데이터를 포함한 일관된 응답 구조를 제공합니다:
+
+#### GET /users (index) - 페이지네이션 응답
 
 ```json
 {
     "data": [
-        { "id": 1, "name": "John Doe", "email": "john@example.com" },
-        { "id": 2, "name": "Jane Smith", "email": "jane@example.com" },
-        { "id": 3, "name": "Bob Johnson", "email": "bob@example.com" }
+        { "id": 1, "name": "홍길동", "email": "hong@example.com" },
+        { "id": 2, "name": "김철수", "email": "kim@example.com" },
+        { "id": 3, "name": "박영희", "email": "park@example.com" }
     ],
     "metadata": {
         "operation": "index",
@@ -220,8 +221,8 @@ All CRUD operations provide a consistent response structure with metadata:
 ```json
 {
     "data": [
-        { "id": 4, "name": "Alice Brown", "email": "alice@example.com" },
-        { "id": 5, "name": "Charlie Wilson", "email": "charlie@example.com" }
+        { "id": 4, "name": "이민수", "email": "lee@example.com" },
+        { "id": 5, "name": "최유진", "email": "choi@example.com" }
     ],
     "metadata": {
         "operation": "index",
@@ -244,8 +245,8 @@ All CRUD operations provide a consistent response structure with metadata:
 {
     "data": {
         "id": 1,
-        "name": "John Doe",
-        "email": "john@example.com",
+        "name": "홍길동",
+        "email": "hong@example.com",
         "createdAt": "2024-01-15T10:30:00.000Z"
     },
     "metadata": {
@@ -264,8 +265,8 @@ All CRUD operations provide a consistent response structure with metadata:
 {
     "data": {
         "id": 1,
-        "name": "John Doe",
-        "email": "john@example.com",
+        "name": "홍길동",
+        "email": "hong@example.com",
         "createdAt": "2024-01-15T10:30:00.000Z"
     },
     "metadata": {
@@ -282,8 +283,8 @@ All CRUD operations provide a consistent response structure with metadata:
 {
     "data": {
         "id": 1,
-        "name": "John Doe Updated",
-        "email": "john_updated@example.com",
+        "name": "홍길동_수정",
+        "email": "hong_updated@example.com",
         "updatedAt": "2024-01-15T11:00:00.000Z"
     },
     "metadata": {
@@ -300,14 +301,14 @@ All CRUD operations provide a consistent response structure with metadata:
 {
     "data": {
         "id": 1,
-        "name": "John Doe Upsert",
-        "email": "john_upsert@example.com"
+        "name": "홍길동_upsert",
+        "email": "hong_upsert@example.com"
     },
     "metadata": {
         "operation": "upsert",
         "timestamp": "2024-01-15T11:00:00.000Z",
         "affectedCount": 1,
-        "isNew": false // true: newly created, false: existing data updated
+        "isNew": false // true: 새로 생성, false: 기존 데이터 수정
     }
 }
 ```
@@ -318,15 +319,15 @@ All CRUD operations provide a consistent response structure with metadata:
 {
     "data": {
         "id": 1,
-        "name": "John Doe",
-        "email": "john@example.com",
+        "name": "홍길동",
+        "email": "hong@example.com",
         "deletedAt": "2024-01-15T11:00:00.000Z"
     },
     "metadata": {
         "operation": "destroy",
         "timestamp": "2024-01-15T11:00:00.000Z",
         "affectedCount": 1,
-        "wasSoftDeleted": true // true: soft delete, false: hard delete
+        "wasSoftDeleted": true // true: 소프트 삭제, false: 하드 삭제
     }
 }
 ```
@@ -337,26 +338,26 @@ All CRUD operations provide a consistent response structure with metadata:
 {
     "data": {
         "id": 1,
-        "name": "John Doe",
-        "email": "john@example.com",
+        "name": "홍길동",
+        "email": "hong@example.com",
         "deletedAt": null
     },
     "metadata": {
         "operation": "recover",
         "timestamp": "2024-01-15T11:00:00.000Z",
         "affectedCount": 1,
-        "wasSoftDeleted": true // Whether it was soft deleted before recovery
+        "wasSoftDeleted": true // 복구 전 소프트 삭제 상태였는지
     }
 }
 ```
 
-#### Multiple Creation (POST /users - array submission)
+#### 다중 생성 (POST /users - 배열 전송)
 
 ```json
 {
     "data": [
-        { "id": 1, "name": "John Doe", "email": "john@example.com" },
-        { "id": 2, "name": "Jane Smith", "email": "jane@example.com" }
+        { "id": 1, "name": "홍길동", "email": "hong@example.com" },
+        { "id": 2, "name": "김철수", "email": "kim@example.com" }
     ],
     "metadata": {
         "operation": "create",
@@ -366,299 +367,299 @@ All CRUD operations provide a consistent response structure with metadata:
 }
 ```
 
-## 🔍 RESTful Query Parameters
+## 🔍 RESTful 쿼리 파라미터
 
-### 📋 Filtering
+### 📋 필터링 (Filtering)
 
-#### ⚠️ Important: Query Parameter Format
+#### ⚠️ 중요: 쿼리 파라미터 형식
 
-nestjs-crud uses **underscore separator format**. MongoDB-style `$` operators are not supported.
+nestjs-crud는 **underscore 구분자 방식**을 사용합니다. MongoDB 스타일의 `$` 연산자는 지원하지 않습니다.
 
 ```bash
-# ✅ Correct format (underscore separator)
+# ✅ 올바른 형식 (underscore 구분자)
 GET /users?filter[email_eq]=test@example.com
 GET /users?filter[age_gte]=18
-GET /users?filter[name_like]=%John%
+GET /users?filter[name_like]=%김%
 
-# ❌ Unsupported format (MongoDB style)
-GET /users?filter[email][$eq]=test@example.com     # Won't work
-GET /users?filter[age][$gte]=18                    # Won't work
-GET /users?filter[name][$like]=%John%              # Won't work
+# ❌ 지원하지 않는 형식 (MongoDB 스타일)
+GET /users?filter[email][$eq]=test@example.com     # 작동하지 않음
+GET /users?filter[age][$gte]=18                    # 작동하지 않음
+GET /users?filter[name][$like]=%김%                 # 작동하지 않음
 ```
 
-**Parsing method:**
+**파싱 방식:**
 
--   `filter[field_operator]=value` → ✅ Works correctly
--   `filter[field][$operator]=value` → ❌ Filter is ignored
+-   `filter[field_operator]=value` → ✅ 정상 작동
+-   `filter[field][$operator]=value` → ❌ 필터 무시됨
 
-#### Basic Comparison Operators
+#### 기본 비교 연산자
 
 ```bash
-# Equals
-GET /users?filter[name_eq]=John Doe
+# 같음
+GET /users?filter[name_eq]=홍길동
 GET /users?filter[age_eq]=25
 
-# Not equals
+# 다름
 GET /users?filter[status_ne]=inactive
 GET /users?filter[role_ne]=admin
 ```
 
-#### Size Comparison Operators
+#### 크기 비교 연산자
 
 ```bash
-# Greater than/Greater than or equal
+# 초과/이상
 GET /users?filter[age_gt]=18
 GET /users?filter[age_gte]=18
 
-# Less than/Less than or equal
+# 미만/이하
 GET /users?filter[age_lt]=65
 GET /users?filter[age_lte]=65
 
-# Range
+# 범위
 GET /users?filter[age_between]=18,65
 GET /users?filter[salary_between]=30000,80000
 ```
 
-#### String Pattern Operators
+#### 문자열 패턴 연산자
 
 ```bash
-# LIKE pattern (case sensitive)
-GET /users?filter[name_like]=%John%
+# LIKE 패턴 (대소문자 구분)
+GET /users?filter[name_like]=%김%
 GET /users?filter[email_like]=%@gmail.com
 
-# ILIKE pattern (case insensitive)
-GET /users?filter[name_ilike]=%JOHN%
+# ILIKE 패턴 (대소문자 무시)
+GET /users?filter[name_ilike]=%KIM%
 GET /users?filter[email_ilike]=%GMAIL%
 
-# Start/End patterns
-GET /users?filter[name_start]=John
+# 시작/끝 패턴
+GET /users?filter[name_start]=김
 GET /users?filter[email_end]=.com
 
-# Contains
-GET /users?filter[bio_contains]=developer
+# 포함
+GET /users?filter[bio_contains]=개발자
 ```
 
-#### Array/List Operators
+#### 배열/리스트 연산자
 
 ```bash
-# Include (IN)
+# 포함 (IN)
 GET /users?filter[id_in]=1,2,3,4,5
 GET /users?filter[role_in]=admin,manager,user
 
-# Exclude (NOT IN)
+# 미포함 (NOT IN)
 GET /users?filter[status_not_in]=deleted,banned
 GET /users?filter[role_not_in]=guest
 ```
 
-#### NULL/Existence Check Operators
+#### NULL/존재 체크 연산자
 
 ```bash
-# NULL check
+# NULL 체크
 GET /users?filter[deleted_at_null]=true
 GET /users?filter[last_login_null]=true
 
-# NOT NULL check
+# NOT NULL 체크
 GET /users?filter[avatar_not_null]=true
 GET /users?filter[email_verified_at_not_null]=true
 
-# Existence check (not null and not empty string)
+# 존재 체크 (null이 아니고 빈 문자열도 아님)
 GET /users?filter[bio_present]=true
 
-# Blank check (null or empty string)
+# 공백 체크 (null이거나 빈 문자열)
 GET /users?filter[middle_name_blank]=true
 ```
 
-#### Relation Filtering
+#### 관계 필터링
 
 ```bash
-# Nested relation filtering
-GET /posts?filter[author.name_like]=%John%
-GET /posts?filter[author.department.name_eq]=Development
+# 중첩 관계 필터링
+GET /posts?filter[author.name_like]=%김%
+GET /posts?filter[author.department.name_eq]=개발팀
 GET /comments?filter[post.author.role_eq]=admin
 ```
 
-### 🔄 Sorting
+### 🔄 정렬 (Sorting)
 
 ```bash
-# Single field sorting
-GET /users?sort=name                    # Name ascending
-GET /users?sort=-created_at             # Creation date descending
+# 단일 필드 정렬
+GET /users?sort=name                    # 이름 오름차순
+GET /users?sort=-created_at             # 생성일 내림차순
 
-# Multi-field sorting
-GET /users?sort=role,name,-created_at   # Role>Name>Creation date order
+# 다중 필드 정렬
+GET /users?sort=role,name,-created_at   # 역할>이름>생성일순
 
-# Relation field sorting
+# 관계 필드 정렬
 GET /posts?sort=author.name,-created_at
 GET /users?sort=department.name,name
 ```
 
-### 🔗 Including Relations
+### 🔗 관계 포함 (Including Relations)
 
-**⚠️ Important Changes**:
+**⚠️ 중요한 변경사항**:
 
--   The `routes.relations` option has been deprecated.
--   Now use `allowedIncludes` configuration and `include` query parameter together.
--   **Enhanced Security**: If allowedIncludes is not configured, all relation inclusion is blocked.
+-   `routes.relations` 옵션은 deprecated되었습니다.
+-   이제 `allowedIncludes` 설정과 `include` 쿼리 파라미터를 함께 사용합니다.
+-   **보안 강화**: allowedIncludes를 설정하지 않으면 모든 관계 포함이 차단됩니다.
 
 ```bash
-# Single relation (only relations allowed in allowedIncludes)
+# 단일 관계 (allowedIncludes에 허용된 관계만)
 GET /users?include=department
 GET /posts?include=author
 
-# Multiple relations
+# 다중 관계
 GET /users?include=department,posts
 GET /posts?include=author,comments
 
-# Nested relations
+# 중첩 관계
 GET /posts?include=author,comments.author
 GET /users?include=department.company,posts.comments
 GET /orders?include=customer.address,items.product.category
 ```
 
-#### Before and After Comparison
+#### 변경 전후 비교
 
 ```typescript
-// ❌ Previous approach (deprecated)
+// ❌ 이전 방식 (deprecated)
 @Crud({
   entity: User,
   routes: {
     index: {
-      relations: ['department', 'posts'], // Relations included by default
+      relations: ['department', 'posts'], // 기본적으로 관계 포함
     }
   }
 })
 
-// ✅ New approach (enhanced security)
+// ✅ 새로운 방식 (보안 강화)
 @Crud({
   entity: User,
-  allowedIncludes: ['department', 'posts'], // Explicitly specify allowed relations
+  allowedIncludes: ['department', 'posts'], // 허용된 관계 명시
   routes: {
     index: {
-      allowedIncludes: ['department', 'posts', 'posts.comments'], // Additional method-specific allowances
+      allowedIncludes: ['department', 'posts', 'posts.comments'], // 메서드별 추가 허용
     }
   }
 })
 
-// When relations are needed, explicitly request via query parameter
+// 관계가 필요한 경우 쿼리 파라미터로 명시적 요청
 GET /users?include=department,posts
 ```
 
-#### Security Policy
+#### 보안 정책
 
 ```typescript
-// 1. allowedIncludes not configured → All relations blocked
+// 1. allowedIncludes 미설정 → 모든 관계 차단
 @Crud({
   entity: User,
-  // No allowedIncludes → All includes ignored
+  // allowedIncludes 없음 → 모든 include 무시됨
 })
 
-// 2. Global configuration
+// 2. 전역 설정
 @Crud({
   entity: User,
-  allowedIncludes: ['department'], // Only department allowed
+  allowedIncludes: ['department'], // department만 허용
 })
 
-// 3. Method-specific configuration (higher priority)
+// 3. 메서드별 설정 (우선순위 높음)
 @Crud({
   entity: User,
-  allowedIncludes: ['department'], // Global: department only
+  allowedIncludes: ['department'], // 전역: department만
   routes: {
     index: {
-      allowedIncludes: ['department', 'posts'], // INDEX allows posts additionally
+      allowedIncludes: ['department', 'posts'], // INDEX는 posts도 추가 허용
     },
     show: {
-      // No allowedIncludes → Uses global configuration: department only
+      // allowedIncludes 없음 → 전역 설정 사용: department만
     },
   },
 })
 ```
 
-#### Benefits
+#### 장점
 
-1. **Enhanced Security**: Only explicitly allowed relations can be included
-2. **Explicit Requests**: Selectively load only necessary relations
-3. **Performance Optimization**: Prevent unnecessary relation loading
-4. **N+1 Problem Prevention**: Handle necessary relations with JOINs only
-5. **Fine-grained Control**: Apply different relation inclusion policies per method
+1. **보안 강화**: 명시적으로 허용된 관계만 포함 가능
+2. **명시적 요청**: 필요한 관계만 선택적으로 로드
+3. **성능 최적화**: 불필요한 관계 로딩 방지
+4. **N+1 문제 방지**: 필요한 관계만 JOIN으로 처리
+5. **세밀한 제어**: 메서드별로 다른 관계 포함 정책 적용
 
-### 📄 Pagination
+### 📄 페이지네이션 (Pagination)
 
-#### Page Number Method
-
-```bash
-GET /users?page[number]=1&page[size]=10     # Page 1, 10 items per page
-GET /users?page[number]=3&page[size]=20     # Page 3, 20 items per page
-```
-
-#### Offset Method
+#### 페이지 번호 방식
 
 ```bash
-GET /users?page[offset]=0&page[limit]=10    # First 10 items
-GET /users?page[offset]=20&page[limit]=10   # 10 items starting from 20th
+GET /users?page[number]=1&page[size]=10     # 1페이지, 10개씩
+GET /users?page[number]=3&page[size]=20     # 3페이지, 20개씩
 ```
 
-#### Cursor Method
+#### 오프셋 방식
+
+```bash
+GET /users?page[offset]=0&page[limit]=10    # 처음부터 10개
+GET /users?page[offset]=20&page[limit]=10   # 20번째부터 10개
+```
+
+#### 커서 방식
 
 ```bash
 GET /users?page[cursor]=eyJpZCI6MTB9&page[size]=10
 ```
 
-### 📊 Pagination Response Structure
+### 📊 페이지네이션 응답 구조
 
-#### Offset/Number Pagination Response
-
-```json
-{
-    "data": [
-        { "id": 1, "name": "John Doe", "email": "john@example.com" },
-        { "id": 2, "name": "Jane Smith", "email": "jane@example.com" }
-    ],
-    "metadata": {
-        "page": 1, // Current page number
-        "pages": 10, // Total pages ✅
-        "total": 95, // Total data count
-        "offset": 10, // Next offset
-        "nextCursor": "..." // Next page token
-    }
-}
-```
-
-#### Cursor Pagination Response
+#### Offset/Number 페이지네이션 응답
 
 ```json
 {
     "data": [
-        { "id": 1, "name": "John Doe", "email": "john@example.com" },
-        { "id": 2, "name": "Jane Smith", "email": "jane@example.com" }
+        { "id": 1, "name": "홍길동", "email": "hong@example.com" },
+        { "id": 2, "name": "김철수", "email": "kim@example.com" }
     ],
     "metadata": {
-        "total": 95, // Total data count
-        "totalPages": 10, // Total pages ✅
-        "limit": 10, // Page size
-        "nextCursor": "..." // Next page token
+        "page": 1, // 현재 페이지 번호
+        "pages": 10, // 총 페이지 수 ✅
+        "total": 95, // 총 데이터 개수
+        "offset": 10, // 다음 오프셋
+        "nextCursor": "..." // 다음 페이지 토큰
     }
 }
 ```
 
-### 🔍 Complex Query Examples
+#### Cursor 페이지네이션 응답
 
-Check out complex query usage through real-world use cases:
+```json
+{
+    "data": [
+        { "id": 1, "name": "홍길동", "email": "hong@example.com" },
+        { "id": 2, "name": "김철수", "email": "kim@example.com" }
+    ],
+    "metadata": {
+        "total": 95, // 총 데이터 개수
+        "totalPages": 10, // 총 페이지 수 ✅
+        "limit": 10, // 페이지 크기
+        "nextCursor": "..." // 다음 페이지 토큰
+    }
+}
+```
 
-#### User Search Example
+### 🔍 복합 쿼리 예제
+
+실제 사용 사례들을 통해 복합 쿼리 사용법을 확인해보세요:
+
+#### 사용자 검색 예제
 
 ```bash
-# Get 10 active adult users sorted by recent registration
+# 활성 상태의 성인 사용자를 최근 가입순으로 10명 조회
 GET /users?filter[status_eq]=active&
           filter[age_gte]=18&
           sort=-created_at&
           page[number]=1&page[size]=10
 ```
 
-#### Post Search Example
+#### 게시물 검색 예제
 
 ```bash
-# Get published posts by specific author with author information
-GET /posts?filter[author.name_like]=%John%&
+# 특정 작성자의 공개 게시물을 작성자 정보와 함께 조회
+GET /posts?filter[author.name_like]=%김%&
           filter[status_eq]=published&
           filter[created_at_gte]=2024-01-01&
           include=author,comments&
@@ -666,10 +667,10 @@ GET /posts?filter[author.name_like]=%John%&
           page[number]=1&page[size]=20
 ```
 
-#### Order Search Example
+#### 주문 검색 예제
 
 ```bash
-# Get completed orders with customer and order item information
+# 완료된 주문을 고객 정보, 주문 상품과 함께 조회
 GET /orders?filter[status_eq]=completed&
            filter[total_amount_gte]=50000&
            filter[created_at_between]=2024-01-01,2024-12-31&
@@ -678,23 +679,23 @@ GET /orders?filter[status_eq]=completed&
            page[offset]=0&page[limit]=50
 ```
 
-## ⚙️ Advanced Configuration
+## ⚙️ 고급 설정
 
-### 🔒 Security Control Settings
+### 🔒 보안 제어 설정
 
-#### Filter Restrictions - allowedFilters
+#### 필터링 제한 - allowedFilters
 
 ```typescript
 @Controller('users')
 @Crud({
     entity: User,
-    allowedFilters: ['name', 'email', 'status'], // Global: only these columns allowed for filtering
+    allowedFilters: ['name', 'email', 'status'], // 전역: 이 컬럼들만 필터링 허용
     routes: {
         index: {
-            allowedFilters: ['name', 'email', 'status', 'createdAt'], // INDEX allows more columns
+            allowedFilters: ['name', 'email', 'status', 'createdAt'], // INDEX는 더 많은 컬럼 허용
         },
         show: {
-            allowedFilters: ['name'], // SHOW allows only name
+            allowedFilters: ['name'], // SHOW는 name만 허용
         },
     },
 })
@@ -703,33 +704,33 @@ export class UserController {
 }
 ```
 
-**Operation examples:**
+**동작 예시:**
 
 ```bash
-# ✅ Allowed columns - works normally
-GET /users?filter[name_like]=%John%
+# ✅ 허용된 컬럼 - 정상 작동
+GET /users?filter[name_like]=%김%
 GET /users?filter[email_eq]=test@example.com
 
-# ❌ Disallowed columns - filter ignored
-GET /users?filter[password_eq]=secret  # Ignored if password not in allowedFilters
+# ❌ 허용되지 않은 컬럼 - 필터 무시됨
+GET /users?filter[password_eq]=secret  # password가 allowedFilters에 없으면 무시
 ```
 
-#### Parameter Restrictions - allowedParams
+#### 파라미터 제한 - allowedParams
 
 ```typescript
 @Controller('users')
 @Crud({
     entity: User,
-    allowedParams: ['name', 'email'], // Global: only these columns allowed as request parameters
+    allowedParams: ['name', 'email'], // 전역: 이 컬럼들만 요청 파라미터로 허용
     routes: {
         create: {
-            allowedParams: ['name', 'email', 'status'], // CREATE allows additional status
+            allowedParams: ['name', 'email', 'status'], // CREATE는 status 추가 허용
         },
         update: {
-            allowedParams: ['name'], // UPDATE allows only name
+            allowedParams: ['name'], // UPDATE는 name만 허용
         },
         upsert: {
-            // No allowedParams -> uses global configuration: name, email only
+            // allowedParams 없음 -> 전역 설정 사용: name, email만
         },
     },
 })
@@ -738,40 +739,40 @@ export class UserController {
 }
 ```
 
-**Operation examples:**
+**동작 예시:**
 
 ```typescript
-// Configuration: allowedParams: ['name', 'email']
+// 설정: allowedParams: ['name', 'email']
 
-// ✅ Only allowed parameters are processed
+// ✅ 허용된 파라미터만 처리됨
 POST /users
 {
-  "name": "John Doe",        // ✅ Processed
-  "email": "john@test.com",  // ✅ Processed
-  "password": "secret",      // ❌ Removed (not in allowedParams)
-  "internal_id": 123         // ❌ Removed (not in allowedParams)
+  "name": "홍길동",        // ✅ 처리됨
+  "email": "hong@test.com", // ✅ 처리됨
+  "password": "secret",     // ❌ 제거됨 (allowedParams에 없음)
+  "internal_id": 123        // ❌ 제거됨 (allowedParams에 없음)
 }
 
-// Actually processed data:
+// 실제 처리되는 데이터:
 {
-  "name": "John Doe",
-  "email": "john@test.com"
+  "name": "홍길동",
+  "email": "hong@test.com"
 }
 ```
 
-#### Relation Inclusion Restrictions - allowedIncludes
+#### 관계 포함 제한 - allowedIncludes
 
 ```typescript
 @Controller('posts')
 @Crud({
     entity: Post,
-    allowedIncludes: ['author'], // Global: only author relation allowed
+    allowedIncludes: ['author'], // 전역: author 관계만 포함 허용
     routes: {
         index: {
-            allowedIncludes: ['author', 'comments', 'tags'], // INDEX allows more relations
+            allowedIncludes: ['author', 'comments', 'tags'], // INDEX는 더 많은 관계 허용
         },
         show: {
-            allowedIncludes: ['author', 'comments.author'], // SHOW allows nested relations
+            allowedIncludes: ['author', 'comments.author'], // SHOW는 중첩 관계까지 허용
         },
     },
 })
@@ -780,54 +781,54 @@ export class PostController {
 }
 ```
 
-**Operation examples:**
+**동작 예시:**
 
 ```bash
-# ✅ Only allowed relations are included
-GET /posts?include=author           # ✅ Included
-GET /posts?include=comments         # ✅ Included (in INDEX)
-GET /posts?include=author,comments  # ✅ Both included
+# ✅ 허용된 관계만 포함됨
+GET /posts?include=author           # ✅ 포함됨
+GET /posts?include=comments         # ✅ 포함됨 (INDEX에서)
+GET /posts?include=author,comments  # ✅ 둘 다 포함됨
 
-# ❌ Disallowed relations are ignored
-GET /posts?include=author,likes,comments  # ✅ Only author,comments included (likes ignored)
-GET /posts?include=profile               # ❌ All relations ignored (profile not allowed)
+# ❌ 허용되지 않은 관계는 무시됨
+GET /posts?include=author,likes,comments  # ✅ author,comments만 포함됨 (likes 무시)
+GET /posts?include=profile               # ❌ 모든 관계 무시됨 (profile 허용안됨)
 ```
 
-### 🎛️ CRUD Options Configuration
+### 🎛️ CRUD 옵션 설정
 
 ```typescript
 @Controller('users')
 @Crud({
     entity: User,
-    only: ['index', 'show', 'create', 'update'], // Enable only specific methods
-    allowedFilters: ['name', 'email', 'status'], // Allowed filter columns
-    allowedParams: ['name', 'email', 'bio'], // Allowed request parameters
-    allowedIncludes: ['department', 'posts'], // Allowed relation inclusions
+    only: ['index', 'show', 'create', 'update'], // 특정 메서드만 활성화
+    allowedFilters: ['name', 'email', 'status'], // 허용된 필터 컬럼
+    allowedParams: ['name', 'email', 'bio'], // 허용된 요청 파라미터
+    allowedIncludes: ['department', 'posts'], // 허용된 관계 포함
     routes: {
         index: {
             paginationType: PaginationType.OFFSET,
             numberOfTake: 20,
             sort: Sort.DESC,
             softDelete: false,
-            allowedFilters: ['name', 'email', 'status', 'createdAt'], // Method-specific filter settings
-            allowedIncludes: ['department', 'posts', 'posts.comments'], // Method-specific relation settings
+            allowedFilters: ['name', 'email', 'status', 'createdAt'], // 메서드별 필터 설정
+            allowedIncludes: ['department', 'posts', 'posts.comments'], // 메서드별 관계 설정
         },
         show: {
             softDelete: true,
-            allowedFilters: ['name', 'email'], // SHOW has restrictive filtering
-            allowedIncludes: ['department'], // SHOW has basic relations only
+            allowedFilters: ['name', 'email'], // SHOW는 제한적 필터링
+            allowedIncludes: ['department'], // SHOW는 기본 관계만
         },
         create: {
             hooks: {
                 assignBefore: async (body, context) => {
-                    // Email normalization
+                    // 이메일 정규화
                     if (body.email) {
                         body.email = body.email.toLowerCase().trim();
                     }
                     return body;
                 },
                 saveAfter: async (entity, context) => {
-                    // Send user creation event
+                    // 사용자 생성 이벤트 발송
                     await eventBus.publish('user.created', entity);
                     return entity;
                 },
@@ -851,60 +852,60 @@ export class UserController {
 }
 ```
 
-### 🔄 Lifecycle Hooks
+### 🔄 생명주기 훅 (Lifecycle Hooks)
 
-Execute custom logic at each stage of CRUD operations through lifecycle hooks.
+생명주기 훅을 통해 CRUD 작업의 각 단계에서 커스텀 로직을 실행할 수 있습니다.
 
-#### Hook Types
+#### 훅 타입
 
-| Hook           | Execution Point            | Purpose                          | Supported Routes       |
-| -------------- | -------------------------- | -------------------------------- | ---------------------- |
-| `assignBefore` | **Before** data assignment | Input validation, transformation | create, update, upsert |
-| `assignAfter`  | **After** data assignment  | Entity post-processing           | create, update, upsert |
-| `saveBefore`   | **Before** saving          | Final validation, business logic | create, update, upsert |
-| `saveAfter`    | **After** saving           | Notifications, event generation  | create, update, upsert |
+| 훅             | 실행 시점          | 용도                     | 지원 라우트            |
+| -------------- | ------------------ | ------------------------ | ---------------------- |
+| `assignBefore` | 데이터 할당 **전** | 입력 검증, 변환          | create, update, upsert |
+| `assignAfter`  | 데이터 할당 **후** | 엔티티 후처리            | create, update, upsert |
+| `saveBefore`   | 저장 **전**        | 최종 검증, 비즈니스 로직 | create, update, upsert |
+| `saveAfter`    | 저장 **후**        | 알림, 이벤트 발생        | create, update, upsert |
 
-#### 🎯 Method 1: Decorator Approach (NEW! 🆕 Recommended)
+#### 🎯 방법 1: 데코레이터 방식 (NEW! 🆕 권장)
 
-**Use decorators on class methods for intuitive usage.**
+**클래스 메서드에 데코레이터를 달아서 직관적으로 사용하는 방식입니다.**
 
-##### Available Decorators
+##### 사용 가능한 데코레이터
 
-**Basic decorators:**
-
-```typescript
-@BeforeCreate()  // Execute before CREATE (assignBefore)
-@AfterCreate()   // Execute after CREATE (saveAfter)
-@BeforeUpdate()  // Execute before UPDATE (assignBefore)
-@AfterUpdate()   // Execute after UPDATE (saveAfter)
-@BeforeUpsert()  // Execute before UPSERT (assignBefore)
-@AfterUpsert()   // Execute after UPSERT (saveAfter)
-```
-
-**Consistent fine-grained control decorators:**
+**기본 데코레이터:**
 
 ```typescript
-@BeforeAssign('create' | 'update' | 'upsert')  // Before assignment
-@AfterAssign('create' | 'update' | 'upsert')   // After assignment
-@BeforeSave('create' | 'update' | 'upsert')    // Before saving
-@AfterSave('create' | 'update' | 'upsert')     // After saving
+@BeforeCreate()  // CREATE 전에 실행 (assignBefore)
+@AfterCreate()   // CREATE 후에 실행 (saveAfter)
+@BeforeUpdate()  // UPDATE 전에 실행 (assignBefore)
+@AfterUpdate()   // UPDATE 후에 실행 (saveAfter)
+@BeforeUpsert()  // UPSERT 전에 실행 (assignBefore)
+@AfterUpsert()   // UPSERT 후에 실행 (saveAfter)
 ```
 
-**🆕 New 4-stage detailed decorators (clearer control):**
+**일관성 있는 세밀한 제어용 데코레이터:**
 
 ```typescript
-// === ASSIGN stage (data assignment to entity) ===
-@BeforeAssignCreate()  @BeforeAssignUpdate()  @BeforeAssignUpsert()  // Before assignment
-@AfterAssignCreate()   @AfterAssignUpdate()   @AfterAssignUpsert()   // After assignment
-
-// === SAVE stage (database saving) ===
-@BeforeSaveCreate()    @BeforeSaveUpdate()    @BeforeSaveUpsert()    // Before saving
-@AfterSaveCreate()     @AfterSaveUpdate()     @AfterSaveUpsert()     // After saving
+@BeforeAssign('create' | 'update' | 'upsert')  // 할당 전
+@AfterAssign('create' | 'update' | 'upsert')   // 할당 후
+@BeforeSave('create' | 'update' | 'upsert')    // 저장 전
+@AfterSave('create' | 'update' | 'upsert')     // 저장 후
 ```
 
-##### Real Usage Examples
+**🆕 새로운 4단계 세분화 데코레이터 (더 명확한 제어):**
 
-**Using basic decorators:**
+```typescript
+// === ASSIGN 단계 (엔티티에 데이터 할당) ===
+@BeforeAssignCreate()  @BeforeAssignUpdate()  @BeforeAssignUpsert()  // 할당 전
+@AfterAssignCreate()   @AfterAssignUpdate()   @AfterAssignUpsert()   // 할당 후
+
+// === SAVE 단계 (데이터베이스 저장) ===
+@BeforeSaveCreate()    @BeforeSaveUpdate()    @BeforeSaveUpsert()    // 저장 전
+@AfterSaveCreate()     @AfterSaveUpdate()     @AfterSaveUpsert()     // 저장 후
+```
+
+##### 실제 사용 예시
+
+**기존 데코레이터 사용:**
 
 ```typescript
 import { Controller, Post, Put } from '@nestjs/common';
@@ -921,52 +922,52 @@ import * as bcrypt from 'bcrypt';
 export class UserController {
     constructor(public readonly crudService: UserService) {}
 
-    // 🔐 Hash password before CREATE
+    // 🔐 CREATE 전에 password 암호화
     @BeforeCreate()
     async hashPasswordOnCreate(body: any, context: any) {
         if (body.password) {
-            console.log('CREATE: Hashing password...');
+            console.log('CREATE: password 암호화 중...');
             body.password = await bcrypt.hash(body.password, 10);
         }
 
-        // Set default values
+        // 기본값 설정
         body.provider = body.provider || 'local';
         body.role = body.role || 'user';
 
         return body;
     }
 
-    // 📧 Send welcome email after CREATE
+    // 📧 CREATE 후에 환영 이메일 발송
     @AfterCreate()
     async sendWelcomeEmail(entity: User, context: any) {
-        console.log(`New user created: ${entity.email} (ID: ${entity.id})`);
+        console.log(`새 사용자 생성 완료: ${entity.email} (ID: ${entity.id})`);
 
-        // Welcome email sending logic
+        // 환영 이메일 발송 로직
         // await this.emailService.sendWelcomeEmail(entity);
 
         return entity;
     }
 
-    // 🔐 Hash password before UPDATE too
+    // 🔐 UPDATE 전에도 password 암호화
     @BeforeUpdate()
     async hashPasswordOnUpdate(body: any, context: any) {
         if (body.password) {
-            console.log('UPDATE: Hashing password...');
+            console.log('UPDATE: password 암호화 중...');
             body.password = await bcrypt.hash(body.password, 10);
         }
 
-        // Auto-set update time
+        // 업데이트 시간 자동 설정
         body.updatedAt = new Date();
 
         return body;
     }
 
-    // 📝 Log user update after UPDATE
+    // 📝 UPDATE 후에 로그 기록
     @AfterUpdate()
     async logUserUpdate(entity: User, context: any) {
-        console.log(`User update completed: ${entity.email} (ID: ${entity.id})`);
+        console.log(`사용자 업데이트 완료: ${entity.email} (ID: ${entity.id})`);
 
-        // Record update log
+        // 업데이트 로그 기록
         // await this.auditService.logUserUpdate(entity, context.request?.user);
 
         return entity;
@@ -974,45 +975,45 @@ export class UserController {
 }
 ```
 
-##### Execution Order and Parameters
+##### 실행 순서와 매개변수
 
-**Hooks during Create process:**
+**Create 과정에서의 훅:**
 
 ```typescript
 @BeforeCreate()  // = @BeforeAssign('create')
 async beforeCreate(body: any, context: HookContext) {
-  // body: request data
+  // body: 요청 데이터
   // context: { operation: 'create', params: {}, currentEntity: undefined }
-  return body; // Return modified body
+  return body; // 수정된 body 반환
 }
 
 @AfterCreate()   // = @AfterSave('create')
 async afterCreate(entity: User, context: HookContext) {
-  // entity: saved entity
+  // entity: 저장된 엔티티
   // context: { operation: 'create', params: {}, currentEntity: undefined }
-  return entity; // Return modified entity
+  return entity; // 수정된 entity 반환
 }
 ```
 
-**Hooks during Update process:**
+**Update 과정에서의 훅:**
 
 ```typescript
 @BeforeUpdate()  // = @BeforeAssign('update')
 async beforeUpdate(body: any, context: HookContext) {
-  // body: data to update
+  // body: 업데이트할 데이터
   // context: { operation: 'update', params: { id: 5 }, currentEntity: User }
   return body;
 }
 
 @AfterUpdate()   // = @AfterSave('update')
 async afterUpdate(entity: User, context: HookContext) {
-  // entity: updated entity
+  // entity: 업데이트된 엔티티
   // context: { operation: 'update', params: { id: 5 }, currentEntity: User }
   return entity;
 }
 ```
 
-##### Advanced Usage Examples
+##### 고급 활용 예시
 
 ```typescript
 @Crud({
@@ -1025,13 +1026,13 @@ export class PostController {
 
     @BeforeCreate()
     async beforeCreatePost(body: any, context: any) {
-        // Auto-set user ID
+        // 사용자 ID 자동 설정
         const userId = context.request?.user?.id;
         if (userId) {
             body.userId = userId;
         }
 
-        // Auto-generate slug
+        // 슬러그 자동 생성
         if (body.title && !body.slug) {
             body.slug = body.title
                 .toLowerCase()
@@ -1045,7 +1046,7 @@ export class PostController {
 
     @BeforeSave('create')
     async validateBeforeSave(entity: Post, context: any) {
-        // Check and resolve slug duplication
+        // 슬러그 중복 검사 및 해결
         const existingPost = await this.crudService.findBySlug(entity.slug);
         if (existingPost) {
             entity.slug = `${entity.slug}-${Date.now()}`;
@@ -1056,23 +1057,23 @@ export class PostController {
 
     @AfterCreate()
     async afterCreatePost(entity: Post, context: any) {
-        // Update search index
+        // 검색 인덱스 업데이트
         // await this.searchService.indexPost(entity);
 
-        // Notify about published post
+        // 발행된 게시글 알림
         if (entity.status === 'published') {
             // await this.notificationService.notifyNewPost(entity);
-            console.log(`New post published: ${entity.title}`);
+            console.log(`새 게시글 발행: ${entity.title}`);
         }
 
         return entity;
     }
 
-    // Multiple hooks can be used together
+    // 여러 훅을 함께 사용 가능
     @BeforeUpdate()
     @BeforeUpsert()
     async beforeModify(body: any, context: any) {
-        // Common logic for both CREATE and UPDATE
+        // CREATE와 UPDATE 모두에서 실행될 공통 로직
         body.updatedAt = new Date();
 
         if (context.operation === 'create') {
@@ -1084,16 +1085,16 @@ export class PostController {
 }
 ```
 
-**🆕 Using new 4-stage detailed decorators:**
+**🆕 새로운 4단계 세분화 데코레이터 사용:**
 
 ```typescript
 import { Controller } from '@nestjs/common';
 import {
     Crud,
-    BeforeAssignCreate, // Before assignment
-    AfterAssignCreate, // After assignment
-    BeforeSaveCreate, // Before saving
-    AfterSaveCreate, // After saving
+    BeforeAssignCreate, // 할당 전
+    AfterAssignCreate, // 할당 후
+    BeforeSaveCreate, // 저장 전
+    AfterSaveCreate, // 저장 후
     BeforeAssignUpdate,
     AfterSaveUpdate,
 } from 'nestjs-crud';
@@ -1109,28 +1110,28 @@ import * as bcrypt from 'bcrypt';
 export class UserController {
     constructor(public readonly crudService: UserService) {}
 
-    // 🔐 CREATE: Stage 1 - Before assignment (data validation and transformation)
+    // 🔐 CREATE: 1단계 - 할당 전 (데이터 검증 및 변환)
     @BeforeAssignCreate()
     async validateAndTransformCreate(body: any, context: any) {
-        console.log('1️⃣ CREATE before assignment: Data validation and transformation');
+        console.log('1️⃣ CREATE 할당 전: 데이터 검증 및 변환');
 
         if (body.password) {
             body.password = await bcrypt.hash(body.password, 10);
         }
 
-        // Set default values
+        // 기본값 설정
         body.provider = body.provider || 'local';
         body.role = body.role || 'user';
 
         return body;
     }
 
-    // 🔧 CREATE: Stage 2 - After assignment (entity post-processing)
+    // 🔧 CREATE: 2단계 - 할당 후 (엔티티 후처리)
     @AfterAssignCreate()
     async postProcessCreate(entity: User, context: any) {
-        console.log('2️⃣ CREATE after assignment: Entity post-processing');
+        console.log('2️⃣ CREATE 할당 후: 엔티티 후처리');
 
-        // Additional entity processing logic
+        // 추가 엔티티 처리 로직
         if (!entity.displayName) {
             entity.displayName = entity.name;
         }
@@ -1138,38 +1139,38 @@ export class UserController {
         return entity;
     }
 
-    // 🔍 CREATE: Stage 3 - Before saving (final validation)
+    // 🔍 CREATE: 3단계 - 저장 전 (최종 검증)
     @BeforeSaveCreate()
     async finalValidateCreate(entity: User, context: any) {
-        console.log('3️⃣ CREATE before saving: Final validation');
+        console.log('3️⃣ CREATE 저장 전: 최종 검증');
 
-        // Duplicate email check
+        // 중복 이메일 검사
         const existing = await this.crudService.findOne({ where: { email: entity.email } });
         if (existing) {
-            throw new Error('Email already exists');
+            throw new Error('이미 존재하는 이메일입니다');
         }
 
         return entity;
     }
 
-    // 📧 CREATE: Stage 4 - After saving (follow-up processing)
+    // 📧 CREATE: 4단계 - 저장 후 (후속 처리)
     @AfterSaveCreate()
     async postSaveCreate(entity: User, context: any) {
-        console.log('4️⃣ CREATE after saving: Follow-up processing');
+        console.log('4️⃣ CREATE 저장 후: 후속 처리');
 
-        // Send welcome email
+        // 환영 이메일 발송
         // await this.emailService.sendWelcomeEmail(entity);
 
-        // Send analytics event
+        // 분석 이벤트 발송
         // await this.analyticsService.trackUserCreated(entity);
 
         return entity;
     }
 
-    // 🔐 UPDATE: Before assignment
+    // 🔐 UPDATE: 할당 전
     @BeforeAssignUpdate()
     async beforeUpdateAssign(body: any, context: any) {
-        console.log('🔄 UPDATE before assignment: Process update data');
+        console.log('🔄 UPDATE 할당 전: 업데이트 데이터 처리');
 
         if (body.password) {
             body.password = await bcrypt.hash(body.password, 10);
@@ -1179,12 +1180,12 @@ export class UserController {
         return body;
     }
 
-    // 📝 UPDATE: After saving
+    // 📝 UPDATE: 저장 후
     @AfterSaveUpdate()
     async afterUpdateSave(entity: User, context: any) {
-        console.log('📝 UPDATE after saving: Handle update completion');
+        console.log('📝 UPDATE 저장 후: 업데이트 완료 처리');
 
-        // Record update log
+        // 업데이트 로그 기록
         // await this.auditService.logUserUpdate(entity, context.request?.user);
 
         return entity;
@@ -1192,21 +1193,21 @@ export class UserController {
 }
 ```
 
-**Using consistent fine-grained control decorators:**
+**일관성 있는 세밀한 제어 데코레이터 사용:**
 
 ```typescript
 @Controller('posts')
 export class PostController {
     constructor(public readonly crudService: PostService) {}
 
-    // Execute before assignment stage for all methods (create, update, upsert)
+    // 모든 메소드(create, update, upsert)의 할당 전 단계에서 실행
     @BeforeAssign('create')
     @BeforeAssign('update')
     @BeforeAssign('upsert')
     async commonPreProcess(body: any, context: any) {
-        console.log(`🔧 ${context.operation.toUpperCase()} before assignment common processing`);
+        console.log(`🔧 ${context.operation.toUpperCase()} 할당 전 공통 처리`);
 
-        // Common pre-processing logic
+        // 공통 전처리 로직
         body.updatedAt = new Date();
         if (context.operation === 'create') {
             body.createdAt = new Date();
@@ -1215,14 +1216,14 @@ export class PostController {
         return body;
     }
 
-    // Execute after saving stage for all methods
+    // 모든 메소드의 저장 후 단계에서 실행
     @AfterSave('create')
     @AfterSave('update')
     @AfterSave('upsert')
     async commonPostProcess(entity: any, context: any) {
-        console.log(`✅ ${context.operation.toUpperCase()} after saving common processing`);
+        console.log(`✅ ${context.operation.toUpperCase()} 저장 후 공통 처리`);
 
-        // Common post-processing logic (search index update, cache refresh, etc.)
+        // 공통 후처리 로직 (검색 인덱스 업데이트, 캐시 갱신 등)
         // await this.searchService.updateIndex(entity);
         // await this.cacheService.invalidate(`post:${entity.id}`);
 
@@ -1231,9 +1232,9 @@ export class PostController {
 }
 ```
 
-##### 🔗 Chain Execution of Multiple Hooks
+##### 🔗 여러 훅의 체인 실행
 
-**When using the same decorator on multiple methods, they execute in definition order as a chain:**
+**같은 데코레이터를 여러 메서드에 사용하면, 정의 순서대로 체인으로 실행됩니다:**
 
 ```typescript
 @Crud({
@@ -1244,82 +1245,82 @@ export class PostController {
 export class UserController {
     constructor(public readonly crudService: UserService) {}
 
-    // 🔗 First CREATE hook
+    // 🔗 첫 번째 CREATE 훅
     @BeforeCreate()
     async validateData(body: any, context: any) {
-        console.log('1️⃣ Validating data...');
+        console.log('1️⃣ 데이터 검증 중...');
 
         if (!body.email) {
-            throw new Error('Email is required');
+            throw new Error('이메일은 필수입니다');
         }
 
         body.step1 = 'validated';
-        return body; // ✅ Modified body passed to next hook
+        return body; // ✅ 수정된 body가 다음 훅으로 전달됨
     }
 
-    // 🔗 Second CREATE hook (receives result from first hook)
+    // 🔗 두 번째 CREATE 훅 (첫 번째 훅의 결과를 받음)
     @BeforeCreate()
     async hashPassword(body: any, context: any) {
-        console.log('2️⃣ Hashing password...');
-        console.log('Previous step result:', body.step1); // ✅ Outputs 'validated'
+        console.log('2️⃣ 패스워드 암호화 중...');
+        console.log('이전 단계 결과:', body.step1); // ✅ 'validated' 출력
 
         if (body.password) {
             body.password = await bcrypt.hash(body.password, 10);
         }
 
         body.step2 = 'encrypted';
-        return body; // ✅ Return final modified body
+        return body; // ✅ 최종 수정된 body 반환
     }
 
-    // 🔗 Third CREATE hook (receives result from second hook)
+    // 🔗 세 번째 CREATE 훅 (두 번째 훅의 결과를 받음)
     @BeforeCreate()
     async setDefaults(body: any, context: any) {
-        console.log('3️⃣ Setting defaults...');
-        console.log('Previous steps results:', body.step1, body.step2); // ✅ Outputs 'validated', 'encrypted'
+        console.log('3️⃣ 기본값 설정 중...');
+        console.log('이전 단계들 결과:', body.step1, body.step2); // ✅ 'validated', 'encrypted' 출력
 
         body.provider = body.provider || 'local';
         body.role = body.role || 'user';
         body.step3 = 'completed';
 
-        return body; // ✅ Final completed body
+        return body; // ✅ 최종 완성된 body
     }
 }
 ```
 
-**Execution order:**
+**실행 순서:**
 
 ```bash
 POST /users
 {
-  "name": "John Doe",
-  "email": "john@example.com",
+  "name": "홍길동",
+  "email": "hong@example.com",
   "password": "mypassword"
 }
 
-# Console output:
-# 1️⃣ Validating data...
-# 2️⃣ Hashing password...
-# Previous step result: validated
-# 3️⃣ Setting defaults...
-# Previous steps results: validated encrypted
+# 콘솔 출력:
+# 1️⃣ 데이터 검증 중...
+# 2️⃣ 패스워드 암호화 중...
+# 이전 단계 결과: validated
+# 3️⃣ 기본값 설정 중...
+# 이전 단계들 결과: validated encrypted
 
-# Final saved data:
+# 최종 저장되는 데이터:
 {
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "$2b$10$...", // ✅ Encrypted
-  "provider": "local",      // ✅ Default set
-  "role": "user",          // ✅ Default set
-  "step1": "validated",    // ✅ Passed through chain
-  "step2": "encrypted",    // ✅ Passed through chain
-  "step3": "completed"     // ✅ Final processing
+  "name": "홍길동",
+  "email": "hong@example.com",
+  "password": "$2b$10$...", // ✅ 암호화됨
+  "provider": "local",      // ✅ 기본값 설정됨
+  "role": "user",          // ✅ 기본값 설정됨
+  "step1": "validated",    // ✅ 체인으로 전달됨
+  "step2": "encrypted",    // ✅ 체인으로 전달됨
+  "step3": "completed"     // ✅ 최종 처리됨
 }
 ```
 
-##### ⚡ Simple Test Example
+##### ⚡ 간단한 테스트 예시
 
 ```typescript
-// Minimal example for simple testing
+// 간단한 테스트를 위한 최소 예시
 @Crud({
     entity: User,
     allowedParams: ['name', 'email', 'password'],
@@ -1338,29 +1339,29 @@ export class UserController {
     @BeforeCreate()
     async step2(body: any, context: any) {
         body.step2 = 'second';
-        console.log('Step 2:', body); // Check if step1 exists
+        console.log('Step 2:', body); // step1이 있는지 확인
         return body;
     }
 }
 
 // POST /users { "name": "test" }
-// Console output:
+// 콘솔 출력:
 // Step 1: { name: "test", step1: "first" }
 // Step 2: { name: "test", step1: "first", step2: "second" }
 ```
 
-##### Advantages
+##### 장점
 
-1.  **🎯 Intuitive**: Clear role from method names
-2.  **🧹 Clean Code**: Routes configuration not complex
-3.  **🔗 Chain Execution**: Multiple hooks execute sequentially with automatic data passing
-4.  **🔄 Reusability**: Common hooks can be implemented through inheritance
-5.  **🛡️ Type Safety**: TypeScript type checking support
-6.  **✨ IntelliSense**: IDE auto-completion support
+1.  **🎯 직관적**: 메서드 이름으로 역할이 명확함
+2.  **🧹 깔끔한 코드**: routes 설정이 복잡하지 않음
+3.  **🔗 체인 실행**: 여러 훅이 순차적으로 실행되며 데이터가 자동 전달됨
+4.  **🔄 재사용성**: 상속을 통한 공통 훅 구현 가능
+5.  **🛡️ 타입 안전성**: TypeScript 타입 체크 지원
+6.  **✨ IntelliSense**: IDE에서 자동 완성 지원
 
-#### 🛠️ Method 2: Routes Configuration Approach (Legacy)
+#### 🛠️ 방법 2: Routes 설정 방식 (기존)
 
-#### Basic Usage
+#### 기본 사용법
 
 ```typescript
 @Controller('users')
@@ -1370,7 +1371,7 @@ export class UserController {
         create: {
             hooks: {
                 assignBefore: async (body, context) => {
-                    // Convert email to lowercase
+                    // 이메일을 소문자로 변환
                     if (body.email) {
                         body.email = body.email.toLowerCase();
                     }
@@ -1378,7 +1379,7 @@ export class UserController {
                 },
 
                 assignAfter: async (entity, body, context) => {
-                    // Set default role
+                    // 기본 역할 설정
                     if (!entity.role) {
                         entity.role = 'user';
                     }
@@ -1386,16 +1387,16 @@ export class UserController {
                 },
 
                 saveBefore: async (entity, context) => {
-                    // Check duplicate email
+                    // 중복 이메일 검사
                     const existing = await userService.findByEmail(entity.email);
                     if (existing) {
-                        throw new Error('Email already exists');
+                        throw new Error('이미 존재하는 이메일입니다');
                     }
                     return entity;
                 },
 
                 saveAfter: async (entity, context) => {
-                    // Send welcome email
+                    // 환영 이메일 발송
                     await emailService.sendWelcomeEmail(entity.email);
                     return entity;
                 },
@@ -1405,10 +1406,10 @@ export class UserController {
         update: {
             hooks: {
                 assignBefore: async (body, context) => {
-                    // Auto-set update time
+                    // 업데이트 시간 자동 설정
                     body.updatedAt = new Date();
 
-                    // Certain fields cannot be modified
+                    // 특정 필드는 수정 불가
                     delete body.id;
                     delete body.createdAt;
 
@@ -1416,10 +1417,10 @@ export class UserController {
                 },
 
                 saveBefore: async (entity, context) => {
-                    // Check permissions
+                    // 권한 확인
                     const userId = context.request?.user?.id;
                     if (entity.id !== userId) {
-                        throw new Error('Permission denied');
+                        throw new Error('권한이 없습니다');
                     }
                     return entity;
                 },
@@ -1432,7 +1433,7 @@ export class UserController {
 }
 ```
 
-#### Advanced Usage Example
+#### 고급 활용 예제
 
 ```typescript
 @Controller('posts')
@@ -1442,13 +1443,13 @@ export class UserController {
         create: {
             hooks: {
                 assignBefore: async (body, context) => {
-                    // Auto-set user ID
+                    // 사용자 ID 자동 설정
                     const userId = context.request?.user?.id;
                     if (userId) {
                         body.userId = userId;
                     }
 
-                    // Auto-generate slug
+                    // 슬러그 자동 생성
                     if (body.title && !body.slug) {
                         body.slug = slugify(body.title);
                     }
@@ -1457,12 +1458,12 @@ export class UserController {
                 },
 
                 assignAfter: async (entity, body, context) => {
-                    // Set default post status
+                    // 게시글 상태 기본값 설정
                     if (!entity.status) {
                         entity.status = 'draft';
                     }
 
-                    // Set publication date when publishing
+                    // 발행 시 발행일 설정
                     if (entity.status === 'published' && !entity.publishedAt) {
                         entity.publishedAt = new Date();
                     }
@@ -1471,12 +1472,12 @@ export class UserController {
                 },
 
                 saveBefore: async (entity, context) => {
-                    // Validate required fields
+                    // 필수 필드 검증
                     if (!entity.title?.trim()) {
-                        throw new Error('Title is required');
+                        throw new Error('제목은 필수입니다');
                     }
 
-                    // Check and resolve slug duplication
+                    // 슬러그 중복 검사 및 해결
                     const existingPost = await postService.findBySlug(entity.slug);
                     if (existingPost) {
                         entity.slug = `${entity.slug}-${Date.now()}`;
@@ -1486,15 +1487,15 @@ export class UserController {
                 },
 
                 saveAfter: async (entity, context) => {
-                    // Update search index
+                    // 검색 인덱스 업데이트
                     await searchService.indexPost(entity);
 
-                    // Process tags
+                    // 태그 처리
                     if (entity.tags?.length) {
                         await tagService.processPostTags(entity.id, entity.tags);
                     }
 
-                    // Notify about published post
+                    // 발행된 게시글 알림
                     if (entity.status === 'published') {
                         await notificationService.notifyNewPost(entity);
                     }
@@ -1510,7 +1511,7 @@ export class UserController {
                     const now = new Date();
                     body.updatedAt = now;
 
-                    // Set creation date only for new data
+                    // 새 데이터인 경우만 생성일 설정
                     if (!context.currentEntity) {
                         body.createdAt = now;
                     }
@@ -1519,7 +1520,7 @@ export class UserController {
                 },
 
                 saveAfter: async (entity, context) => {
-                    // Differentiate between newly created and updated cases
+                    // 새로 생성된 경우와 업데이트된 경우 구분 처리
                     const isNew = !context.currentEntity;
 
                     if (isNew) {
@@ -1539,35 +1540,35 @@ export class PostController {
 }
 ```
 
-#### HookContext Usage
+#### HookContext 활용
 
 ```typescript
-// HookContext provides the following information
+// HookContext는 다음 정보를 제공합니다
 interface HookContext<T> {
-    operation: 'create' | 'update' | 'upsert'; // Operation type
-    params?: Record<string, any>; // URL parameters
-    currentEntity?: T; // Current entity (update, upsert)
-    request?: any; // Express Request object
+    operation: 'create' | 'update' | 'upsert'; // 작업 타입
+    params?: Record<string, any>; // URL 파라미터
+    currentEntity?: T; // 현재 엔티티 (update, upsert)
+    request?: any; // Express Request 객체
 }
 
-// Context usage example
+// 컨텍스트 활용 예시
 const hooks = {
     assignBefore: async (body, context) => {
-        console.log(`Operation type: ${context.operation}`);
+        console.log(`작업 타입: ${context.operation}`);
 
-        // Use requester information
+        // 요청자 정보 활용
         if (context.request?.user) {
             body.lastModifiedBy = context.request.user.id;
         }
 
-        // Use URL parameters
+        // URL 파라미터 활용
         if (context.params?.parentId) {
             body.parentId = context.params.parentId;
         }
 
-        // Use existing entity information (update, upsert only)
+        // 기존 엔티티 정보 활용 (update, upsert만)
         if (context.currentEntity) {
-            console.log('Existing data:', context.currentEntity);
+            console.log('기존 데이터:', context.currentEntity);
         }
 
         return body;
@@ -1575,10 +1576,10 @@ const hooks = {
 };
 ```
 
-#### Reusing Common Hook Functions
+#### 공통 훅 함수 재사용
 
 ```typescript
-// Define common hook functions
+// 공통 훅 함수 정의
 const commonHooks = {
     setTimestamps: async (body: any, context: HookContext) => {
         const now = new Date();
@@ -1596,7 +1597,7 @@ const commonHooks = {
         if (entity.userId && entity.userId !== userId) {
             const userRole = context.request?.user?.role;
             if (userRole !== 'admin') {
-                throw new Error('Permission denied');
+                throw new Error('권한이 없습니다');
             }
         }
         return entity;
@@ -1609,7 +1610,7 @@ const commonHooks = {
     },
 };
 
-// Reuse in multiple controllers
+// 여러 컨트롤러에서 재사용
 @Crud({
     entity: Order,
     routes: {
@@ -1632,33 +1633,33 @@ const commonHooks = {
 export class OrderController {}
 ```
 
-#### Precautions
+#### 주의사항
 
-1. **Async Processing**: All hooks support async functions
-2. **Error Handling**: When error occurs in hook, entire CRUD operation is interrupted
-3. **Performance**: Complex logic can affect performance, so caution is needed
-4. **Transactions**: Hooks execute in separate database transactions
-5. **Order**: Execute in defined order, so dependencies must be considered
+1. **비동기 처리**: 모든 훅은 비동기 함수를 지원합니다
+2. **에러 처리**: 훅에서 에러 발생 시 전체 CRUD 작업이 중단됩니다
+3. **성능**: 복잡한 로직은 성능에 영향을 줄 수 있으므로 주의가 필요합니다
+4. **트랜잭션**: 훅은 별도의 데이터베이스 트랜잭션에서 실행됩니다
+5. **순서**: 정의된 순서대로 실행되므로 의존성을 고려해야 합니다
 
-### 🛡️ Request Body Validation Decorators
+### 🛡️ 요청 본문 검증 데코레이터
 
-nestjs-crud provides various request body processing decorators:
+nestjs-crud는 다양한 요청 본문 처리 데코레이터를 제공합니다:
 
-#### Decorator Comparison Table
+#### 데코레이터 비교표
 
-| Decorator                 | allowedParams Filtering | class-validator Validation | Error Handling | When to Use                           |
-| ------------------------- | ----------------------- | -------------------------- | -------------- | ------------------------------------- |
-| `@FilteredBody()`         | ✅                      | ❌                         | Silent removal | Simple filtering only                 |
-| `@TypedFilteredBody<T>()` | ✅                      | ❌                         | Silent removal | Type safety + filtering               |
-| `@ValidatedBody()`        | ✅                      | ❌                         | Error on fail  | Strict field validation               |
-| `@ClassValidatedBody()`   | ✅                      | ✅                         | Mixed          | **Complete validation** (recommended) |
+| 데코레이터                | allowedParams 필터링 | class-validator 검증 | 오류 처리   | 사용 시기              |
+| ------------------------- | -------------------- | -------------------- | ----------- | ---------------------- |
+| `@FilteredBody()`         | ✅                   | ❌                   | 조용히 제거 | 단순 필터링만 필요     |
+| `@TypedFilteredBody<T>()` | ✅                   | ❌                   | 조용히 제거 | 타입 안전성 + 필터링   |
+| `@ValidatedBody()`        | ✅                   | ❌                   | 오류 발생   | 엄격한 필드 검증       |
+| `@ClassValidatedBody()`   | ✅                   | ✅                   | 혼합        | **완전한 검증** (권장) |
 
-#### @ClassValidatedBody - Complete Validation Decorator
+#### @ClassValidatedBody - 완전한 검증 데코레이터
 
-`@ClassValidatedBody` provides **dual security** as a powerful decorator:
+`@ClassValidatedBody`는 **이중 보안**을 제공하는 강력한 데코레이터입니다:
 
-1. **1st: allowedParams filtering** (silent removal)
-2. **2nd: Entity validation** (error return)
+1. **1차: allowedParams 필터링** (조용히 제거)
+2. **2차: Entity 검증** (오류 반환)
 
 ```typescript
 import { Controller, Post, Put } from '@nestjs/common';
@@ -1667,13 +1668,13 @@ import { User } from './user.entity';
 
 @Crud({
     entity: User,
-    allowedParams: ['name', 'email', 'phone'], // Global configuration
+    allowedParams: ['name', 'email', 'phone'], // 전역 설정
     routes: {
         create: {
-            allowedParams: ['name', 'email', 'password'], // 🎯 Method-specific configuration takes priority
+            allowedParams: ['name', 'email', 'password'], // 🎯 메서드별 설정 우선
         },
         update: {
-            allowedParams: ['name', 'phone'], // 🎯 update allows different fields
+            allowedParams: ['name', 'phone'], // 🎯 update는 다른 필드 허용
         },
     },
 })
@@ -1681,9 +1682,9 @@ import { User } from './user.entity';
 export class UserController {
     @Post()
     async create(@ClassValidatedBody() createUserDto: any) {
-        // 🎯 Uses create method configuration: ['name', 'email', 'password']
-        // 🤫 Disallowed fields are silently removed (admin: true, etc.)
-        // ⚠️ Validates with Entity's @IsEmail() etc. and returns errors
+        // 🎯 create 메서드 설정 사용: ['name', 'email', 'password']
+        // 🤫 허용되지 않은 필드는 조용히 제거 (admin: true 등)
+        // ⚠️ Entity의 @IsEmail() 등으로 검증 후 오류 반환
 
         const user = User.create(createUserDto);
         return await User.save(user);
@@ -1691,64 +1692,64 @@ export class UserController {
 
     @Put(':id')
     async update(@ClassValidatedBody() updateUserDto: any) {
-        // 🎯 Uses update method configuration: ['name', 'phone']
-        // 🤫 email, password etc. are silently removed
-        // Business logic...
+        // 🎯 update 메서드 설정 사용: ['name', 'phone']
+        // 🤫 email, password 등은 조용히 제거됨
+        // 비즈니스 로직...
     }
 }
 ```
 
-#### Operation Principle
+#### 동작 원리
 
 ```typescript
-// Client request
+// 클라이언트 요청
 POST /users
 {
-  "name": "John Doe",
-  "email": "invalid-email",    // ❌ @IsEmail() validation fails
-  "password": "secret123",     // ✅ Allowed in create method
-  "admin": true,               // ❌ Not allowed → silently removed
-  "hacker": "malicious"        // ❌ Not allowed → silently removed
+  "name": "홍길동",
+  "email": "invalid-email",    // ❌ @IsEmail() 검증 실패
+  "password": "secret123",     // ✅ create 메서드에서 허용
+  "admin": true,               // ❌ 허용되지 않음 → 조용히 제거
+  "hacker": "malicious"        // ❌ 허용되지 않음 → 조용히 제거
 }
 
-// 1st filtering result (no errors)
+// 1차 필터링 결과 (오류 없음)
 {
-  "name": "John Doe",
+  "name": "홍길동",
   "email": "invalid-email",
   "password": "secret123"
 }
 
-// 2nd Entity validation result (error occurs)
+// 2차 Entity 검증 결과 (오류 발생)
 {
   "statusCode": 400,
-  "message": "Validation failed: email: email must be an email",
+  "message": "데이터 검증 실패: email: email must be an email",
   "error": "Bad Request"
 }
 ```
 
-#### Method-specific Priority
+#### 메서드별 우선순위
 
-Method-specific `allowedParams` configuration takes **priority** over global configuration:
+메서드별 `allowedParams` 설정이 전역 설정보다 **우선적으로 적용**됩니다:
 
 ```typescript
 @Crud({
   entity: User,
-  allowedParams: ['name', 'email', 'phone'], // Global: default
+  allowedParams: ['name', 'email', 'phone'], // 전역: 기본값
   routes: {
-    create: { allowedParams: ['name', 'email', 'password'] }, // CREATE-specific
-    update: { allowedParams: ['name', 'phone'] },             // UPDATE-specific
-    // upsert has no routes configuration → uses global configuration
+    create: { allowedParams: ['name', 'email', 'password'] }, // CREATE 전용
+    update: { allowedParams: ['name', 'phone'] },             // UPDATE 전용
+    // upsert는 routes 설정 없음 → 전역 설정 사용
   }
 })
 ```
 
-**Actual application results:**
+**실제 적용 결과:**
 
--   `POST /users` → Uses `['name', 'email', 'password']`
--   `PUT /users/:id` → Uses `['name', 'phone']`
--   `POST /users/upsert` → Uses `['name', 'email', 'phone']` (global)
+-   `POST /users` → `['name', 'email', 'password']` 사용
+-   `PUT /users/:id` → `['name', 'phone']` 사용
+-   `POST /users/upsert` → `['name', 'email', 'phone']` 사용 (전역)
 
-#### Complete Usage Example
+#### 완전한 사용 예시
 
 ```typescript
 // user.entity.ts
@@ -1778,7 +1779,7 @@ export class User {
     phone?: string;
 
     @Column({ default: 'user' })
-    @Exclude() // Exclude from response
+    @Exclude() // 응답에서 제외
     role: string;
 }
 
@@ -1799,8 +1800,8 @@ export class User {
 export class UserController {
     @Post()
     async create(@ClassValidatedBody() createUserDto: any) {
-        // ✅ Only name, email, password allowed
-        // ✅ Performs @IsEmail(), @IsString(), @MinLength(8) validation
+        // ✅ name, email, password만 허용
+        // ✅ @IsEmail(), @IsString(), @MinLength(8) 검증 수행
 
         const user = User.create(createUserDto);
         const savedUser = await User.save(user);
@@ -1809,8 +1810,8 @@ export class UserController {
 
     @Put(':id')
     async update(@Param('id') id: number, @ClassValidatedBody() updateUserDto: any) {
-        // ✅ Only name, phone allowed (email, password removed)
-        // ✅ Performs @IsString(), @IsPhoneNumber() validation
+        // ✅ name, phone만 허용 (email, password 제거됨)
+        // ✅ @IsString(), @IsPhoneNumber() 검증 수행
 
         const user = await User.findOne({ where: { id } });
         Object.assign(user, updateUserDto);
@@ -1820,37 +1821,37 @@ export class UserController {
 }
 ```
 
-#### Advantages
+#### 장점
 
-1. **🔒 Dual Security**: Complete protection through filtering + validation
-2. **🎯 Method-specific Control**: Different field allowances per CRUD operation
-3. **🤫 Silent Security**: Field removal undetectable to hackers
-4. **⚠️ Clear Validation**: Data format errors clearly notified
-5. **🚀 Automation**: Complete security implementation in one line
+1. **🔒 이중 보안**: 필터링 + 검증으로 완벽한 보호
+2. **🎯 메서드별 제어**: CRUD 작업마다 다른 필드 허용
+3. **🤫 조용한 보안**: 해커가 알 수 없는 필드 제거
+4. **⚠️ 명확한 검증**: 데이터 형식 오류는 명확히 알림
+5. **🚀 자동화**: 한 줄로 완전한 보안 구현
 
-### 🚨 Unified Error Response (CrudExceptionFilter)
+### 🚨 통일된 오류 응답 (CrudExceptionFilter)
 
-nestjs-crud provides an Exception Filter that can **optionally** unify the response format of all HTTP exceptions.
+nestjs-crud는 **선택적으로** 모든 HTTP 예외의 응답 형식을 통일할 수 있는 Exception Filter를 제공합니다.
 
-#### Basic NestJS vs CRUD Filter Comparison
+#### 기본 NestJS vs CRUD Filter 비교
 
 ```typescript
-// ❌ Basic NestJS error response
+// ❌ 기본 NestJS 오류 응답
 {
-  "message": "Not Found",        // string
+  "message": "Not Found",        // 문자열
   "statusCode": 404
 }
 
-// ✅ After applying CrudExceptionFilter
+// ✅ CrudExceptionFilter 적용 후
 {
-  "message": ["Not Found"],      // always array ✨
+  "message": ["Not Found"],      // 항상 배열 ✨
   "statusCode": 404
 }
 ```
 
-#### Usage
+#### 사용법
 
-**1. Global Application (Recommended)**
+**1. 전역 적용 (권장)**
 
 ```typescript
 // main.ts
@@ -1861,7 +1862,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
-    // ✅ Apply globally - converts all HTTP exceptions to unified format
+    // ✅ 전역으로 적용 - 모든 HTTP 예외를 통일된 형식으로 변환
     app.useGlobalFilters(new CrudExceptionFilter());
 
     await app.listen(3000);
@@ -1869,14 +1870,14 @@ async function bootstrap() {
 bootstrap();
 ```
 
-**2. Per Controller Application**
+**2. 컨트롤러별 적용**
 
 ```typescript
 import { Controller, UseFilters } from '@nestjs/common';
 import { Crud, CrudExceptionFilter } from 'nestjs-crud';
 
 @Controller('users')
-@UseFilters(CrudExceptionFilter) // 🎯 Apply only to this controller
+@UseFilters(CrudExceptionFilter) // 🎯 이 컨트롤러에만 적용
 @Crud({
     entity: User,
 })
@@ -1885,7 +1886,7 @@ export class UserController {
 }
 ```
 
-**3. Per Method Application**
+**3. 메서드별 적용**
 
 ```typescript
 import { Post, UseFilters } from '@nestjs/common';
@@ -1894,26 +1895,26 @@ import { CrudExceptionFilter, ClassValidatedBody } from 'nestjs-crud';
 @Controller('users')
 export class UserController {
     @Post()
-    @UseFilters(CrudExceptionFilter) // 🎯 Apply only to this method
+    @UseFilters(CrudExceptionFilter) // 🎯 이 메서드에만 적용
     async create(@ClassValidatedBody() createUserDto: any) {
-        // Business logic...
+        // 비즈니스 로직...
     }
 }
 ```
 
-#### Various Error Scenario Handling
+#### 다양한 오류 시나리오 처리
 
-**Validation errors (class-validator)**
+**Validation 오류 (class-validator)**
 
 ```typescript
-// Request
+// 요청
 POST /users
 {
-  "name": "",           // @IsNotEmpty() violation
-  "email": "invalid"    // @IsEmail() violation
+  "name": "",           // @IsNotEmpty() 위반
+  "email": "invalid"    // @IsEmail() 위반
 }
 
-// ✅ CrudExceptionFilter response
+// ✅ CrudExceptionFilter 응답
 {
   "message": [
     "name should not be empty",
@@ -1923,43 +1924,43 @@ POST /users
 }
 ```
 
-**Not Found error**
+**Not Found 오류**
 
 ```typescript
-// Request
+// 요청
 GET /users/999999
 
-// ✅ CrudExceptionFilter response
+// ✅ CrudExceptionFilter 응답
 {
-  "message": ["User not found"],
+  "message": ["사용자를 찾을 수 없습니다"],
   "statusCode": 404
 }
 ```
 
-**Permission error**
+**권한 오류**
 
 ```typescript
-// Request (unauthorized user)
+// 요청 (권한 없는 사용자)
 DELETE /users/1
 
-// ✅ CrudExceptionFilter response
+// ✅ CrudExceptionFilter 응답
 {
-  "message": ["You do not have permission to delete"],
+  "message": ["삭제 권한이 없습니다"],
   "statusCode": 403
 }
 ```
 
-**Internal server error**
+**내부 서버 오류**
 
 ```typescript
-// Database connection failure etc.
+// 데이터베이스 연결 실패 등
 {
   "message": ["Internal Server Error"],
   "statusCode": 500
 }
 ```
 
-#### Using with Custom Exceptions
+#### 커스텀 Exception과 함께 사용
 
 ```typescript
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -1972,8 +1973,8 @@ export class UserController {
         const user = await this.userService.findById(id);
 
         if (!user) {
-            // ✅ Automatically converted to array format
-            throw new NotFoundException('User not found');
+            // ✅ 자동으로 배열 형식으로 변환됨
+            throw new NotFoundException('사용자를 찾을 수 없습니다');
         }
 
         return user;
@@ -1981,12 +1982,12 @@ export class UserController {
 
     @Post()
     async create(@ClassValidatedBody() createUserDto: any) {
-        // Duplicate email check
+        // 중복 이메일 검사
         const existing = await this.userService.findByEmail(createUserDto.email);
 
         if (existing) {
-            // ✅ Automatically converted to array format
-            throw new BadRequestException('Email already exists');
+            // ✅ 자동으로 배열 형식으로 변환됨
+            throw new BadRequestException('이미 존재하는 이메일입니다');
         }
 
         return await this.userService.create(createUserDto);
@@ -1994,18 +1995,18 @@ export class UserController {
 }
 ```
 
-#### Advantages
+#### 장점
 
-1. **🎯 Consistency**: All error responses in unified format
-2. **🔄 Auto Conversion**: Automatically converts existing Exceptions to array format
-3. **🎛️ Optional Use**: Can be applied only where needed
-4. **📱 Frontend-friendly**: Always arrays, so processing logic is simplified
-5. **🛡️ class-validator Compatible**: Naturally handles multiple validation errors as arrays
+1. **🎯 일관성**: 모든 오류 응답이 통일된 형식
+2. **🔄 자동 변환**: 기존 Exception을 자동으로 배열 형식으로 변환
+3. **🎛️ 선택적 사용**: 필요한 곳에만 적용 가능
+4. **📱 프론트엔드 친화적**: 항상 배열이므로 처리 로직 단순화
+5. **🛡️ class-validator 호환**: 여러 검증 오류를 배열로 자연스럽게 처리
 
-#### Frontend Processing Example
+#### 프론트엔드 처리 예시
 
 ```typescript
-// Error handling in React/Vue/Angular etc.
+// React/Vue/Angular 등에서의 오류 처리
 try {
     const response = await fetch('/api/users', {
         method: 'POST',
@@ -2015,10 +2016,10 @@ try {
     if (!response.ok) {
         const error = await response.json();
 
-        // ✅ message is always an array, so processing is simple
+        // ✅ message가 항상 배열이므로 처리가 단순함
         error.message.forEach((msg) => {
             console.error(msg);
-            // Display error message in UI
+            // UI에 오류 메시지 표시
         });
     }
 } catch (error) {
@@ -2026,7 +2027,7 @@ try {
 }
 ```
 
-### 🔐 Authentication and Authorization
+### 🔐 인증 및 권한
 
 ```typescript
 import { UseGuards } from '@nestjs/common';
@@ -2058,7 +2059,7 @@ export class UserController {
 }
 ```
 
-### 🎨 Custom DTOs
+### 🎨 커스텀 DTO
 
 ```typescript
 // dto/create-user.dto.ts
@@ -2094,7 +2095,7 @@ export class UserController {
 }
 ```
 
-### 🔄 Interceptor Usage
+### 🔄 인터셉터 활용
 
 ```typescript
 // interceptors/user.interceptor.ts
@@ -2107,7 +2108,7 @@ export class UserInterceptor implements NestInterceptor {
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
         return next.handle().pipe(
             map((data) => {
-                // Remove sensitive information
+                // 민감한 정보 제거
                 if (Array.isArray(data.data)) {
                     data.data = data.data.map((user) => {
                         delete user.password;
@@ -2140,11 +2141,11 @@ export class UserController {
 }
 ```
 
-## 📊 Swagger Documentation
+## 📊 Swagger 문서
 
-### Auto-generated API Documentation
+### 자동 생성된 API 문서
 
-nestjs-crud automatically generates Swagger documentation for all endpoints:
+nestjs-crud는 모든 엔드포인트에 대한 Swagger 문서를 자동으로 생성합니다:
 
 ```typescript
 // main.ts
@@ -2156,8 +2157,8 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
     const config = new DocumentBuilder()
-        .setTitle('API Documentation')
-        .setDescription('API generated with nestjs-crud')
+        .setTitle('API 문서')
+        .setDescription('nestjs-crud로 생성된 API')
         .setVersion('1.0')
         .addBearerAuth()
         .build();
@@ -2170,7 +2171,7 @@ async function bootstrap() {
 bootstrap();
 ```
 
-### Custom Swagger Configuration
+### 커스텀 Swagger 설정
 
 ```typescript
 @Crud({
@@ -2179,7 +2180,7 @@ bootstrap();
         index: {
             swagger: {
                 response: UserListResponseDto,
-                hide: false, // Hide from API documentation
+                hide: false, // API 문서에서 숨기기
             },
         },
         show: {
@@ -2198,32 +2199,32 @@ bootstrap();
 export class UserController {}
 ```
 
-## 📋 Complete Filter Operator List
+## 📋 전체 필터 연산자 목록
 
-| Suffix      | Meaning                  | Example                    | Description            |
-| ----------- | ------------------------ | -------------------------- | ---------------------- |
-| `_eq`       | Equals                   | `name_eq=John`             | Exact match            |
-| `_ne`       | Not equals               | `status_ne=inactive`       | Does not match         |
-| `_gt`       | Greater than             | `age_gt=18`                | Greater value          |
-| `_gte`      | Greater than or equal    | `age_gte=18`               | Greater or equal       |
-| `_lt`       | Less than                | `age_lt=65`                | Smaller value          |
-| `_lte`      | Less than or equal       | `age_lte=65`               | Smaller or equal       |
-| `_between`  | Range                    | `age_between=18,65`        | Between two values     |
-| `_like`     | Pattern                  | `name_like=%John%`         | SQL LIKE               |
-| `_ilike`    | Case insensitive pattern | `email_ilike=%GMAIL%`      | Case insensitive       |
-| `_start`    | Starts with              | `name_start=John`          | Starts with character  |
-| `_end`      | Ends with                | `email_end=.com`           | Ends with character    |
-| `_contains` | Contains                 | `bio_contains=developer`   | String contains        |
-| `_in`       | Include                  | `id_in=1,2,3`              | Included in array      |
-| `_not_in`   | Exclude                  | `role_not_in=guest,banned` | Not included in array  |
-| `_null`     | NULL                     | `deleted_at_null=true`     | NULL value             |
-| `_not_null` | NOT NULL                 | `email_not_null=true`      | Not NULL               |
-| `_present`  | Exists                   | `bio_present=true`         | Not NULL and not empty |
-| `_blank`    | Blank                    | `middle_name_blank=true`   | NULL or empty          |
+| Suffix      | 의미               | 예시                       | 설명               |
+| ----------- | ------------------ | -------------------------- | ------------------ |
+| `_eq`       | 같음               | `name_eq=김철수`           | 정확히 일치        |
+| `_ne`       | 다름               | `status_ne=inactive`       | 일치하지 않음      |
+| `_gt`       | 초과               | `age_gt=18`                | 큰 값              |
+| `_gte`      | 이상               | `age_gte=18`               | 크거나 같음        |
+| `_lt`       | 미만               | `age_lt=65`                | 작은 값            |
+| `_lte`      | 이하               | `age_lte=65`               | 작거나 같음        |
+| `_between`  | 범위               | `age_between=18,65`        | 두 값 사이         |
+| `_like`     | 패턴               | `name_like=%김%`           | SQL LIKE           |
+| `_ilike`    | 대소문자 무시 패턴 | `email_ilike=%GMAIL%`      | 대소문자 구분 없음 |
+| `_start`    | 시작               | `name_start=김`            | 특정 문자로 시작   |
+| `_end`      | 끝                 | `email_end=.com`           | 특정 문자로 끝     |
+| `_contains` | 포함               | `bio_contains=개발자`      | 문자열 포함        |
+| `_in`       | 포함               | `id_in=1,2,3`              | 배열에 포함        |
+| `_not_in`   | 미포함             | `role_not_in=guest,banned` | 배열에 미포함      |
+| `_null`     | NULL               | `deleted_at_null=true`     | NULL 값            |
+| `_not_null` | NOT NULL           | `email_not_null=true`      | NULL이 아님        |
+| `_present`  | 존재               | `bio_present=true`         | NULL도 빈값도 아님 |
+| `_blank`    | 공백               | `middle_name_blank=true`   | NULL이거나 빈값    |
 
-## 🛠 Practical Examples
+## 🛠 실전 예제
 
-### Blog System
+### 블로그 시스템
 
 ```typescript
 // entities/post.entity.ts
@@ -2262,29 +2263,29 @@ export class Post {
 @Controller('posts')
 @Crud({
     entity: Post,
-    // Security control settings
-    allowedFilters: ['title', 'status', 'author.name'], // Allowed filter columns
-    allowedParams: ['title', 'content', 'status'], // Allowed request parameters
-    allowedIncludes: ['author'], // Global: only author relation allowed
+    // 보안 제어 설정
+    allowedFilters: ['title', 'status', 'author.name'], // 허용된 필터 컬럼
+    allowedParams: ['title', 'content', 'status'], // 허용된 요청 파라미터
+    allowedIncludes: ['author'], // 전역: author 관계만 허용
     routes: {
         index: {
             paginationType: PaginationType.OFFSET,
             numberOfTake: 10,
-            allowedFilters: ['title', 'status', 'author.name', 'createdAt'], // INDEX adds creation date filter
-            allowedIncludes: ['author', 'tags'], // INDEX also allows tags inclusion
+            allowedFilters: ['title', 'status', 'author.name', 'createdAt'], // INDEX는 생성일 필터 추가
+            allowedIncludes: ['author', 'tags'], // INDEX는 태그도 포함 허용
         },
         show: {
-            allowedIncludes: ['author', 'comments', 'comments.author', 'tags'], // SHOW allows comments too
+            allowedIncludes: ['author', 'comments', 'comments.author', 'tags'], // SHOW는 댓글까지 허용
         },
         create: {
             hooks: {
                 assignBefore: async (body, context) => {
-                    // Auto-set user ID (authenticated user)
+                    // 사용자 ID 자동 설정 (인증된 사용자)
                     if (context.request?.user?.id) {
                         body.userId = context.request.user.id;
                     }
 
-                    // Generate slug
+                    // 슬러그 생성
                     if (body.title && !body.slug) {
                         body.slug = body.title
                             .toLowerCase()
@@ -2297,7 +2298,7 @@ export class Post {
                 },
 
                 saveBefore: async (entity, context) => {
-                    // Check slug duplication
+                    // 슬러그 중복 검사
                     const existing = await postService.findBySlug(entity.slug);
                     if (existing) {
                         entity.slug = `${entity.slug}-${Date.now()}`;
@@ -2306,10 +2307,10 @@ export class Post {
                 },
 
                 saveAfter: async (entity, context) => {
-                    // Update search index
+                    // 검색 인덱스 업데이트
                     await searchService.indexPost(entity);
 
-                    // Notify about published posts
+                    // 발행된 게시물 알림
                     if (entity.status === 'published') {
                         await notificationService.notifyFollowers(entity.userId, entity);
                     }
@@ -2323,7 +2324,7 @@ export class Post {
                 assignBefore: async (body, context) => {
                     body.updatedAt = new Date();
 
-                    // Set publication date when status changes to published
+                    // 발행 상태 변경 시 발행일 설정
                     if (body.status === 'published' && context.currentEntity?.status !== 'published') {
                         body.publishedAt = new Date();
                     }
@@ -2332,12 +2333,12 @@ export class Post {
                 },
 
                 saveBefore: async (entity, context) => {
-                    // Check author permissions
+                    // 작성자 권한 확인
                     const userId = context.request?.user?.id;
                     if (entity.userId !== userId) {
                         const userRole = context.request?.user?.role;
                         if (userRole !== 'admin' && userRole !== 'editor') {
-                            throw new Error('No permission to edit');
+                            throw new Error('수정 권한이 없습니다');
                         }
                     }
                     return entity;
@@ -2351,78 +2352,78 @@ export class PostController {
 }
 ```
 
-### Query Examples
+### 쿼리 예제
 
 ```bash
-# Get published posts in latest order (with author, tags)
-# ✅ status, createdAt are in allowedFilters, author,tags are in allowedIncludes
+# 공개된 게시물을 최신순으로 조회 (작성자, 태그 포함)
+# ✅ status, createdAt은 allowedFilters에 있고, author,tags는 allowedIncludes에 있음
 GET /posts?filter[status_eq]=published&sort=-created_at&include=author,tags&page[number]=1&page[size]=10
 
-# Search posts by specific author (with author information)
-# ✅ author.name is in allowedFilters, author is in allowedIncludes
-GET /posts?filter[author.name_like]=%John%&filter[status_ne]=draft&include=author&sort=-created_at
+# 특정 작성자의 게시물 검색 (작성자 정보 포함)
+# ✅ author.name은 allowedFilters에 있고, author는 allowedIncludes에 있음
+GET /posts?filter[author.name_like]=%김%&filter[status_ne]=draft&include=author&sort=-created_at
 
-# ❌ Disallowed filters are ignored
-GET /posts?filter[internal_id_gt]=100&filter[status_eq]=published  # internal_id filter is ignored
+# ❌ 허용되지 않은 필터는 무시됨
+GET /posts?filter[internal_id_gt]=100&filter[status_eq]=published  # internal_id 필터는 무시됨
 
-# ❌ Disallowed relations are ignored
-GET /posts?include=author,categories,tags  # categories is ignored as it's not in allowedIncludes
+# ❌ 허용되지 않은 관계는 무시됨
+GET /posts?include=author,categories,tags  # categories는 allowedIncludes에 없으므로 무시됨
 
-# Get post with comments and comment authors (only possible in SHOW endpoint)
+# 댓글과 댓글 작성자 정보를 포함한 게시물 조회 (SHOW 엔드포인트에서만 가능)
 GET /posts/1?include=author,comments,comments.author&sort=-created_at
 
-# Get posts only without relations (no include parameter)
+# 관계 없이 게시물만 조회 (include 파라미터 없음)
 GET /posts?filter[status_eq]=published&sort=-created_at&page[number]=1&page[size]=10
 ```
 
-**Security behavior explanation:**
+**보안 동작 설명:**
 
--   `allowedFilters: ['title', 'status', 'author.name', 'createdAt']` - Only these columns can be filtered
--   `allowedIncludes: ['author', 'tags', 'comments', 'comments.author']` - Only these relations can be included
--   Disallowed filters or relations are automatically ignored
+-   `allowedFilters: ['title', 'status', 'author.name', 'createdAt']` - 이 컬럼들만 필터링 가능
+-   `allowedIncludes: ['author', 'tags', 'comments', 'comments.author']` - 이 관계들만 포함 가능
+-   허용되지 않은 필터나 관계는 자동으로 무시됨
 
-## 🚨 Precautions
+## 🚨 주의사항
 
-### Security Considerations
+### 보안 고려사항
 
-1. **Default Security Policy**:
+1. **보안 기본 정책**:
 
-    - All access is blocked when `allowedFilters`, `allowedParams`, `allowedIncludes` are not configured
-    - Only explicitly allowed columns/relations can be used
-    - Setting allow lists is strongly recommended in production environments
+    - `allowedFilters`, `allowedParams`, `allowedIncludes` 미설정 시 모든 접근 차단
+    - 명시적으로 허용된 컬럼/관계만 사용 가능
+    - 프로덕션 환경에서는 반드시 허용 목록 설정 권장
 
-2. **Protecting Sensitive Fields**:
+2. **민감한 필드 보호**:
 
-    - Exclude passwords, internal IDs etc. from `allowedFilters`, `allowedParams`
-    - Also exclude sensitive information from responses with `exclude` option
+    - 비밀번호, 내부 ID 등은 `allowedFilters`, `allowedParams`에서 제외
+    - 응답에서도 `exclude` 옵션으로 민감한 정보 제외
 
-3. **Authentication/Authorization Checks**: Use appropriate Guards
-4. **Input Validation**: Thorough validation with class-validator
-5. **SQL Injection Prevention**: Use TypeORM's parameterized queries
+3. **인증/권한 검사**: 적절한 Guard 사용
+4. **입력 검증**: class-validator로 철저한 검증
+5. **SQL 인젝션 방지**: TypeORM의 파라미터화된 쿼리 사용
 
-### Performance Optimization
+### 성능 최적화
 
-1. **Relation Loading Restrictions**:
+1. **관계 로딩 제한**:
 
-    - Allow only necessary relations with `allowedIncludes`
-    - Carefully allow nested relations (watch for N+1 problems)
+    - `allowedIncludes`로 필요한 관계만 허용
+    - 중첩 관계는 신중하게 허용 (N+1 문제 주의)
 
-2. **Filtering Optimization**:
+2. **필터링 최적화**:
 
-    - Add database indexes to frequently used `allowedFilters` fields
-    - Performance testing is essential for filters with complex conditions
+    - 자주 사용되는 `allowedFilters` 필드에 데이터베이스 인덱스 추가
+    - 복잡한 조건의 필터는 성능 테스트 필수
 
-3. **Pagination Usage**: Essential when handling large amounts of data
-4. **Caching Strategy**: Response caching using Redis etc.
+3. **페이지네이션 활용**: 대용량 데이터 처리 시 필수
+4. **캐싱 전략**: Redis 등을 활용한 응답 캐싱
 
-## 📚 Additional Resources
+## 📚 추가 자료
 
-### Related Documentation
+### 관련 문서
 
--   [NestJS Official Documentation](https://nestjs.com/)
--   [TypeORM Official Documentation](https://typeorm.io/)
--   [class-validator Documentation](https://github.com/typestack/class-validator)
+-   [NestJS 공식 문서](https://nestjs.com/)
+-   [TypeORM 공식 문서](https://typeorm.io/)
+-   [class-validator 문서](https://github.com/typestack/class-validator)
 
 ---
 
-**Build powerful and flexible REST APIs quickly with nestjs-crud!** 🚀
+**nestjs-crud**로 강력하고 유연한 REST API를 빠르게 구축하세요! 🚀
