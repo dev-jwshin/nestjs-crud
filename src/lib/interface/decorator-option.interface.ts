@@ -264,6 +264,10 @@ export interface CrudOptions {
              * @default true
              */
             softDelete?: boolean;
+            /**
+             * 🚀 생명주기 훅 함수들을 설정합니다.
+             */
+            hooks?: LifecycleHooks;
         } & RouteBaseOption &
             SaveOptions;
         [Method.UPSERT]?: {

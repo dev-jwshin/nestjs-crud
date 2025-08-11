@@ -6,11 +6,11 @@ import { CRUD_ROUTE_ARGS, CUSTOM_REQUEST_OPTIONS } from '../constants';
 import { CRUD_POLICY } from '../crud.policy';
 import { Method } from '../interface';
 
-import type { CustomDeleteRequestOptions } from './custom-request.interceptor';
-import type { CrudDeleteOneRequest, CrudOptions, FactoryOption } from '../interface';
 import type { CallHandler, ExecutionContext, NestInterceptor, Type } from '@nestjs/common';
 import type { Request } from 'express';
 import type { Observable } from 'rxjs';
+import type { CrudDeleteOneRequest, CrudOptions, FactoryOption } from '../interface';
+import type { CustomDeleteRequestOptions } from './custom-request.interceptor';
 
 const method = Method.DESTROY;
 export function DeleteRequestInterceptor(crudOptions: CrudOptions, factoryOption: FactoryOption): Type<NestInterceptor> {
@@ -38,6 +38,7 @@ export function DeleteRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 saveOptions: {
                     listeners: deleteOptions.listeners,
                 },
+                hooks: deleteOptions.hooks,
             };
 
             this.crudLogger.logRequest(req, crudDeleteOneRequest);
