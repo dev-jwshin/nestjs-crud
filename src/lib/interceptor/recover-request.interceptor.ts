@@ -4,10 +4,10 @@ import { RequestAbstractInterceptor } from '../abstract';
 import { CRUD_ROUTE_ARGS, CUSTOM_REQUEST_OPTIONS } from '../constants';
 import { Method } from '../interface';
 
-import type { CrudOptions, CrudRecoverRequest, FactoryOption } from '../interface';
 import type { CallHandler, ExecutionContext, NestInterceptor, Type } from '@nestjs/common';
 import type { Request } from 'express';
 import type { Observable } from 'rxjs';
+import type { CrudOptions, CrudRecoverRequest, FactoryOption } from '../interface';
 
 const method = Method.RECOVER;
 export function RecoverRequestInterceptor(crudOptions: CrudOptions, factoryOption: FactoryOption): Type<NestInterceptor> {
@@ -30,6 +30,7 @@ export function RecoverRequestInterceptor(crudOptions: CrudOptions, factoryOptio
                 saveOptions: {
                     listeners: recoverOptions.listeners,
                 },
+                hooks: recoverOptions.hooks,
             };
 
             this.crudLogger.logRequest(req, crudRecoverRequest);

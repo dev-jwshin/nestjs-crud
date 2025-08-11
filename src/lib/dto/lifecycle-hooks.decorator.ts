@@ -2,8 +2,16 @@
 export const LIFECYCLE_HOOKS_METADATA = 'LIFECYCLE_HOOKS_METADATA';
 
 // 훅 타입 정의
-export type HookType = 'assignBefore' | 'assignAfter' | 'saveBefore' | 'saveAfter' | 'destroyBefore' | 'destroyAfter';
-export type MethodType = 'create' | 'update' | 'upsert' | 'destroy';
+export type HookType =
+    | 'assignBefore'
+    | 'assignAfter'
+    | 'saveBefore'
+    | 'saveAfter'
+    | 'destroyBefore'
+    | 'destroyAfter'
+    | 'recoverBefore'
+    | 'recoverAfter';
+export type MethodType = 'create' | 'update' | 'upsert' | 'destroy' | 'recover';
 
 // 훅 메타데이터 인터페이스
 export interface LifecycleHookMetadata {
@@ -46,6 +54,10 @@ export const AfterUpsert = () => createLifecycleHook('saveAfter', 'upsert');
 export const BeforeDestroy = () => createLifecycleHook('destroyBefore', 'destroy');
 export const AfterDestroy = () => createLifecycleHook('destroyAfter', 'destroy');
 
+// 🚀 RECOVER 관련 데코레이터 (NEW!)
+export const BeforeRecover = () => createLifecycleHook('recoverBefore', 'recover');
+export const AfterRecover = () => createLifecycleHook('recoverAfter', 'recover');
+
 // 더 세밀한 제어를 위한 데코레이터들
 export const BeforeAssign = (method: MethodType) => createLifecycleHook('assignBefore', method);
 export const AfterAssign = (method: MethodType) => createLifecycleHook('assignAfter', method);
@@ -78,6 +90,10 @@ export const AfterSaveUpsert = () => createLifecycleHook('saveAfter', 'upsert');
 // 🚀 === DESTROY 단계 (엔티티 삭제 전후) ===
 export const BeforeDestroyDestroy = () => createLifecycleHook('destroyBefore', 'destroy');
 export const AfterDestroyDestroy = () => createLifecycleHook('destroyAfter', 'destroy');
+
+// 🚀 === RECOVER 단계 (엔티티 복구 전후) ===
+export const BeforeRecoverRecover = () => createLifecycleHook('recoverBefore', 'recover');
+export const AfterRecoverRecover = () => createLifecycleHook('recoverAfter', 'recover');
 
 // 훅 메타데이터 읽기 헬퍼
 export function getLifecycleHooks(target: any): LifecycleHookMetadata[] {

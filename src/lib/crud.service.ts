@@ -319,9 +319,22 @@ export class CrudService<T extends EntityType> {
             if (!entity) {
                 throw new NotFoundException();
             }
+
+            const context: HookContext<T> = {
+                operation: 'recover' as Method,
+                params: crudRecoverRequest.params,
+                currentEntity: entity,
+            };
+
             const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
 
+            // 🚀 recoverBefore 훅 실행 - entity를 받아서 entity를 반환
+            entity = await this.executeRecoverBeforeHook(crudRecoverRequest.hooks, entity, context);
+
             await this.repository.recover(entity, crudRecoverRequest.saveOptions).catch(this.throwConflictException);
+
+            // 🚀 recoverAfter 훅 실행 - 복구 후 처리
+            entity = await this.executeRecoverAfterHook(crudRecoverRequest.hooks, entity, context);
 
             const processedEntity = this.excludeEntity(entity, crudRecoverRequest.exclude);
 
@@ -436,6 +449,36 @@ export class CrudService<T extends EntityType> {
         }
 
         return await hooks.destroyAfter(entity, context);
+    }
+
+    /**
+     * 🚀 RECOVER 전용 recoverBefore 훅 실행 - 복구 전 처리
+     */
+    private async executeRecoverBeforeHook<TEntity>(
+        hooks: LifecycleHooks<TEntity> | undefined,
+        entity: TEntity,
+        context: HookContext<TEntity>,
+    ): Promise<TEntity> {
+        if (!hooks?.recoverBefore) {
+            return entity;
+        }
+
+        return await hooks.recoverBefore(entity, context);
+    }
+
+    /**
+     * 🚀 RECOVER 전용 recoverAfter 훅 실행 - 복구 후 처리
+     */
+    private async executeRecoverAfterHook<TEntity>(
+        hooks: LifecycleHooks<TEntity> | undefined,
+        entity: TEntity,
+        context: HookContext<TEntity>,
+    ): Promise<TEntity> {
+        if (!hooks?.recoverAfter) {
+            return entity;
+        }
+
+        return await hooks.recoverAfter(entity, context);
     }
 
     private async executeAssignAfterHook<TEntity>(

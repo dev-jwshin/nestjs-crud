@@ -318,6 +318,10 @@ export interface CrudOptions {
              * It will generate the route `/:id/:subId`
              */
             params?: string[];
+            /**
+             * 🚀 생명주기 훅 함수들을 설정합니다.
+             */
+            hooks?: LifecycleHooks;
         } & RouteBaseOption &
             SaveOptions;
     };
@@ -340,7 +344,7 @@ export interface HookContext<T = any> {
      */
     params?: Record<string, any>;
     /**
-     * 현재 엔티티 (update, upsert 시에만 제공)
+     * 현재 엔티티 (update, upsert, destroy, recover 시에만 제공)
      */
     currentEntity?: T;
     /**
@@ -397,4 +401,19 @@ export interface LifecycleHooks<T = any> {
      * 관련 데이터 정리, 알림 발송, 이벤트 발생 등을 할 수 있습니다.
      */
     destroyAfter?: (entity: T, context: HookContext<T>) => Promise<T> | T;
+
+    /**
+     * 🚀 소프트 삭제된 엔티티를 복구하기 전에 실행됩니다.
+     * 복구 권한 확인, 관련 데이터 준비, 로깅 등을 할 수 있습니다.
+     *
+     * DESTROY와 마찬가지로 entity를 받아서 entity를 반환합니다.
+     * (entity ID로 이미 소프트 삭제된 데이터를 조회한 상태)
+     */
+    recoverBefore?: (entity: T, context: HookContext<T>) => Promise<T> | T;
+
+    /**
+     * 🚀 소프트 삭제된 엔티티를 복구한 후에 실행됩니다.
+     * 관련 데이터 복구, 알림 발송, 이벤트 발생 등을 할 수 있습니다.
+     */
+    recoverAfter?: (entity: T, context: HookContext<T>) => Promise<T> | T;
 }

@@ -17,6 +17,7 @@ A powerful library that automatically generates RESTful CRUD APIs based on NestJ
     -   [Lifecycle Hooks](#lifecycle-hooks)
         -   [Decorator Approach (NEW! Recommended)](#🎯-method-1-decorator-approach-new--recommended)
         -   [Routes Configuration Approach (Legacy)](#🛠️-method-2-routes-configuration-approach-legacy)
+-   [Soft Delete and Recovery](#🗑️-soft-delete-and-recovery)
 -   [API Documentation](#api-documentation)
 -   [Examples](#examples)
 -   [License](#license)
@@ -45,7 +46,7 @@ A powerful library that automatically generates RESTful CRUD APIs based on NestJ
 -   **Recovery**: Recover soft-deleted data
 -   **Upsert**: Update if exists, create if doesn't exist
 -   **Lifecycle Hooks**: Execute custom logic at each stage of CRUD operations
-    -   **Decorator Approach 🆕**: Intuitive method decorators like `@BeforeCreate()`, `@AfterUpdate()`, `@BeforeDestroy()`
+    -   **Decorator Approach 🆕**: Intuitive method decorators like `@BeforeCreate()`, `@AfterUpdate()`, `@BeforeDestroy()`, `@BeforeRecover()`
     -   **Routes Configuration Approach**: Legacy `routes.hooks` configuration approach
 
 ### 🔒 Security and Control Features
@@ -865,6 +866,8 @@ Execute custom logic at each stage of CRUD operations through lifecycle hooks.
 | `saveAfter`     | **After** saving           | Notifications, event generation  | create, update, upsert |
 | `destroyBefore` | **Before** entity deletion | Permission check, cleanup prep   | destroy                |
 | `destroyAfter`  | **After** entity deletion  | Audit logs, external sync        | destroy                |
+| `recoverBefore` | **Before** entity recovery | Permission check, recovery prep  | recover                |
+| `recoverAfter`  | **After** entity recovery  | Audit logs, notifications        | recover                |
 
 #### 🎯 Method 1: Decorator Approach (NEW! 🆕 Recommended)
 
@@ -883,6 +886,8 @@ Execute custom logic at each stage of CRUD operations through lifecycle hooks.
 @AfterUpsert()   // Execute after UPSERT (saveAfter)
 @BeforeDestroy() // Execute before DESTROY (destroyBefore)
 @AfterDestroy()  // Execute after DESTROY (destroyAfter)
+@BeforeRecover() // Execute before RECOVER (recoverBefore)
+@AfterRecover()  // Execute after RECOVER (recoverAfter)
 ```
 
 **Consistent fine-grained control decorators:**
@@ -894,6 +899,8 @@ Execute custom logic at each stage of CRUD operations through lifecycle hooks.
 @AfterSave('create' | 'update' | 'upsert')     // After saving
 @BeforeDestroy('destroy')                       // Before entity deletion
 @AfterDestroy('destroy')                        // After entity deletion
+@BeforeRecover('recover')                       // Before entity recovery
+@AfterRecover('recover')                        // After entity recovery
 ```
 
 **🆕 New 4-stage detailed decorators (clearer control):**
@@ -910,6 +917,10 @@ Execute custom logic at each stage of CRUD operations through lifecycle hooks.
 // === DESTROY stage (entity deletion) ===
 @BeforeDestroyDestroy()  // Before entity deletion
 @AfterDestroyDestroy()   // After entity deletion
+
+// === RECOVER stage (entity recovery) ===
+@BeforeRecoverRecover()  // Before entity recovery
+@AfterRecoverRecover()   // After entity recovery
 ```
 
 ##### Real Usage Examples
@@ -1025,6 +1036,50 @@ export class UserController {
 
         return entity;
     }
+
+    // 🚀 NEW! Permission check and preparation before RECOVER
+    @BeforeRecover()
+    async beforeRecoverUser(entity: User, context: HookContext<User>) {
+        console.log(`RECOVER permission check for: ${entity.email} (ID: ${entity.id})`);
+
+        // Check recover permission
+        const userId = context.request?.user?.id;
+        if (entity.deletedBy !== userId) {
+            const userRole = context.request?.user?.role;
+            if (userRole !== 'admin') {
+                throw new Error('Permission denied: Cannot recover other users data');
+            }
+        }
+
+        // Prevent recovery of certain users
+        if (entity.status === 'banned') {
+            throw new Error('Cannot recover banned user');
+        }
+
+        // Set recovery metadata
+        entity.recoveredBy = userId;
+        entity.recoveredAt = new Date();
+
+        return entity;
+    }
+
+    // 🚀 NEW! Cleanup and notification after RECOVER
+    @AfterRecover()
+    async afterRecoverUser(entity: User, context: HookContext<User>) {
+        console.log(`User recovered successfully: ${entity.email} (ID: ${entity.id})`);
+
+        // Restore related data
+        // await this.sessionService.enableUserSessions(entity.id);
+        // await this.tokenService.reissueUserTokens(entity.id);
+
+        // Send recovery notification
+        // await this.notificationService.notifyUserRecovery(entity);
+
+        // Log recovery for audit
+        // await this.auditService.logUserRecovery(entity, context.request?.user);
+
+        return entity;
+    }
 }
 ```
 
@@ -1091,6 +1146,39 @@ async afterDestroy(entity: User, context: HookContext) {
 
   // Perfect for cleanup, notifications, and audit logs
   await this.cleanupUserData(entity.id);
+
+  return entity;
+}
+```
+
+**🆕 NEW! Hooks during Recover process:**
+
+```typescript
+@BeforeRecover() // = @BeforeRecover('recover')
+async beforeRecover(entity: User, context: HookContext) {
+  // 🚀 Entity-based (full soft-deleted entity with ID)
+  // entity: entity to recover (includes all fields)
+  // context: { operation: 'recover', params: { id: 5 }, currentEntity: User }
+
+  // Perfect for permission checks and recovery preparation
+  if (entity.status === 'banned') {
+    throw new Error('Cannot recover banned user');
+  }
+
+  // Set recovery metadata
+  entity.recoveredBy = context.request?.user?.id;
+  entity.recoveredAt = new Date();
+
+  return entity;
+}
+
+@AfterRecover()  // = @AfterRecover('recover')
+async afterRecover(entity: User, context: HookContext) {
+  // entity: recovered entity (for restoration and logging)
+  // context: { operation: 'recover', params: { id: 5 }, currentEntity: User }
+
+  // Perfect for data restoration, notifications, and audit logs
+  await this.restoreUserData(entity.id);
 
   return entity;
 }
@@ -1511,7 +1599,7 @@ export class UserController {
 4.  **🔄 Reusability**: Common hooks can be implemented through inheritance
 5.  **🛡️ Type Safety**: TypeScript type checking support
 6.  **✨ IntelliSense**: IDE auto-completion support
-7.  **🚀 Entity-based UPDATE/DESTROY**: Full entity access with ID for advanced operations
+7.  **🚀 Entity-based UPDATE/DESTROY/RECOVER**: Full entity access with ID for advanced operations
 
 #### 🛠️ Method 2: Routes Configuration Approach (Legacy)
 
@@ -1623,6 +1711,49 @@ export class UserController {
 
                     // Log for audit
                     // await auditService.logUserDeletion(entity, context.request?.user);
+
+                    return entity;
+                },
+            },
+        },
+
+        recover: {
+            hooks: {
+                recoverBefore: async (entity, context) => {
+                    // 🆕 NEW! RECOVER before hook
+                    console.log(`Preparing to recover user: ${entity.name} (ID: ${entity.id})`);
+
+                    // Check recover permission
+                    const userId = context.request?.user?.id;
+                    if (entity.deletedBy !== userId && context.request?.user?.role !== 'admin') {
+                        throw new Error('Permission denied: Cannot recover other users data');
+                    }
+
+                    // Prevent recovery of banned accounts
+                    if (entity.status === 'banned') {
+                        throw new Error('Cannot recover banned user account');
+                    }
+
+                    // Set recovery metadata
+                    entity.recoveredBy = userId;
+                    entity.recoveredAt = new Date();
+
+                    return entity;
+                },
+
+                recoverAfter: async (entity, context) => {
+                    // 🆕 NEW! RECOVER after hook
+                    console.log(`User recovered successfully: ${entity.name} (ID: ${entity.id})`);
+
+                    // Restore related data
+                    // await sessionService.enableUserSessions(entity.id);
+                    // await tokenService.reissueUserTokens(entity.id);
+
+                    // Send recovery notification
+                    // await emailService.notifyUserRecovery(entity);
+
+                    // Log for audit
+                    // await auditService.logUserRecovery(entity, context.request?.user);
 
                     return entity;
                 },
@@ -1747,9 +1878,9 @@ export class PostController {
 ```typescript
 // HookContext provides the following information
 interface HookContext<T> {
-    operation: 'create' | 'update' | 'upsert' | 'destroy'; // Operation type
+    operation: 'create' | 'update' | 'upsert' | 'destroy' | 'recover'; // Operation type
     params?: Record<string, any>; // URL parameters
-    currentEntity?: T; // Current entity (update, upsert, destroy)
+    currentEntity?: T; // Current entity (update, upsert, destroy, recover)
     request?: any; // Express Request object
 }
 
@@ -2375,6 +2506,456 @@ export class UserInterceptor implements NestInterceptor {
 export class UserController {
     constructor(public readonly crudService: UserService) {}
 }
+```
+
+## 🗑️ Soft Delete and Recovery
+
+nestjs-crud provides powerful soft delete capabilities that mark data as deleted without physically removing it from the database. This enables data recovery and maintains referential integrity.
+
+### 🔄 Soft Delete vs Hard Delete
+
+#### Soft Delete (Default)
+
+-   Records deletion timestamp in `deletedAt` column
+-   Data remains in database but is excluded from normal queries
+-   Enables data recovery through RECOVER endpoints
+-   Maintains referential integrity
+
+#### Hard Delete
+
+-   Permanently removes records from database
+-   Cannot be recovered once deleted
+-   Faster database operations
+-   Reduces storage requirements
+
+### ⚙️ Configuration
+
+#### Entity Setup
+
+First, add a `@DeleteDateColumn()` to your entity for soft delete support:
+
+```typescript
+import { Entity, PrimaryGeneratedColumn, Column, DeleteDateColumn } from 'typeorm';
+
+@Entity()
+export class User {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column()
+    name: string;
+
+    @Column({ unique: true })
+    email: string;
+
+    // 🚀 Required for soft delete functionality
+    @DeleteDateColumn()
+    deletedAt?: Date;
+}
+```
+
+#### Controller Configuration
+
+```typescript
+@Controller('users')
+@Crud({
+    entity: User,
+    routes: {
+        destroy: {
+            softDelete: true, // ✅ Enable soft delete (default: true)
+        },
+    },
+})
+export class UserController {
+    constructor(public readonly crudService: UserService) {}
+}
+```
+
+### 🎛️ Configuration Options
+
+#### Global Default Policy
+
+```typescript
+// src/lib/crud.policy.ts
+export const CRUD_POLICY = {
+    [Method.DESTROY]: {
+        default: {
+            softDeleted: true, // 🔧 System default: soft delete enabled
+        },
+    },
+};
+```
+
+#### Method-specific Configuration
+
+```typescript
+@Crud({
+    entity: User,
+    routes: {
+        destroy: {
+            softDelete: false, // 🔥 Force hard delete for this entity
+        },
+    },
+})
+export class UserController {}
+```
+
+#### Runtime Control
+
+```typescript
+import { Controller, Delete, Req } from '@nestjs/common';
+import { CUSTOM_REQUEST_OPTIONS } from 'nestjs-crud';
+
+@Controller('users')
+export class UserController {
+    @Delete(':id')
+    async customDelete(@Req() req: any, @Param('id') id: number) {
+        // 🎯 Override soft delete for this specific request
+        req[CUSTOM_REQUEST_OPTIONS] = {
+            softDeleted: false, // Force hard delete for this request only
+        };
+
+        return await this.crudService.destroy({ id });
+    }
+}
+```
+
+### 📊 Priority System
+
+The soft delete configuration follows this priority order:
+
+1. **Runtime Request Override** (highest priority)
+2. **Method-specific Configuration**
+3. **System Default** (lowest priority - `true`)
+
+```typescript
+// Priority resolution example
+const softDeleted = _.isBoolean(customDeleteRequestOptions?.softDeleted)
+    ? customDeleteRequestOptions.softDeleted // 1️⃣ Runtime override
+    : deleteOptions.softDelete ?? // 2️⃣ Method config
+      CRUD_POLICY[method].default.softDeleted; // 3️⃣ System default (true)
+```
+
+### 🔧 Implementation Details
+
+#### Database Operations
+
+```typescript
+// Soft delete operation
+await repository.softRemove(entity, saveOptions);
+// SQL: UPDATE users SET deletedAt = NOW() WHERE id = 1
+
+// Hard delete operation
+await repository.remove(entity, saveOptions);
+// SQL: DELETE FROM users WHERE id = 1
+```
+
+#### Response Metadata
+
+All delete operations include `wasSoftDeleted` in response metadata:
+
+```json
+// Soft delete response
+{
+    "data": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com",
+        "deletedAt": "2024-01-15T11:00:00.000Z"
+    },
+    "metadata": {
+        "timestamp": "2024-01-15T11:00:00.000Z",
+        "affectedCount": 1,
+        "wasSoftDeleted": true  // 👈 Indicates soft delete was performed
+    }
+}
+
+// Hard delete response
+{
+    "data": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com"
+        // No deletedAt field (physically removed)
+    },
+    "metadata": {
+        "timestamp": "2024-01-15T11:00:00.000Z",
+        "affectedCount": 1,
+        "wasSoftDeleted": false  // 👈 Indicates hard delete was performed
+    }
+}
+```
+
+### 🔄 Recovery Functionality
+
+#### Automatic RECOVER Route Generation
+
+When `softDelete: true` is configured, nestjs-crud automatically generates recovery endpoints:
+
+```typescript
+// RECOVER route is automatically created when softDelete is enabled
+@Crud({
+    entity: User,
+    routes: {
+        destroy: {
+            softDelete: true, // ✅ Enables both DELETE and RECOVER routes
+        },
+    },
+})
+export class UserController {}
+
+// Generated routes:
+// DELETE /users/:id     - Soft delete user
+// POST /users/:id/recover - Recover soft-deleted user
+```
+
+#### Recovery Implementation
+
+```typescript
+// Internal recovery logic
+const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
+await this.repository.recover(entity, saveOptions);
+
+return createCrudResponse(transformedEntity, {
+    excludedFields,
+    wasSoftDeleted, // Previous soft-deleted state
+});
+```
+
+#### Recovery Response Example
+
+```json
+// POST /users/1/recover
+{
+    "data": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com",
+        "deletedAt": null // 👈 Cleared deletion timestamp
+    },
+    "metadata": {
+        "operation": "recover",
+        "timestamp": "2024-01-15T11:30:00.000Z",
+        "affectedCount": 1,
+        "wasSoftDeleted": true // 👈 Was previously soft-deleted
+    }
+}
+```
+
+### 🎯 Use Case Patterns
+
+#### User Data - Soft Delete (Data Protection)
+
+```typescript
+@Crud({
+    entity: User,
+    routes: {
+        destroy: {
+            softDelete: true, // ✅ Enable recovery for user data
+        },
+    },
+})
+export class UserController {}
+```
+
+#### Log Data - Hard Delete (Storage Optimization)
+
+```typescript
+@Crud({
+    entity: AccessLog,
+    routes: {
+        destroy: {
+            softDelete: false, // 🔥 Permanent deletion for logs
+        },
+    },
+})
+export class AccessLogController {}
+```
+
+#### Payment Records - Disable Delete (Compliance)
+
+```typescript
+@Crud({
+    entity: Payment,
+    // ❌ No destroy route generated - prevents any deletion
+    methods: ['create', 'read', 'update'], // Exclude 'destroy'
+})
+export class PaymentController {}
+```
+
+### 🛡️ Advanced Lifecycle Integration
+
+#### Soft Delete with BeforeDestroy Hook
+
+```typescript
+@Controller('users')
+@Crud({
+    entity: User,
+    routes: {
+        destroy: {
+            softDelete: true,
+        },
+    },
+})
+export class UserController {
+    @BeforeDestroy()
+    async beforeDelete(entity: User, context: HookContext<User>) {
+        // 🛡️ Permission check before soft delete
+        const userId = context.request?.user?.id;
+        if (entity.id !== userId && context.request?.user?.role !== 'admin') {
+            throw new Error('Permission denied: Cannot delete other users');
+        }
+
+        // 🏷️ Add deletion metadata
+        entity.deletedBy = userId;
+        entity.deletionReason = context.request.body?.reason || 'User requested';
+
+        return entity;
+    }
+
+    @AfterDestroy()
+    async afterDelete(entity: User, context: HookContext<User>) {
+        // 🧹 Cleanup after soft delete
+        console.log(`User soft-deleted: ${entity.email} by ${entity.deletedBy}`);
+
+        // Revoke active sessions (but preserve user data for recovery)
+        // await this.sessionService.revokeUserSessions(entity.id);
+
+        // Send notification email
+        // await this.emailService.notifyUserDeactivation(entity);
+
+        return entity;
+    }
+}
+```
+
+### 🔍 Querying Soft-Deleted Data
+
+#### Including Soft-Deleted Records
+
+```typescript
+// Service method to include soft-deleted records
+async findWithDeleted() {
+    return await this.repository.find({
+        withDeleted: true  // 👈 Include soft-deleted records
+    });
+}
+
+// Only soft-deleted records
+async findOnlyDeleted() {
+    return await this.repository
+        .createQueryBuilder('user')
+        .where('user.deletedAt IS NOT NULL')
+        .withDeleted()
+        .getMany();
+}
+```
+
+### 📈 Best Practices
+
+#### 1. Entity Design
+
+```typescript
+@Entity()
+export class User {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    // ... other fields
+
+    // 🚀 Essential for soft delete
+    @DeleteDateColumn()
+    deletedAt?: Date;
+
+    // 📝 Optional: Track who deleted the record
+    @Column({ nullable: true })
+    deletedBy?: number;
+
+    // 📝 Optional: Track deletion reason
+    @Column({ nullable: true })
+    deletionReason?: string;
+}
+```
+
+#### 2. Strategic Configuration
+
+```typescript
+// High-value data: Enable soft delete + recovery
+@Crud({
+    entity: User,
+    routes: {
+        destroy: { softDelete: true }  // ✅ Recoverable
+    }
+})
+
+// Transient data: Hard delete for efficiency
+@Crud({
+    entity: TempFile,
+    routes: {
+        destroy: { softDelete: false }  // 🔥 Permanent deletion
+    }
+})
+
+// Critical data: Prevent deletion entirely
+@Crud({
+    entity: FinancialRecord,
+    methods: ['create', 'read', 'update']  // ❌ No destroy method
+})
+```
+
+#### 3. Monitoring and Analytics
+
+```typescript
+@AfterDestroy()
+async trackDeletion(entity: any, context: HookContext) {
+    // 📊 Analytics tracking
+    const wasRecoverable = context.params.wasSoftDeleted;
+
+    await this.analyticsService.track('entity_deleted', {
+        entityType: entity.constructor.name,
+        entityId: entity.id,
+        userId: context.request?.user?.id,
+        recoverable: wasRecoverable,
+        timestamp: new Date()
+    });
+
+    return entity;
+}
+```
+
+### ⚠️ Important Considerations
+
+1. **Database Storage**: Soft-deleted records consume storage space
+2. **Query Performance**: Large volumes of soft-deleted data may impact performance
+3. **Backup Strategy**: Consider separate archiving strategies for old soft-deleted data
+4. **Compliance**: Ensure soft delete meets data protection requirements
+5. **Foreign Keys**: Soft-deleted parent records may affect related entities
+
+### 🔄 Migration from Hard to Soft Delete
+
+```typescript
+// Step 1: Add DeleteDateColumn to existing entity
+@Entity()
+export class User {
+    // ... existing fields
+
+    // Add the soft delete column
+    @DeleteDateColumn()
+    deletedAt?: Date;
+}
+
+// Step 2: Run database migration
+// CREATE MIGRATION: ALTER TABLE users ADD COLUMN deletedAt timestamp NULL;
+
+// Step 3: Update controller configuration
+@Crud({
+    entity: User,
+    routes: {
+        destroy: {
+            softDelete: true,  // Change from false/undefined to true
+        }
+    }
+})
 ```
 
 ## 📊 Swagger Documentation

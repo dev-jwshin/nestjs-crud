@@ -59,6 +59,7 @@ export interface CrudRecoverRequest<T> extends CrudRequestBase {
     params: Partial<Record<keyof T, unknown>>;
     exclude: Set<string>;
     saveOptions: SaveOptions;
+    hooks?: LifecycleHooks<T>;
 }
 
 // ========================================
