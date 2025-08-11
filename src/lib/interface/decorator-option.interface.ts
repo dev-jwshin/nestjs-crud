@@ -261,7 +261,7 @@ export interface CrudOptions {
             params?: string[];
             /**
              * If set to true, the entity will be soft deleted. (Records the delete date of the entity)
-             * @default true
+             * @default false
              */
             softDelete?: boolean;
             /**

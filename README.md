@@ -2514,19 +2514,19 @@ nestjs-crud provides powerful soft delete capabilities that mark data as deleted
 
 ### 🔄 Soft Delete vs Hard Delete
 
-#### Soft Delete (Default)
-
--   Records deletion timestamp in `deletedAt` column
--   Data remains in database but is excluded from normal queries
--   Enables data recovery through RECOVER endpoints
--   Maintains referential integrity
-
-#### Hard Delete
+#### Hard Delete (Default)
 
 -   Permanently removes records from database
 -   Cannot be recovered once deleted
 -   Faster database operations
 -   Reduces storage requirements
+
+#### Soft Delete
+
+-   Records deletion timestamp in `deletedAt` column
+-   Data remains in database but is excluded from normal queries
+-   Enables data recovery through RECOVER endpoints
+-   Maintains referential integrity
 
 ### ⚙️ Configuration
 
@@ -2562,7 +2562,7 @@ export class User {
     entity: User,
     routes: {
         destroy: {
-            softDelete: true, // ✅ Enable soft delete (default: true)
+            softDelete: true, // ✅ Enable soft delete (default: false)
         },
     },
 })
@@ -2580,7 +2580,7 @@ export class UserController {
 export const CRUD_POLICY = {
     [Method.DESTROY]: {
         default: {
-            softDeleted: true, // 🔧 System default: soft delete enabled
+            softDeleted: false, // 🔧 System default: hard delete enabled
         },
     },
 };
@@ -2593,7 +2593,7 @@ export const CRUD_POLICY = {
     entity: User,
     routes: {
         destroy: {
-            softDelete: false, // 🔥 Force hard delete for this entity
+            softDelete: true, // ✅ Enable soft delete for this entity
         },
     },
 })
@@ -2626,14 +2626,14 @@ The soft delete configuration follows this priority order:
 
 1. **Runtime Request Override** (highest priority)
 2. **Method-specific Configuration**
-3. **System Default** (lowest priority - `true`)
+3. **System Default** (lowest priority - `false`)
 
 ```typescript
 // Priority resolution example
 const softDeleted = _.isBoolean(customDeleteRequestOptions?.softDeleted)
     ? customDeleteRequestOptions.softDeleted // 1️⃣ Runtime override
     : deleteOptions.softDelete ?? // 2️⃣ Method config
-      CRUD_POLICY[method].default.softDeleted; // 3️⃣ System default (true)
+      CRUD_POLICY[method].default.softDeleted; // 3️⃣ System default (false)
 ```
 
 ### 🔧 Implementation Details
@@ -2690,7 +2690,7 @@ All delete operations include `wasSoftDeleted` in response metadata:
 
 #### Automatic RECOVER Route Generation
 
-When `softDelete: true` is configured, nestjs-crud automatically generates recovery endpoints:
+When `softDelete: true` is explicitly configured (not default), nestjs-crud automatically generates recovery endpoints:
 
 ```typescript
 // RECOVER route is automatically created when softDelete is enabled
@@ -2765,7 +2765,7 @@ export class UserController {}
     entity: AccessLog,
     routes: {
         destroy: {
-            softDelete: false, // 🔥 Permanent deletion for logs
+            softDelete: false, // 🔥 Explicit hard delete for logs (matches default)
         },
     },
 })
@@ -2884,15 +2884,15 @@ export class User {
 @Crud({
     entity: User,
     routes: {
-        destroy: { softDelete: true }  // ✅ Recoverable
+        destroy: { softDelete: true }  // ✅ Recoverable (override default)
     }
 })
 
-// Transient data: Hard delete for efficiency
+// Transient data: Use default hard delete for efficiency
 @Crud({
     entity: TempFile,
     routes: {
-        destroy: { softDelete: false }  // 🔥 Permanent deletion
+        destroy: { softDelete: false }  // 🔥 Permanent deletion (default behavior)
     }
 })
 

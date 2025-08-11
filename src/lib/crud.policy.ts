@@ -1,16 +1,16 @@
 import { HttpStatus, RequestMethod } from '@nestjs/common';
 
 import { capitalizeFirstLetter } from './capitalize-first-letter';
-import { ReadOneRequestInterceptor, CreateRequestInterceptor } from './interceptor';
+import { CreateRequestInterceptor, ReadOneRequestInterceptor } from './interceptor';
 import { DeleteRequestInterceptor } from './interceptor/delete-request.interceptor';
 import { ReadManyRequestInterceptor } from './interceptor/read-many-request.interceptor';
 import { RecoverRequestInterceptor } from './interceptor/recover-request.interceptor';
 import { UpdateRequestInterceptor } from './interceptor/update-request.interceptor';
 import { UpsertRequestInterceptor } from './interceptor/upsert-request.interceptor';
-import { Method, Sort, PaginationType } from './interface';
+import { Method, PaginationType, Sort } from './interface';
 
-import type { CrudOptions, PrimaryKey, FactoryOption } from './interface';
 import type { NestInterceptor, Type } from '@nestjs/common';
+import type { CrudOptions, FactoryOption, PrimaryKey } from './interface';
 
 type CrudMethodPolicy = {
     [Method.SHOW]: MethodPolicy<Method.SHOW>;
@@ -33,13 +33,13 @@ type MethodPolicy<T extends Method> = {
         };
     };
     default: T extends Method.SHOW | Method.DESTROY
-    ? DefaultOptionsReadOne
-    : T extends Method.INDEX
-    ? DefaultOptionsReadMany
-    : DefaultOptions;
+        ? DefaultOptionsReadOne
+        : T extends Method.INDEX
+          ? DefaultOptionsReadMany
+          : DefaultOptions;
 };
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface DefaultOptions { }
+interface DefaultOptions {}
 interface DefaultOptionsReadOne extends DefaultOptions {
     softDeleted: boolean;
 }
@@ -52,18 +52,18 @@ interface DefaultOptionsReadMany extends DefaultOptionsReadOne {
 const metaProperties = (paginationType: PaginationType) =>
     paginationType === PaginationType.OFFSET
         ? {
-            page: { type: 'number', example: 1 },
-            pages: { type: 'number', example: 1 },
-            total: { type: 'number', example: 100 },
-            offset: { type: 'number', example: 20 },
-            nextCursor: { type: 'string', example: 'cursorToken' },
-        }
+              page: { type: 'number', example: 1 },
+              pages: { type: 'number', example: 1 },
+              total: { type: 'number', example: 100 },
+              offset: { type: 'number', example: 20 },
+              nextCursor: { type: 'string', example: 'cursorToken' },
+          }
         : {
-            total: { type: 'number', example: 100 },
-            totalPages: { type: 'number', example: 5 },
-            limit: { type: 'number', example: 20 },
-            nextCursor: { type: 'string', example: 'cursorToken' },
-        };
+              total: { type: 'number', example: 100 },
+              totalPages: { type: 'number', example: 5 },
+              limit: { type: 'number', example: 20 },
+              nextCursor: { type: 'string', example: 'cursorToken' },
+          };
 /**
  * Basic Policy by method
  */
@@ -259,7 +259,7 @@ export const CRUD_POLICY: CrudMethodPolicy = {
             }),
         },
         default: {
-            softDeleted: true,
+            softDeleted: false,
         },
     },
     [Method.RECOVER]: {
