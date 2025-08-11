@@ -378,4 +378,19 @@ export interface LifecycleHooks<T = any> {
      * 후처리나 이벤트 발생 등을 할 수 있습니다.
      */
     saveAfter?: (entity: T, context: HookContext<T>) => Promise<T> | T;
+
+    /**
+     * 🚀 엔티티를 삭제하기 전에 실행됩니다.
+     * 삭제 권한 확인, 관련 데이터 정리, 로깅 등을 할 수 있습니다.
+     *
+     * UPDATE와 마찬가지로 entity를 받아서 entity를 반환합니다.
+     * (entity ID로 이미 DB에서 조회한 상태)
+     */
+    destroyBefore?: (entity: T, context: HookContext<T>) => Promise<T> | T;
+
+    /**
+     * 🚀 엔티티를 삭제한 후에 실행됩니다.
+     * 관련 데이터 정리, 알림 발송, 이벤트 발생 등을 할 수 있습니다.
+     */
+    destroyAfter?: (entity: T, context: HookContext<T>) => Promise<T> | T;
 }

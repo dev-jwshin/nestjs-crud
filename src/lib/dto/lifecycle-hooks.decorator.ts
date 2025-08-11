@@ -2,8 +2,8 @@
 export const LIFECYCLE_HOOKS_METADATA = 'LIFECYCLE_HOOKS_METADATA';
 
 // 훅 타입 정의
-export type HookType = 'assignBefore' | 'assignAfter' | 'saveBefore' | 'saveAfter';
-export type MethodType = 'create' | 'update' | 'upsert';
+export type HookType = 'assignBefore' | 'assignAfter' | 'saveBefore' | 'saveAfter' | 'destroyBefore' | 'destroyAfter';
+export type MethodType = 'create' | 'update' | 'upsert' | 'destroy';
 
 // 훅 메타데이터 인터페이스
 export interface LifecycleHookMetadata {
@@ -42,11 +42,17 @@ export const AfterUpdate = () => createLifecycleHook('saveAfter', 'update');
 export const BeforeUpsert = () => createLifecycleHook('assignBefore', 'upsert');
 export const AfterUpsert = () => createLifecycleHook('saveAfter', 'upsert');
 
+// 🚀 DESTROY 관련 데코레이터 (NEW!)
+export const BeforeDestroy = () => createLifecycleHook('destroyBefore', 'destroy');
+export const AfterDestroy = () => createLifecycleHook('destroyAfter', 'destroy');
+
 // 더 세밀한 제어를 위한 데코레이터들
 export const BeforeAssign = (method: MethodType) => createLifecycleHook('assignBefore', method);
 export const AfterAssign = (method: MethodType) => createLifecycleHook('assignAfter', method);
 export const BeforeSave = (method: MethodType) => createLifecycleHook('saveBefore', method);
 export const AfterSave = (method: MethodType) => createLifecycleHook('saveAfter', method);
+
+// 🚀 DESTROY 관련 세밀한 제어용 데코레이터들 (destroy는 단일 메서드이므로 일반적인 패턴 사용)
 
 // 🆕 새로운 세분화된 데코레이터들 (4개 단계별로 명확하게)
 // === BEFORE ASSIGN 단계 (엔티티에 데이터 할당 전) ===
@@ -68,6 +74,10 @@ export const BeforeSaveUpsert = () => createLifecycleHook('saveBefore', 'upsert'
 export const AfterSaveCreate = () => createLifecycleHook('saveAfter', 'create');
 export const AfterSaveUpdate = () => createLifecycleHook('saveAfter', 'update');
 export const AfterSaveUpsert = () => createLifecycleHook('saveAfter', 'upsert');
+
+// 🚀 === DESTROY 단계 (엔티티 삭제 전후) ===
+export const BeforeDestroyDestroy = () => createLifecycleHook('destroyBefore', 'destroy');
+export const AfterDestroyDestroy = () => createLifecycleHook('destroyAfter', 'destroy');
 
 // 훅 메타데이터 읽기 헬퍼
 export function getLifecycleHooks(target: any): LifecycleHookMetadata[] {

@@ -285,9 +285,21 @@ export class CrudService<T extends EntityType> {
                 throw new NotFoundException();
             }
 
+            const context: HookContext<T> = {
+                operation: 'destroy' as Method,
+                params: crudDeleteOneRequest.params,
+                currentEntity: entity,
+            };
+
+            // 🚀 destroyBefore 훅 실행 - entity를 받아서 entity를 반환
+            entity = await this.executeDestroyBeforeHook(crudDeleteOneRequest.hooks, entity, context);
+
             await (crudDeleteOneRequest.softDeleted
                 ? this.repository.softRemove(entity, crudDeleteOneRequest.saveOptions)
                 : this.repository.remove(entity, crudDeleteOneRequest.saveOptions));
+
+            // 🚀 destroyAfter 훅 실행 - 삭제 후 처리
+            entity = await this.executeDestroyAfterHook(crudDeleteOneRequest.hooks, entity, context);
 
             const processedEntity = this.excludeEntity(entity, crudDeleteOneRequest.exclude);
 
@@ -394,6 +406,36 @@ export class CrudService<T extends EntityType> {
 
         // 결과가 entity인지 확인하고 반환
         return (result as TEntity) || entity;
+    }
+
+    /**
+     * 🚀 DESTROY 전용 destroyBefore 훅 실행 - entity를 받아서 entity를 반환
+     */
+    private async executeDestroyBeforeHook<TEntity>(
+        hooks: LifecycleHooks<TEntity> | undefined,
+        entity: TEntity,
+        context: HookContext<TEntity>,
+    ): Promise<TEntity> {
+        if (!hooks?.destroyBefore) {
+            return entity;
+        }
+
+        return await hooks.destroyBefore(entity, context);
+    }
+
+    /**
+     * 🚀 DESTROY 전용 destroyAfter 훅 실행 - 삭제 후 처리
+     */
+    private async executeDestroyAfterHook<TEntity>(
+        hooks: LifecycleHooks<TEntity> | undefined,
+        entity: TEntity,
+        context: HookContext<TEntity>,
+    ): Promise<TEntity> {
+        if (!hooks?.destroyAfter) {
+            return entity;
+        }
+
+        return await hooks.destroyAfter(entity, context);
     }
 
     private async executeAssignAfterHook<TEntity>(
