@@ -45,7 +45,7 @@ A powerful library that automatically generates RESTful CRUD APIs based on NestJ
 -   **Recovery**: Recover soft-deleted data
 -   **Upsert**: Update if exists, create if doesn't exist
 -   **Lifecycle Hooks**: Execute custom logic at each stage of CRUD operations
-    -   **Decorator Approach 🆕**: Intuitive method decorators like `@BeforeCreate()`, `@AfterUpdate()`
+    -   **Decorator Approach 🆕**: Intuitive method decorators like `@BeforeCreate()`, `@AfterUpdate()`, `@BeforeDestroy()`
     -   **Routes Configuration Approach**: Legacy `routes.hooks` configuration approach
 
 ### 🔒 Security and Control Features
@@ -857,12 +857,14 @@ Execute custom logic at each stage of CRUD operations through lifecycle hooks.
 
 #### Hook Types
 
-| Hook           | Execution Point            | Purpose                          | Supported Routes       |
-| -------------- | -------------------------- | -------------------------------- | ---------------------- |
-| `assignBefore` | **Before** data assignment | Input validation, transformation | create, update, upsert |
-| `assignAfter`  | **After** data assignment  | Entity post-processing           | create, update, upsert |
-| `saveBefore`   | **Before** saving          | Final validation, business logic | create, update, upsert |
-| `saveAfter`    | **After** saving           | Notifications, event generation  | create, update, upsert |
+| Hook            | Execution Point            | Purpose                          | Supported Routes       |
+| --------------- | -------------------------- | -------------------------------- | ---------------------- |
+| `assignBefore`  | **Before** data assignment | Input validation, transformation | create, update, upsert |
+| `assignAfter`   | **After** data assignment  | Entity post-processing           | create, update, upsert |
+| `saveBefore`    | **Before** saving          | Final validation, business logic | create, update, upsert |
+| `saveAfter`     | **After** saving           | Notifications, event generation  | create, update, upsert |
+| `destroyBefore` | **Before** entity deletion | Permission check, cleanup prep   | destroy                |
+| `destroyAfter`  | **After** entity deletion  | Audit logs, external sync        | destroy                |
 
 #### 🎯 Method 1: Decorator Approach (NEW! 🆕 Recommended)
 
@@ -879,6 +881,8 @@ Execute custom logic at each stage of CRUD operations through lifecycle hooks.
 @AfterUpdate()   // Execute after UPDATE (saveAfter)
 @BeforeUpsert()  // Execute before UPSERT (assignBefore)
 @AfterUpsert()   // Execute after UPSERT (saveAfter)
+@BeforeDestroy() // Execute before DESTROY (destroyBefore)
+@AfterDestroy()  // Execute after DESTROY (destroyAfter)
 ```
 
 **Consistent fine-grained control decorators:**
@@ -888,6 +892,8 @@ Execute custom logic at each stage of CRUD operations through lifecycle hooks.
 @AfterAssign('create' | 'update' | 'upsert')   // After assignment
 @BeforeSave('create' | 'update' | 'upsert')    // Before saving
 @AfterSave('create' | 'update' | 'upsert')     // After saving
+@BeforeDestroy('destroy')                       // Before entity deletion
+@AfterDestroy('destroy')                        // After entity deletion
 ```
 
 **🆕 New 4-stage detailed decorators (clearer control):**
@@ -900,6 +906,10 @@ Execute custom logic at each stage of CRUD operations through lifecycle hooks.
 // === SAVE stage (database saving) ===
 @BeforeSaveCreate()    @BeforeSaveUpdate()    @BeforeSaveUpsert()    // Before saving
 @AfterSaveCreate()     @AfterSaveUpdate()     @AfterSaveUpsert()     // After saving
+
+// === DESTROY stage (entity deletion) ===
+@BeforeDestroyDestroy()  // Before entity deletion
+@AfterDestroyDestroy()   // After entity deletion
 ```
 
 ##### Real Usage Examples
@@ -971,6 +981,50 @@ export class UserController {
 
         return entity;
     }
+
+    // 🗑️ Permission check and cleanup preparation before DELETE
+    @BeforeDestroy()
+    async beforeDeleteUser(entity: User, context: any) {
+        console.log(`DELETE permission check for: ${entity.email} (ID: ${entity.id})`);
+
+        // Check delete permission
+        const userId = context.request?.user?.id;
+        if (entity.id !== userId) {
+            const userRole = context.request?.user?.role;
+            if (userRole !== 'admin') {
+                throw new Error('Permission denied: Cannot delete other users');
+            }
+        }
+
+        // Prevent deletion of locked users
+        if (entity.status === 'locked') {
+            throw new Error('Cannot delete locked user');
+        }
+
+        // Set deletion metadata
+        entity.deletedBy = userId;
+        entity.deletedAt = new Date();
+
+        return entity;
+    }
+
+    // 🧹 Cleanup and notification after DELETE
+    @AfterDestroy()
+    async afterDeleteUser(entity: User, context: any) {
+        console.log(`User deleted successfully: ${entity.email} (ID: ${entity.id})`);
+
+        // Cleanup related data
+        // await this.sessionService.revokeUserSessions(entity.id);
+        // await this.tokenService.revokeUserTokens(entity.id);
+
+        // Send deletion notification
+        // await this.notificationService.notifyUserDeletion(entity);
+
+        // Log deletion for audit
+        // await this.auditService.logUserDeletion(entity, context.request?.user);
+
+        return entity;
+    }
 }
 ```
 
@@ -998,16 +1052,46 @@ async afterCreate(entity: User, context: HookContext) {
 
 ```typescript
 @BeforeUpdate()  // = @BeforeAssign('update')
-async beforeUpdate(body: any, context: HookContext) {
-  // body: data to update
+async beforeUpdate(entity: User, context: HookContext) {
+  // 🚀 NEW: entity-based (full entity with ID)
+  // entity: entity to update (includes all fields)
   // context: { operation: 'update', params: { id: 5 }, currentEntity: User }
-  return body;
+  return entity;
 }
 
 @AfterUpdate()   // = @AfterSave('update')
 async afterUpdate(entity: User, context: HookContext) {
   // entity: updated entity
   // context: { operation: 'update', params: { id: 5 }, currentEntity: User }
+  return entity;
+}
+```
+
+**🆕 NEW! Hooks during Destroy process:**
+
+```typescript
+@BeforeDestroy() // = @BeforeDestroy('destroy')
+async beforeDestroy(entity: User, context: HookContext) {
+  // 🚀 Entity-based (full entity with ID)
+  // entity: entity to delete (includes all fields)
+  // context: { operation: 'destroy', params: { id: 5 }, currentEntity: User }
+
+  // Perfect for permission checks and cleanup preparation
+  if (entity.status === 'locked') {
+    throw new Error('Cannot delete locked user');
+  }
+
+  return entity;
+}
+
+@AfterDestroy()  // = @AfterDestroy('destroy')
+async afterDestroy(entity: User, context: HookContext) {
+  // entity: deleted entity (for cleanup and logging)
+  // context: { operation: 'destroy', params: { id: 5 }, currentEntity: User }
+
+  // Perfect for cleanup, notifications, and audit logs
+  await this.cleanupUserData(entity.id);
+
   return entity;
 }
 ```
@@ -1071,15 +1155,54 @@ export class PostController {
     // Multiple hooks can be used together
     @BeforeUpdate()
     @BeforeUpsert()
-    async beforeModify(body: any, context: any) {
-        // Common logic for both CREATE and UPDATE
-        body.updatedAt = new Date();
+    async beforeModify(data: any, context: any) {
+        // Common logic for both UPDATE and UPSERT
+        data.updatedAt = new Date();
 
-        if (context.operation === 'create') {
-            body.createdAt = new Date();
+        if (context.operation === 'upsert' && !context.currentEntity) {
+            data.createdAt = new Date();
         }
 
-        return body;
+        return data;
+    }
+
+    // 🆕 NEW! DESTROY hook example
+    @BeforeDestroy()
+    async beforeDelete(entity: Post, context: any) {
+        console.log(`Preparing to delete post: ${entity.title} (ID: ${entity.id})`);
+
+        // Check if user has permission to delete this post
+        const userId = context.request?.user?.id;
+        if (entity.userId !== userId) {
+            const userRole = context.request?.user?.role;
+            if (userRole !== 'admin' && userRole !== 'moderator') {
+                throw new Error('Permission denied: Cannot delete other users posts');
+            }
+        }
+
+        // Prevent deletion of published posts by regular users
+        if (entity.status === 'published' && context.request?.user?.role !== 'admin') {
+            throw new Error('Cannot delete published posts');
+        }
+
+        return entity;
+    }
+
+    @AfterDestroy()
+    async afterDelete(entity: Post, context: any) {
+        console.log(`Post deleted successfully: ${entity.title} (ID: ${entity.id})`);
+
+        // Clean up related data
+        // await this.commentService.deletePostComments(entity.id);
+        // await this.tagService.removePostTags(entity.id);
+
+        // Update search index
+        // await this.searchService.removeFromIndex(entity.id);
+
+        // Send notification
+        // await this.notificationService.notifyPostDeletion(entity);
+
+        return entity;
     }
 }
 ```
@@ -1168,15 +1291,16 @@ export class UserController {
 
     // 🔐 UPDATE: Before assignment
     @BeforeAssignUpdate()
-    async beforeUpdateAssign(body: any, context: any) {
-        console.log('🔄 UPDATE before assignment: Process update data');
+    async beforeUpdateAssign(entity: User, context: any) {
+        console.log('🔄 UPDATE before assignment: Process update entity');
 
-        if (body.password) {
-            body.password = await bcrypt.hash(body.password, 10);
+        // 🚀 NEW: Now receives full entity with ID
+        if (entity.password) {
+            entity.password = await bcrypt.hash(entity.password, 10);
         }
 
-        body.updatedAt = new Date();
-        return body;
+        entity.updatedAt = new Date();
+        return entity;
     }
 
     // 📝 UPDATE: After saving
@@ -1225,6 +1349,36 @@ export class PostController {
         // Common post-processing logic (search index update, cache refresh, etc.)
         // await this.searchService.updateIndex(entity);
         // await this.cacheService.invalidate(`post:${entity.id}`);
+
+        return entity;
+    }
+
+    // 🆕 NEW! DESTROY-specific hooks
+    @BeforeDestroy()
+    async beforePostDelete(entity: any, context: any) {
+        console.log(`🗑️ DESTROY before deletion: Preparing to delete ${entity.title}`);
+
+        // Check deletion permissions
+        const userId = context.request?.user?.id;
+        if (entity.userId !== userId && context.request?.user?.role !== 'admin') {
+            throw new Error('Permission denied');
+        }
+
+        // Set deletion metadata
+        entity.deletedBy = userId;
+        entity.deletedAt = new Date();
+
+        return entity;
+    }
+
+    @AfterDestroy()
+    async afterPostDelete(entity: any, context: any) {
+        console.log(`🧹 DESTROY after deletion: Cleanup for ${entity.title}`);
+
+        // Common cleanup logic
+        // await this.searchService.removeFromIndex(entity.id);
+        // await this.cacheService.invalidate(`post:${entity.id}`);
+        // await this.notificationService.notifyDeletion(entity);
 
         return entity;
     }
@@ -1357,6 +1511,7 @@ export class UserController {
 4.  **🔄 Reusability**: Common hooks can be implemented through inheritance
 5.  **🛡️ Type Safety**: TypeScript type checking support
 6.  **✨ IntelliSense**: IDE auto-completion support
+7.  **🚀 Entity-based UPDATE/DESTROY**: Full entity access with ID for advanced operations
 
 #### 🛠️ Method 2: Routes Configuration Approach (Legacy)
 
@@ -1404,15 +1559,20 @@ export class UserController {
 
         update: {
             hooks: {
-                assignBefore: async (body, context) => {
+                assignBefore: async (entity, context) => {
+                    // 🚀 NEW: Now receives full entity
                     // Auto-set update time
-                    body.updatedAt = new Date();
+                    entity.updatedAt = new Date();
 
-                    // Certain fields cannot be modified
-                    delete body.id;
-                    delete body.createdAt;
+                    // Prevent modification of certain fields
+                    const originalId = entity.id;
+                    const originalCreatedAt = entity.createdAt;
 
-                    return body;
+                    // Restore protected fields if they were modified
+                    entity.id = originalId;
+                    entity.createdAt = originalCreatedAt;
+
+                    return entity;
                 },
 
                 saveBefore: async (entity, context) => {
@@ -1421,6 +1581,49 @@ export class UserController {
                     if (entity.id !== userId) {
                         throw new Error('Permission denied');
                     }
+                    return entity;
+                },
+            },
+        },
+
+        destroy: {
+            hooks: {
+                destroyBefore: async (entity, context) => {
+                    // 🆕 NEW! DESTROY before hook
+                    console.log(`Preparing to delete user: ${entity.name} (ID: ${entity.id})`);
+
+                    // Check delete permission
+                    const userId = context.request?.user?.id;
+                    if (entity.id !== userId && context.request?.user?.role !== 'admin') {
+                        throw new Error('Permission denied: Cannot delete other users');
+                    }
+
+                    // Prevent deletion of locked accounts
+                    if (entity.status === 'locked') {
+                        throw new Error('Cannot delete locked user account');
+                    }
+
+                    // Set deletion metadata
+                    entity.deletedBy = userId;
+                    entity.deletedAt = new Date();
+
+                    return entity;
+                },
+
+                destroyAfter: async (entity, context) => {
+                    // 🆕 NEW! DESTROY after hook
+                    console.log(`User deleted successfully: ${entity.name} (ID: ${entity.id})`);
+
+                    // Cleanup related data
+                    // await sessionService.revokeUserSessions(entity.id);
+                    // await tokenService.revokeUserTokens(entity.id);
+
+                    // Send deletion notification
+                    // await emailService.notifyUserDeletion(entity);
+
+                    // Log for audit
+                    // await auditService.logUserDeletion(entity, context.request?.user);
+
                     return entity;
                 },
             },
@@ -1544,9 +1747,9 @@ export class PostController {
 ```typescript
 // HookContext provides the following information
 interface HookContext<T> {
-    operation: 'create' | 'update' | 'upsert'; // Operation type
+    operation: 'create' | 'update' | 'upsert' | 'destroy'; // Operation type
     params?: Record<string, any>; // URL parameters
-    currentEntity?: T; // Current entity (update, upsert)
+    currentEntity?: T; // Current entity (update, upsert, destroy)
     request?: any; // Express Request object
 }
 
@@ -1607,6 +1810,28 @@ const commonHooks = {
         await eventBus.publish(eventName, entity);
         return entity;
     },
+
+    checkPermissions: async (entity: any, context: HookContext) => {
+        const userId = context.request?.user?.id;
+        const userRole = context.request?.user?.role;
+
+        // Check ownership or admin role
+        if (entity.userId && entity.userId !== userId && userRole !== 'admin') {
+            throw new Error('Permission denied');
+        }
+
+        return entity;
+    },
+
+    logOperation: async (entity: any, context: HookContext) => {
+        const userId = context.request?.user?.id;
+        const operation = context.operation.toUpperCase();
+
+        console.log(`${operation} operation by user ${userId} on entity ${entity.id}`);
+        // await auditService.log({ operation, entityId: entity.id, userId });
+
+        return entity;
+    },
 };
 
 // Reuse in multiple controllers
@@ -1625,6 +1850,18 @@ const commonHooks = {
                 assignBefore: commonHooks.setTimestamps,
                 saveBefore: commonHooks.validateOwnership,
                 saveAfter: commonHooks.publishEvent,
+            },
+        },
+
+        destroy: {
+            hooks: {
+                destroyBefore: commonHooks.checkPermissions,
+                destroyAfter: async (entity, context) => {
+                    // Combine multiple common hooks for destroy
+                    entity = await commonHooks.logOperation(entity, context);
+                    entity = await commonHooks.publishEvent(entity, context);
+                    return entity;
+                },
             },
         },
     },
