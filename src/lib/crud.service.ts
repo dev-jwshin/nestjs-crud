@@ -3,26 +3,25 @@ import { ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { instanceToPlain } from 'class-transformer';
 import _ from 'lodash';
 
-import { isCrudCreateManyRequest, createCrudResponse, createCrudArrayResponse } from './interface';
+import { createCrudArrayResponse, createCrudResponse, isCrudCreateManyRequest } from './interface';
 
+import type { DeepPartial, FindOptionsWhere, Repository } from 'typeorm';
 import type {
-    CrudReadOneRequest,
+    CrudArrayResponse,
+    CrudCreateManyRequest,
+    CrudCreateOneRequest,
     CrudDeleteOneRequest,
+    CrudReadOneRequest,
+    CrudRecoverRequest,
+    CrudResponse,
     CrudUpdateOneRequest,
     CrudUpsertRequest,
-    CrudRecoverRequest,
-    PaginationResponse as _PaginationResponse,
-    CrudCreateOneRequest,
-    CrudCreateManyRequest,
     EntityType,
-    CrudResponse,
-    CrudArrayResponse,
-    LifecycleHooks,
     HookContext,
+    LifecycleHooks,
     Method,
 } from './interface';
 import type { CrudReadManyRequest } from './request';
-import type { DeepPartial, FindOptionsWhere, Repository } from 'typeorm';
 
 const SUPPORTED_REPLICATION_TYPES = new Set(['mysql', 'mariadb', 'postgres', 'aurora-postgres', 'aurora-mysql']);
 
@@ -120,7 +119,9 @@ export class CrudService<T extends EntityType> {
             });
     };
 
-    readonly reservedCreate = async (crudCreateRequest: CrudCreateOneRequest<T> | CrudCreateManyRequest<T>): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
+    readonly reservedCreate = async (
+        crudCreateRequest: CrudCreateOneRequest<T> | CrudCreateManyRequest<T>,
+    ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
         const isMany = isCrudCreateManyRequest<T>(crudCreateRequest);
         const bodyArray = isMany ? crudCreateRequest.body : [crudCreateRequest.body];
 
@@ -132,7 +133,7 @@ export class CrudService<T extends EntityType> {
                     params: {},
                 };
                 return await this.executeAssignBeforeHook(crudCreateRequest.hooks, body, context);
-            })
+            }),
         );
 
         // 엔티티 생성
@@ -146,8 +147,6 @@ export class CrudService<T extends EntityType> {
             };
             entities[i] = await this.executeAssignAfterHook(crudCreateRequest.hooks, entities[i], processedBodyArray[i], context);
         }
-
-
 
         // saveBefore 훅 실행
         for (let i = 0; i < entities.length; i++) {
@@ -210,8 +209,6 @@ export class CrudService<T extends EntityType> {
             // assignAfter 훅 실행
             upsertEntity = await this.executeAssignAfterHook(crudUpsertRequest.hooks, upsertEntity, processedBody, context);
 
-
-
             // saveBefore 훅 실행
             upsertEntity = await this.executeSaveBeforeHook(crudUpsertRequest.hooks, upsertEntity, context);
 
@@ -229,7 +226,7 @@ export class CrudService<T extends EntityType> {
 
                     return createCrudResponse(transformedEntity, {
                         isNew,
-                        excludedFields
+                        excludedFields,
                     });
                 })
                 .catch(this.throwConflictException);
@@ -248,16 +245,15 @@ export class CrudService<T extends EntityType> {
                 currentEntity: entity,
             };
 
-            // assignBefore 훅 실행
-            const processedBody = await this.executeAssignBeforeHook(crudUpdateOneRequest.hooks, crudUpdateOneRequest.body, context);
+            // 🚀 UPDATE 개선: body를 entity에 먼저 할당 후 beforeUpdate 훅에서 entity 처리
+            // 1. body 데이터를 entity에 임시 할당
+            _.assign(entity, crudUpdateOneRequest.body);
 
-            // 엔티티에 데이터 할당
-            _.assign(entity, processedBody);
+            // 2. assignBefore 훅 실행 (UPDATE의 경우 entity 기반)
+            entity = await this.executeAssignBeforeHookForUpdate(crudUpdateOneRequest.hooks, entity, context);
 
             // assignAfter 훅 실행
-            entity = await this.executeAssignAfterHook(crudUpdateOneRequest.hooks, entity, processedBody, context);
-
-
+            entity = await this.executeAssignAfterHook(crudUpdateOneRequest.hooks, entity, crudUpdateOneRequest.body, context);
 
             // saveBefore 훅 실행
             entity = await this.executeSaveBeforeHook(crudUpdateOneRequest.hooks, entity, context);
@@ -289,8 +285,6 @@ export class CrudService<T extends EntityType> {
                 throw new NotFoundException();
             }
 
-
-
             await (crudDeleteOneRequest.softDeleted
                 ? this.repository.softRemove(entity, crudDeleteOneRequest.saveOptions)
                 : this.repository.remove(entity, crudDeleteOneRequest.saveOptions));
@@ -303,7 +297,7 @@ export class CrudService<T extends EntityType> {
 
             return createCrudResponse(transformedEntity, {
                 excludedFields,
-                wasSoftDeleted: crudDeleteOneRequest.softDeleted
+                wasSoftDeleted: crudDeleteOneRequest.softDeleted,
             });
         });
     };
@@ -325,7 +319,7 @@ export class CrudService<T extends EntityType> {
 
             return createCrudResponse(transformedEntity, {
                 excludedFields,
-                wasSoftDeleted
+                wasSoftDeleted,
             });
         });
     };
@@ -374,7 +368,7 @@ export class CrudService<T extends EntityType> {
     private async executeAssignBeforeHook<TEntity>(
         hooks: LifecycleHooks<TEntity> | undefined,
         body: DeepPartial<TEntity>,
-        context: HookContext<TEntity>
+        context: HookContext<TEntity>,
     ): Promise<DeepPartial<TEntity>> {
         if (!hooks?.assignBefore) {
             return body;
@@ -382,11 +376,31 @@ export class CrudService<T extends EntityType> {
         return await hooks.assignBefore(body, context);
     }
 
+    /**
+     * UPDATE 전용 assignBefore 훅 실행 - entity를 받아서 entity를 반환
+     */
+    private async executeAssignBeforeHookForUpdate<TEntity>(
+        hooks: LifecycleHooks<TEntity> | undefined,
+        entity: TEntity,
+        context: HookContext<TEntity>,
+    ): Promise<TEntity> {
+        if (!hooks?.assignBefore) {
+            return entity;
+        }
+
+        // 🚀 UPDATE의 경우: assignBefore 훅에 entity를 전달하고 entity를 반환받음
+        // 타입 캐스팅을 통해 entity 기반 처리 지원
+        const result = await hooks.assignBefore(entity as any, context);
+
+        // 결과가 entity인지 확인하고 반환
+        return (result as TEntity) || entity;
+    }
+
     private async executeAssignAfterHook<TEntity>(
         hooks: LifecycleHooks<TEntity> | undefined,
         entity: TEntity,
         body: DeepPartial<TEntity>,
-        context: HookContext<TEntity>
+        context: HookContext<TEntity>,
     ): Promise<TEntity> {
         if (!hooks?.assignAfter) {
             return entity;
@@ -397,7 +411,7 @@ export class CrudService<T extends EntityType> {
     private async executeSaveBeforeHook<TEntity>(
         hooks: LifecycleHooks<TEntity> | undefined,
         entity: TEntity,
-        context: HookContext<TEntity>
+        context: HookContext<TEntity>,
     ): Promise<TEntity> {
         if (!hooks?.saveBefore) {
             return entity;
@@ -408,7 +422,7 @@ export class CrudService<T extends EntityType> {
     private async executeSaveAfterHook<TEntity>(
         hooks: LifecycleHooks<TEntity> | undefined,
         entity: TEntity,
-        context: HookContext<TEntity>
+        context: HookContext<TEntity>,
     ): Promise<TEntity> {
         if (!hooks?.saveAfter) {
             return entity;

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Method, Sort, PaginationType, EntityType } from '.';
 import type { NestInterceptor, Type } from '@nestjs/common';
 import type { ColumnType, DeepPartial } from 'typeorm';
+import type { EntityType, Method, PaginationType, Sort } from '.';
 
 interface RouteBaseOption {
     /**
@@ -210,7 +210,7 @@ export interface CrudOptions {
              */
             skipMissingProperties?: boolean;
         } & RouteBaseOption &
-        SaveOptions;
+            SaveOptions;
         [Method.UPDATE]?: {
             /**
              * Array of path parameters to use for the route
@@ -247,7 +247,7 @@ export interface CrudOptions {
              */
             skipMissingProperties?: boolean;
         } & RouteBaseOption &
-        SaveOptions;
+            SaveOptions;
         [Method.DESTROY]?: {
             /**
              * Array of path parameters to use for the route
@@ -265,7 +265,7 @@ export interface CrudOptions {
              */
             softDelete?: boolean;
         } & RouteBaseOption &
-        SaveOptions;
+            SaveOptions;
         [Method.UPSERT]?: {
             /**
              * Array of path parameters to use for the route
@@ -302,7 +302,7 @@ export interface CrudOptions {
              */
             skipMissingProperties?: boolean;
         } & RouteBaseOption &
-        SaveOptions;
+            SaveOptions;
         [Method.RECOVER]?: {
             /**
              * Array of path parameters to use for the route
@@ -315,7 +315,7 @@ export interface CrudOptions {
              */
             params?: string[];
         } & RouteBaseOption &
-        SaveOptions;
+            SaveOptions;
     };
     /**
      * An array of methods to generate routes for. If not specified, all routes will be generated.
@@ -351,9 +351,15 @@ export interface HookContext<T = any> {
 export interface LifecycleHooks<T = any> {
     /**
      * 모델에 데이터를 할당하기 전에 실행됩니다.
-     * body 데이터를 수정하거나 검증할 수 있습니다.
+     *
+     * 🚀 UPDATE의 경우 특별 동작:
+     * - CREATE/UPSERT: body 데이터를 받아서 수정된 body 데이터를 반환
+     * - UPDATE: entity를 받아서 수정된 entity를 반환 (body는 이미 entity에 할당됨)
+     *
+     * @param bodyOrEntity CREATE/UPSERT시 body, UPDATE시 entity
+     * @param context 훅 실행 컨텍스트
      */
-    assignBefore?: (body: DeepPartial<T>, context: HookContext<T>) => Promise<DeepPartial<T>> | DeepPartial<T>;
+    assignBefore?: (bodyOrEntity: DeepPartial<T> | T, context: HookContext<T>) => Promise<DeepPartial<T> | T> | DeepPartial<T> | T;
 
     /**
      * 모델에 데이터를 할당한 후에 실행됩니다.
