@@ -17,6 +17,7 @@ A powerful library that automatically generates RESTful CRUD APIs based on NestJ
     -   [Lifecycle Hooks](#lifecycle-hooks)
         -   [Decorator Approach (NEW! Recommended)](#🎯-method-1-decorator-approach-new--recommended)
         -   [Routes Configuration Approach (Legacy)](#🛠️-method-2-routes-configuration-approach-legacy)
+    -   [Response Helpers (crudResponse)](#📋-response-helpers-crudresponse)
 -   [Soft Delete and Recovery](#🗑️-soft-delete-and-recovery)
 -   [API Documentation](#api-documentation)
 -   [Examples](#examples)
@@ -2195,6 +2196,311 @@ export class UserController {
 3. **🤫 Silent Security**: Field removal undetectable to hackers
 4. **⚠️ Clear Validation**: Data format errors clearly notified
 5. **🚀 Automation**: Complete security implementation in one line
+
+### 📋 Response Helpers (crudResponse)
+
+nestjs-crud provides response helper functions that automatically format API responses with consistent structure and metadata. These helpers are particularly useful when creating custom endpoints that need to maintain the same response format as auto-generated CRUD endpoints.
+
+#### Available Functions
+
+| Function                       | Purpose                                   | Use Case                  |
+| ------------------------------ | ----------------------------------------- | ------------------------- |
+| `crudResponse<T>()`            | Format single or array data with metadata | Custom endpoint responses |
+| `createCrudResponse<T>()`      | Create single entity response             | Internal library usage    |
+| `createCrudArrayResponse<T>()` | Create array response with pagination     | Internal library usage    |
+
+#### crudResponse Function
+
+**Single Entity Response:**
+
+```typescript
+import { crudResponse } from 'nestjs-crud';
+
+// Function signature for single entity
+crudResponse<T>(
+  data: T,
+  options?: {
+    excludedFields?: string[];
+    includedRelations?: string[];
+  },
+  request?: { query?: any }
+): CrudResponse<T>
+```
+
+**Array Response with Pagination:**
+
+```typescript
+// Function signature for array data
+crudResponse<T>(
+  data: T[],
+  options?: {
+    paginationType?: 'offset' | 'cursor';
+    limit?: number;
+    page?: number;
+    excludedFields?: string[];
+    includedRelations?: string[];
+  },
+  request?: { query?: any }
+): CrudArrayResponse<T>
+```
+
+#### Usage Examples
+
+**1. Single Entity Response**
+
+```typescript
+@Controller('users')
+export class UserController {
+    constructor(public readonly crudService: UserService) {}
+
+    @Get('profile')
+    async getProfile(@Req() request: Request) {
+        const userId = request.user?.id;
+        const user = await this.crudService.findOne({ where: { id: userId } });
+
+        // ✅ Consistent response format with automatic metadata
+        return crudResponse(user, {
+            excludedFields: ['password', 'role'], // Hide sensitive fields
+            includedRelations: ['department'] // Show included relations
+        });
+    }
+}
+
+// Response:
+{
+    "data": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com",
+        "department": { "id": 1, "name": "Engineering" }
+        // password and role excluded
+    },
+    "metadata": {
+        "timestamp": "2024-01-15T10:30:00.000Z",
+        "affectedCount": 1,
+        "excludedFields": ["password", "role"],
+        "includedRelations": ["department"]
+    }
+}
+```
+
+**2. Array Response with Pagination**
+
+```typescript
+@Controller('users')
+export class UserController {
+    @Get('active')
+    async getActiveUsers(@Query() query: any, @Req() request: Request) {
+        const users = await this.crudService.findMany({
+            where: { status: 'active' }
+        });
+
+        // ✅ Automatic pagination metadata from query parameters
+        return crudResponse(users, {
+            paginationType: 'offset',
+            excludedFields: ['password'],
+        }, { query }); // Pass request query for automatic pagination parsing
+    }
+}
+
+// GET /users/active?page[number]=1&page[size]=10
+// Response:
+{
+    "data": [
+        { "id": 1, "name": "John", "email": "john@example.com" },
+        { "id": 2, "name": "Jane", "email": "jane@example.com" }
+    ],
+    "metadata": {
+        "timestamp": "2024-01-15T10:30:00.000Z",
+        "affectedCount": 2,
+        "excludedFields": ["password"],
+        "pagination": {
+            "type": "offset",
+            "total": 2,
+            "page": 1,
+            "pages": 1,
+            "offset": 12,
+            "nextCursor": "eyJuZXh0Q3Vyc29yIjoiTWc9PSIsInRvdGFsIjoyfQ=="
+        }
+    }
+}
+```
+
+**3. Custom Business Logic with Response Formatting**
+
+```typescript
+@Controller('posts')
+export class PostController {
+    @Post(':id/publish')
+    async publishPost(@Param('id') id: number) {
+        // Custom business logic
+        const post = await this.crudService.findOne({ where: { id } });
+
+        if (post.status !== 'draft') {
+            throw new BadRequestException('Only draft posts can be published');
+        }
+
+        post.status = 'published';
+        post.publishedAt = new Date();
+
+        const publishedPost = await this.crudService.update(id, post);
+
+        // ✅ Use crudResponse for consistent formatting
+        return crudResponse(publishedPost, {
+            includedRelations: ['author', 'tags']
+        });
+    }
+}
+
+// POST /posts/123/publish
+// Response:
+{
+    "data": {
+        "id": 123,
+        "title": "My Blog Post",
+        "status": "published",
+        "publishedAt": "2024-01-15T10:30:00.000Z",
+        "author": { "id": 1, "name": "John Doe" },
+        "tags": [{ "id": 1, "name": "technology" }]
+    },
+    "metadata": {
+        "timestamp": "2024-01-15T10:30:00.000Z",
+        "affectedCount": 1,
+        "includedRelations": ["author", "tags"]
+    }
+}
+```
+
+#### Automatic Features
+
+**1. @Exclude Decorator Support:**
+
+```typescript
+@Entity()
+export class User {
+    @Column()
+    name: string;
+
+    @Column()
+    @Exclude() // 🚫 Automatically excluded from response
+    password: string;
+
+    @Column()
+    @Exclude() // 🚫 Automatically excluded from response
+    internalNotes: string;
+}
+
+// crudResponse automatically applies @Exclude decorators
+const user = await User.findOne({ where: { id: 1 } });
+return crudResponse(user);
+
+// Response won't include password or internalNotes fields
+```
+
+**2. Query Parameter Parsing:**
+
+```typescript
+// GET /users?page[offset]=20&page[limit]=10&page[cursor]=abc123
+
+@Get()
+async getUsers(@Query() query: any, @Req() request: Request) {
+    const users = await this.crudService.findMany();
+
+    // ✅ Automatically extracts pagination from query parameters
+    return crudResponse(users, {}, { query });
+    // Pagination info is automatically extracted from query and added to metadata
+}
+```
+
+**3. Consistent Metadata Structure:**
+
+All responses include standardized metadata:
+
+```typescript
+{
+    "data": { /* your data */ },
+    "metadata": {
+        "timestamp": "2024-01-15T10:30:00.000Z",    // Always present
+        "affectedCount": 1,                          // Always present
+        "excludedFields": ["password"],              // When fields are excluded
+        "includedRelations": ["author"],             // When relations are included
+        "pagination": { /* pagination info */ },    // For array responses
+        "operation": "create",                       // Internal CRUD operations
+        "wasSoftDeleted": true                       // For delete/recovery operations
+    }
+}
+```
+
+#### Integration with CRUD Hooks
+
+```typescript
+@Controller('users')
+@Crud({
+    entity: User,
+})
+export class UserController {
+    constructor(public readonly crudService: UserService) {}
+
+    @AfterCreate()
+    async afterUserCreated(entity: User, context: HookContext) {
+        // Send welcome email after user creation
+        await this.emailService.sendWelcomeEmail(entity.email);
+
+        // ✅ Return formatted response (optional - CRUD handles this automatically)
+        return crudResponse(entity, {
+            excludedFields: ['password'],
+            includedRelations: ['profile'],
+        });
+    }
+
+    // Custom endpoint alongside CRUD
+    @Post('bulk-import')
+    async bulkImportUsers(@Body() usersData: any[]) {
+        const importedUsers = [];
+
+        for (const userData of usersData) {
+            try {
+                const user = await this.crudService.create(userData);
+                importedUsers.push(user);
+            } catch (error) {
+                console.error('Failed to import user:', userData, error);
+            }
+        }
+
+        // ✅ Format bulk operation response consistently
+        return crudResponse(importedUsers, {
+            excludedFields: ['password'],
+        });
+    }
+}
+```
+
+#### Benefits
+
+1. **🎯 Consistency**: Same response format across all endpoints
+2. **🤖 Automation**: Automatic metadata generation and field exclusion
+3. **📊 Pagination**: Built-in pagination support for arrays
+4. **🔒 Security**: Automatic application of @Exclude decorators
+5. **🛠️ Flexibility**: Customizable options for different use cases
+6. **⚡ Performance**: Efficient data transformation using class-transformer
+7. **🧩 Integration**: Seamless integration with existing CRUD endpoints
+
+#### When to Use crudResponse
+
+**✅ Recommended:**
+
+-   Custom endpoints that should match CRUD response format
+-   Business logic endpoints (publish, archive, activate, etc.)
+-   Bulk operations
+-   Data export endpoints
+-   Integration endpoints
+
+**❌ Not needed:**
+
+-   Auto-generated CRUD endpoints (already handled internally)
+-   Simple string/number responses
+-   File downloads
+-   Redirects
 
 ### 🚨 Unified Error Response (CrudExceptionFilter)
 
