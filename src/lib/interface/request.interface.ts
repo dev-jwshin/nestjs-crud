@@ -15,6 +15,7 @@ export interface CrudReadOneRequest<T> extends CrudReadRequestBase {
     selectColumns?: string[];
     excludedColumns?: string[];
     params: Partial<Record<keyof T, unknown>>;
+    hooks?: Pick<LifecycleHooks<T>, 'assignBefore' | 'assignAfter'>;
 }
 
 export interface CrudCreateOneRequest<T> extends CrudRequestBase {

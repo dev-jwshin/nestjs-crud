@@ -97,26 +97,43 @@ export class CrudService<T extends EntityType> {
     };
 
     readonly reservedShow = async (crudReadOneRequest: CrudReadOneRequest<T>): Promise<CrudResponse<T>> => {
-        return this.repository
-            .findOne({
-                select: (crudReadOneRequest.selectColumns ?? this.columnNames).filter(
-                    (columnName) => !crudReadOneRequest.excludedColumns?.includes(columnName),
-                ),
-                where: crudReadOneRequest.params as FindOptionsWhere<T>,
-                withDeleted: crudReadOneRequest.softDeleted,
-                relations: crudReadOneRequest.relations,
-            })
-            .then((entity) => {
-                if (_.isNil(entity)) {
-                    throw new NotFoundException();
-                }
-                // Transform entity to plain object to apply @Exclude decorators
-                const transformedEntity = this.transformEntityToPlain(entity);
-                return createCrudResponse(transformedEntity, {
-                    includedRelations: crudReadOneRequest.relations,
-                    excludedFields: crudReadOneRequest.excludedColumns ? [...crudReadOneRequest.excludedColumns] : undefined,
-                });
-            });
+        // 1. Hook context 생성
+        const context: HookContext<T> = {
+            operation: 'show' as Method,
+            params: crudReadOneRequest.params,
+        };
+
+        // 2. assignBefore 훅 실행 (파라미터 전처리)
+        const processedParams = await this.executeAssignBeforeHookForShow(
+            crudReadOneRequest.hooks,
+            crudReadOneRequest.params,
+            context,
+        );
+
+        // 3. 엔티티 조회
+        const entity = await this.repository.findOne({
+            select: (crudReadOneRequest.selectColumns ?? this.columnNames).filter(
+                (columnName) => !crudReadOneRequest.excludedColumns?.includes(columnName),
+            ),
+            where: processedParams as FindOptionsWhere<T>,
+            withDeleted: crudReadOneRequest.softDeleted,
+            relations: crudReadOneRequest.relations,
+        });
+
+        if (_.isNil(entity)) {
+            throw new NotFoundException();
+        }
+
+        // 4. assignAfter 훅 실행 (엔티티 가공)
+        const processedEntity = await this.executeAssignAfterHookForShow(crudReadOneRequest.hooks, entity, context);
+
+        // 5. Transform entity to plain object to apply @Exclude decorators
+        const transformedEntity = this.transformEntityToPlain(processedEntity);
+        
+        return createCrudResponse(transformedEntity, {
+            includedRelations: crudReadOneRequest.relations,
+            excludedFields: crudReadOneRequest.excludedColumns ? [...crudReadOneRequest.excludedColumns] : undefined,
+        });
     };
 
     readonly reservedCreate = async (
@@ -513,5 +530,37 @@ export class CrudService<T extends EntityType> {
             return entity;
         }
         return await hooks.saveAfter(entity, context);
+    }
+
+    /**
+     * SHOW 작업을 위한 assignBefore 훅 실행 - 파라미터 전처리
+     */
+    private async executeAssignBeforeHookForShow(
+        hooks: Pick<LifecycleHooks<T>, 'assignBefore' | 'assignAfter'> | undefined,
+        params: Partial<Record<keyof T, unknown>>,
+        context: HookContext<T>,
+    ): Promise<Partial<Record<keyof T, unknown>>> {
+        if (!hooks?.assignBefore) {
+            return params;
+        }
+        // assignBefore 훅에 파라미터를 전달하고 처리된 파라미터를 반환
+        const result = await hooks.assignBefore(params as DeepPartial<T>, context);
+        return result as Partial<Record<keyof T, unknown>>;
+    }
+
+    /**
+     * SHOW 작업을 위한 assignAfter 훅 실행 - 엔티티 가공
+     */
+    private async executeAssignAfterHookForShow(
+        hooks: Pick<LifecycleHooks<T>, 'assignBefore' | 'assignAfter'> | undefined,
+        entity: T,
+        context: HookContext<T>,
+    ): Promise<T> {
+        if (!hooks?.assignAfter) {
+            return entity;
+        }
+        // assignAfter 훅에 엔티티를 전달하고 처리된 엔티티를 반환
+        // body는 빈 객체로 전달 (show 작업에서는 body가 없음)
+        return await hooks.assignAfter(entity, {} as DeepPartial<T>, context);
     }
 }

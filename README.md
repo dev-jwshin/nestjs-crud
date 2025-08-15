@@ -859,16 +859,18 @@ Execute custom logic at each stage of CRUD operations through lifecycle hooks.
 
 #### Hook Types
 
-| Hook            | Execution Point            | Purpose                          | Supported Routes       |
-| --------------- | -------------------------- | -------------------------------- | ---------------------- |
-| `assignBefore`  | **Before** data assignment | Input validation, transformation | create, update, upsert |
-| `assignAfter`   | **After** data assignment  | Entity post-processing           | create, update, upsert |
-| `saveBefore`    | **Before** saving          | Final validation, business logic | create, update, upsert |
-| `saveAfter`     | **After** saving           | Notifications, event generation  | create, update, upsert |
-| `destroyBefore` | **Before** entity deletion | Permission check, cleanup prep   | destroy                |
-| `destroyAfter`  | **After** entity deletion  | Audit logs, external sync        | destroy                |
-| `recoverBefore` | **Before** entity recovery | Permission check, recovery prep  | recover                |
-| `recoverAfter`  | **After** entity recovery  | Audit logs, notifications        | recover                |
+| Hook            | Execution Point            | Purpose                          | Supported Routes              |
+| --------------- | -------------------------- | -------------------------------- | ----------------------------- |
+| `assignBefore`  | **Before** data assignment | Input validation, transformation | create, update, upsert, show* |
+| `assignAfter`   | **After** data assignment  | Entity post-processing           | create, update, upsert, show* |
+| `saveBefore`    | **Before** saving          | Final validation, business logic | create, update, upsert        |
+| `saveAfter`     | **After** saving           | Notifications, event generation  | create, update, upsert        |
+| `destroyBefore` | **Before** entity deletion | Permission check, cleanup prep   | destroy                       |
+| `destroyAfter`  | **After** entity deletion  | Audit logs, external sync        | destroy                       |
+| `recoverBefore` | **Before** entity recovery | Permission check, recovery prep  | recover                       |
+| `recoverAfter`  | **After** entity recovery  | Audit logs, notifications        | recover                       |
+
+**Note**: For `show` operation, `assignBefore` processes query parameters before entity lookup, and `assignAfter` processes the retrieved entity before returning it.
 
 #### 🎯 Method 1: Decorator Approach (NEW! 🆕 Recommended)
 
@@ -1879,7 +1881,7 @@ export class PostController {
 ```typescript
 // HookContext provides the following information
 interface HookContext<T> {
-    operation: 'create' | 'update' | 'upsert' | 'destroy' | 'recover'; // Operation type
+    operation: 'create' | 'update' | 'upsert' | 'destroy' | 'recover' | 'show'; // Operation type
     params?: Record<string, any>; // URL parameters
     currentEntity?: T; // Current entity (update, upsert, destroy, recover)
     request?: any; // Express Request object
@@ -1908,6 +1910,142 @@ const hooks = {
         return body;
     },
 };
+```
+
+#### Show Operation Hooks (NEW! 🆕)
+
+The `show` operation now supports `assignBefore` and `assignAfter` hooks for read-time data processing:
+
+- **`assignBefore`**: Process query parameters before entity lookup (security filtering, parameter transformation)
+- **`assignAfter`**: Process retrieved entity before returning it (data masking, calculated fields)
+
+##### Show Operation Hook Examples
+
+```typescript
+@Controller('users')
+@Crud({
+    entity: User,
+    routes: {
+        show: {
+            hooks: {
+                // Process parameters before entity lookup
+                assignBefore: async (params, context) => {
+                    // Security: Validate user has permission to view this ID
+                    const requesterId = context.request?.user?.id;
+                    const targetId = params.id;
+                    
+                    if (requesterId !== targetId && context.request?.user?.role !== 'admin') {
+                        throw new ForbiddenException('Cannot view other users');
+                    }
+                    
+                    // Parameter transformation
+                    if (typeof params.id === 'string') {
+                        params.id = parseInt(params.id, 10);
+                    }
+                    
+                    return params;
+                },
+                
+                // Process entity after retrieval
+                assignAfter: async (entity, _, context) => {
+                    // Mask sensitive information
+                    if (entity.email) {
+                        entity.email = entity.email.replace(/(.{2}).*(@.*)/, '$1***$2');
+                    }
+                    
+                    // Hide sensitive fields based on viewer's role
+                    if (context.request?.user?.role !== 'admin') {
+                        delete entity.salary;
+                        delete entity.ssn;
+                    }
+                    
+                    // Add calculated fields
+                    (entity as any).displayName = `${entity.firstName} ${entity.lastName}`;
+                    (entity as any).age = calculateAge(entity.birthDate);
+                    
+                    // Track view statistics (without saving to DB)
+                    await analyticsService.trackView(entity.id, context.request?.user?.id);
+                    
+                    return entity;
+                }
+            }
+        }
+    }
+})
+export class UserController {
+    constructor(public readonly crudService: UserService) {}
+}
+```
+
+##### Common Use Cases for Show Hooks
+
+1. **Data Masking & Security**:
+```typescript
+assignAfter: async (entity, _, context) => {
+    // Mask PII based on viewer permissions
+    const isOwner = entity.id === context.request?.user?.id;
+    const isAdmin = context.request?.user?.role === 'admin';
+    
+    if (!isOwner && !isAdmin) {
+        entity.phone = entity.phone?.replace(/\d(?=\d{4})/g, '*');
+        entity.email = entity.email?.replace(/(.{2}).*(@.*)/, '$1***$2');
+        delete entity.dateOfBirth;
+    }
+    
+    return entity;
+}
+```
+
+2. **Enriching Response with Calculated Data**:
+```typescript
+assignAfter: async (entity, _, context) => {
+    // Add computed fields without modifying database
+    (entity as any).fullAddress = `${entity.street}, ${entity.city}, ${entity.country}`;
+    (entity as any).accountAge = daysSince(entity.createdAt);
+    (entity as any).isPremium = entity.subscriptionLevel === 'premium';
+    
+    // Fetch additional data from external services
+    (entity as any).creditScore = await creditService.getScore(entity.id);
+    
+    return entity;
+}
+```
+
+3. **Parameter Validation & Transformation**:
+```typescript
+assignBefore: async (params, context) => {
+    // Validate and transform ID formats
+    if (params.uuid && !isValidUUID(params.uuid)) {
+        throw new BadRequestException('Invalid UUID format');
+    }
+    
+    // Apply tenant isolation
+    if (context.request?.tenant) {
+        params.tenantId = context.request.tenant.id;
+    }
+    
+    return params;
+}
+```
+
+4. **Analytics & Monitoring**:
+```typescript
+assignAfter: async (entity, _, context) => {
+    // Track access patterns without affecting response
+    await Promise.all([
+        auditLog.record({
+            action: 'VIEW',
+            entityType: 'User',
+            entityId: entity.id,
+            viewerId: context.request?.user?.id,
+            timestamp: new Date()
+        }),
+        metricsService.increment('user.profile.views'),
+        cacheService.warm(entity.id, entity) // Pre-cache for future requests
+    ]);
+    
+    return entity;
+}
 ```
 
 #### Reusing Common Hook Functions
