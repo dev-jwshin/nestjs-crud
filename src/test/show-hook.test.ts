@@ -35,7 +35,6 @@ class TestUser {
 
 describe('Show Operation Hooks', () => {
     let app: INestApplication;
-    let testUser: TestUser;
 
     beforeEach(async () => {
         const moduleFixture = await Test.createTestingModule({
@@ -57,7 +56,7 @@ describe('Show Operation Hooks', () => {
 
         // 테스트 데이터 생성
         const repository = moduleFixture.get('TestUserRepository');
-        testUser = await repository.save({
+        await repository.save({
             name: 'John Doe',
             email: 'john@example.com',
             password: 'secret123',
@@ -82,7 +81,7 @@ describe('Show Operation Hooks', () => {
                                 
                                 // 파라미터 변환 테스트 (예: string ID를 number로)
                                 if (typeof params.id === 'string') {
-                                    params.id = parseInt(params.id, 10);
+                                    params.id = Number.parseInt(params.id, 10);
                                 }
                                 
                                 return params;
@@ -98,6 +97,13 @@ describe('Show Operation Hooks', () => {
             @Module({
                 imports: [TypeOrmModule.forFeature([TestUser])],
                 controllers: [TestController],
+                providers: [
+                    {
+                        provide: CrudService,
+                        useFactory: (repository) => new CrudService(repository),
+                        inject: ['TestUserRepository'],
+                    },
+                ],
             })
             class TestModuleWithParamHook {}
 
@@ -171,6 +177,13 @@ describe('Show Operation Hooks', () => {
             @Module({
                 imports: [TypeOrmModule.forFeature([TestUser])],
                 controllers: [TestController],
+                providers: [
+                    {
+                        provide: CrudService,
+                        useFactory: (repository) => new CrudService(repository),
+                        inject: ['TestUserRepository'],
+                    },
+                ],
             })
             class TestModuleWithAfterHook {}
 
@@ -253,6 +266,13 @@ describe('Show Operation Hooks', () => {
             @Module({
                 imports: [TypeOrmModule.forFeature([TestUser])],
                 controllers: [TestController],
+                providers: [
+                    {
+                        provide: CrudService,
+                        useFactory: (repository) => new CrudService(repository),
+                        inject: ['TestUserRepository'],
+                    },
+                ],
             })
             class TestModuleWithBothHooks {}
 
@@ -300,12 +320,12 @@ describe('Show Operation Hooks', () => {
                 routes: {
                     [Method.SHOW]: {
                         hooks: {
-                            assignBefore: async (params, context) => {
+                            assignBefore: async (params, _context) => {
                                 // 비동기 작업 시뮬레이션
                                 await new Promise((resolve) => setTimeout(resolve, 10));
                                 return params;
                             },
-                            assignAfter: async (entity, _, context) => {
+                            assignAfter: async (entity, _, _context) => {
                                 // 비동기 작업 시뮬레이션
                                 await new Promise((resolve) => setTimeout(resolve, 10));
                                 
@@ -327,6 +347,13 @@ describe('Show Operation Hooks', () => {
             @Module({
                 imports: [TypeOrmModule.forFeature([TestUser])],
                 controllers: [TestController],
+                providers: [
+                    {
+                        provide: CrudService,
+                        useFactory: (repository) => new CrudService(repository),
+                        inject: ['TestUserRepository'],
+                    },
+                ],
             })
             class TestModuleWithAsyncHooks {}
 
@@ -383,6 +410,13 @@ describe('Show Operation Hooks', () => {
             @Module({
                 imports: [TypeOrmModule.forFeature([TestUser])],
                 controllers: [TestController],
+                providers: [
+                    {
+                        provide: CrudService,
+                        useFactory: (repository) => new CrudService(repository),
+                        inject: ['TestUserRepository'],
+                    },
+                ],
             })
             class TestModuleWithoutHooks {}
 

@@ -136,7 +136,7 @@ export interface CrudOptions {
              * 생명주기 훅 함수들을 설정합니다.
              * Show 작업에서는 assignBefore와 assignAfter만 지원됩니다.
              */
-            hooks?: Pick<LifecycleHooks<T>, 'assignBefore' | 'assignAfter'>;
+            hooks?: Pick<LifecycleHooks, 'assignBefore' | 'assignAfter'>;
         } & RouteBaseOption;
         [Method.INDEX]?: {
             /**
