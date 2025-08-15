@@ -891,13 +891,15 @@ Execute custom logic at each stage of CRUD operations through lifecycle hooks.
 @AfterDestroy()  // Execute after DESTROY (destroyAfter)
 @BeforeRecover() // Execute before RECOVER (recoverBefore)
 @AfterRecover()  // Execute after RECOVER (recoverAfter)
+@BeforeShow()    // Execute before SHOW (assignBefore for show)
+@AfterShow()     // Execute after SHOW (assignAfter for show)
 ```
 
 **Consistent fine-grained control decorators:**
 
 ```typescript
-@BeforeAssign('create' | 'update' | 'upsert')  // Before assignment
-@AfterAssign('create' | 'update' | 'upsert')   // After assignment
+@BeforeAssign('create' | 'update' | 'upsert' | 'show')  // Before assignment
+@AfterAssign('create' | 'update' | 'upsert' | 'show')   // After assignment
 @BeforeSave('create' | 'update' | 'upsert')    // Before saving
 @AfterSave('create' | 'update' | 'upsert')     // After saving
 @BeforeDestroy('destroy')                       // Before entity deletion
@@ -910,8 +912,8 @@ Execute custom logic at each stage of CRUD operations through lifecycle hooks.
 
 ```typescript
 // === ASSIGN stage (data assignment to entity) ===
-@BeforeAssignCreate()  @BeforeAssignUpdate()  @BeforeAssignUpsert()  // Before assignment
-@AfterAssignCreate()   @AfterAssignUpdate()   @AfterAssignUpsert()   // After assignment
+@BeforeAssignCreate()  @BeforeAssignUpdate()  @BeforeAssignUpsert()  @BeforeAssignShow()  // Before assignment
+@AfterAssignCreate()   @AfterAssignUpdate()   @AfterAssignUpsert()   @AfterAssignShow()   // After assignment
 
 // === SAVE stage (database saving) ===
 @BeforeSaveCreate()    @BeforeSaveUpdate()    @BeforeSaveUpsert()    // Before saving
@@ -1183,6 +1185,35 @@ async afterRecover(entity: User, context: HookContext) {
   // Perfect for data restoration, notifications, and audit logs
   await this.restoreUserData(entity.id);
 
+  return entity;
+}
+
+@BeforeShow() // = @BeforeAssign('show')
+async beforeShow(params: any, context: HookContext) {
+  // params: request parameters for entity lookup
+  // context: { operation: 'show', params: { id: 5 } }
+  
+  // Transform parameters before entity lookup
+  if (typeof params.id === 'string') {
+    params.id = parseInt(params.id, 10);
+  }
+  
+  return params;
+}
+
+@AfterShow()  // = @AfterAssign('show')
+async afterShow(entity: User, context: HookContext) {
+  // entity: retrieved entity
+  // context: { operation: 'show', params: { id: 5 } }
+  
+  // Perfect for masking sensitive data, adding computed fields
+  if (entity.password) {
+    entity.password = '***HIDDEN***';
+  }
+  
+  // Add view tracking
+  await this.trackView(entity.id);
+  
   return entity;
 }
 ```
