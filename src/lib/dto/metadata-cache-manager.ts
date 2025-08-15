@@ -56,8 +56,6 @@ class MetadataCacheManager {
 
         // 자동 정리 타이머 시작
         this.startPruning();
-
-        console.log('🚀 MetadataCacheManager initialized:', this.config);
     }
 
     /**
@@ -127,14 +125,12 @@ class MetadataCacheManager {
 
         if (!entry) {
             this.stats.misses++;
-            console.log(`❌ Cache miss for validation metadata: ${key}`);
             return null;
         }
 
         if (!this.isValidEntry(entry)) {
             this.cache.delete(key);
             this.stats.misses++;
-            console.log(`⏰ Cache expired for validation metadata: ${key}`);
             return null;
         }
 
@@ -143,7 +139,6 @@ class MetadataCacheManager {
         entry.lastAccessed = Date.now();
         this.stats.hits++;
 
-        console.log(`✅ Cache hit for validation metadata: ${key} (access count: ${entry.accessCount})`);
         return entry.data;
     }
 
@@ -169,8 +164,6 @@ class MetadataCacheManager {
 
         const entry = this.createCacheEntry(metadata);
         this.cache.set(key, entry);
-
-        console.log(`💾 Cached validation metadata: ${key} (fields: ${metadata.length})`);
     }
 
     /**
@@ -186,14 +179,12 @@ class MetadataCacheManager {
 
         if (!entry) {
             this.stats.misses++;
-            console.log(`❌ Cache miss for DTO: ${key}`);
             return null;
         }
 
         if (!this.isValidEntry(entry)) {
             this.dtoCache.delete(key);
             this.stats.misses++;
-            console.log(`⏰ Cache expired for DTO: ${key}`);
             return null;
         }
 
@@ -202,7 +193,6 @@ class MetadataCacheManager {
         entry.lastAccessed = Date.now();
         this.stats.hits++;
 
-        console.log(`✅ Cache hit for DTO: ${key} (access count: ${entry.accessCount})`);
         return entry.data;
     }
 
@@ -223,8 +213,6 @@ class MetadataCacheManager {
 
         const entry = this.createCacheEntry(dtoClass);
         this.dtoCache.set(key, entry);
-
-        console.log(`💾 Cached DTO: ${key}`);
     }
 
     /**
@@ -243,7 +231,6 @@ class MetadataCacheManager {
 
         if (oldestKey) {
             this.cache.delete(oldestKey);
-            console.log(`🗑️ Evicted LRU validation metadata: ${oldestKey}`);
         }
     }
 
@@ -263,7 +250,6 @@ class MetadataCacheManager {
 
         if (oldestKey) {
             this.dtoCache.delete(oldestKey);
-            console.log(`🗑️ Evicted LRU DTO: ${oldestKey}`);
         }
     }
 
@@ -290,9 +276,6 @@ class MetadataCacheManager {
             }
         }
 
-        if (removedCount > 0) {
-            console.log(`🧹 Pruned ${removedCount} expired cache entries`);
-        }
     }
 
     /**
@@ -316,7 +299,6 @@ class MetadataCacheManager {
         this.dtoCache.clear();
         this.stats.hits = 0;
         this.stats.misses = 0;
-        console.log('🗑️ All caches cleared');
     }
 
     /**
@@ -355,18 +337,6 @@ class MetadataCacheManager {
         };
     }
 
-    /**
-     * 📊 상세 캐시 상태 로깅
-     */
-    logDetailedStats(): void {
-        const stats = this.getStats();
-        console.log('📊 Detailed Cache Statistics:');
-        console.log(`   Hit Rate: ${stats.hitRate}% (${stats.hits} hits, ${stats.misses} misses)`);
-        console.log(`   Cache Entries: ${stats.entries} (validation: ${this.cache.size}, dto: ${this.dtoCache.size})`);
-        console.log(`   Estimated Memory: ${Math.round(stats.memoryUsage / 1024)}KB`);
-        console.log(`   Oldest Entry: ${new Date(stats.oldestEntry).toLocaleString()}`);
-        console.log(`   Newest Entry: ${new Date(stats.newestEntry).toLocaleString()}`);
-    }
 
     /**
      * 🛑 캐시 매니저 종료 (메모리 정리)
@@ -377,7 +347,6 @@ class MetadataCacheManager {
             this.pruneTimer = undefined;
         }
         this.clear();
-        console.log('🛑 MetadataCacheManager destroyed');
     }
 }
 
@@ -389,14 +358,5 @@ export const globalMetadataCache = new MetadataCacheManager({
     pruneInterval: 5 * 60 * 1000, // 5분마다 정리
 });
 
-// 개발 모드에서 캐시 통계를 주기적으로 출력
-if (process.env.NODE_ENV === 'development') {
-    setInterval(() => {
-        const stats = globalMetadataCache.getStats();
-        if (stats.entries > 0) {
-            console.log(`📈 Cache Stats: ${stats.hitRate}% hit rate, ${stats.entries} entries`);
-        }
-    }, 60 * 1000); // 1분마다
-}
 
 export { MetadataCacheManager, type CacheConfig, type CacheStats };

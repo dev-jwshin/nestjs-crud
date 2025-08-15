@@ -12,12 +12,9 @@ import type { ValidationMetadata } from 'class-validator/types/metadata/Validati
 import type { EntityType, Method } from '../interface';
 
 export function CreateRequestDto(parentClass: EntityType, group: Method, allowedParams?: string[]): Type<unknown> {
-    console.log(`🏗️ Creating DTO for ${parentClass.name} (${group}) with allowedParams:`, allowedParams);
-
     // 🚀 캐시에서 DTO 확인
     const cachedDto = globalMetadataCache.getDtoClass(parentClass, group, allowedParams);
     if (cachedDto) {
-        console.log(`✅ Using cached DTO for ${parentClass.name} (${group})`);
         return cachedDto;
     }
 
@@ -34,12 +31,10 @@ export function CreateRequestDto(parentClass: EntityType, group: Method, allowed
     // 🚀 캐시에 DTO 저장
     globalMetadataCache.setDtoClass(parentClass, group, allowedParams, requestDto);
 
-    console.log(`✅ Created and cached DTO: ${dtoName} with fields:`, propertyNamesAppliedValidation);
     return requestDto;
 }
 
 export function getPropertyNamesFromMetadata(parentClass: EntityType, group: Method, allowedParams?: string[]): string[] {
-    console.log(`🔍 getPropertyNamesFromMetadata for ${parentClass.name}:`, { group, allowedParams });
 
     const metadataStorage: MetadataStorage = getMetadataStorage();
 
@@ -50,7 +45,6 @@ export function getPropertyNamesFromMetadata(parentClass: EntityType, group: Met
     )(...getTargetValidationMetadatasArgs);
 
     const propertyNamesFromValidation = targetMetadata.map(({ propertyName }) => propertyName);
-    console.log('📋 Fields with class-validator decorators:', propertyNamesFromValidation);
 
     // TypeORM 메타데이터에서 엔티티의 모든 컬럼들 가져오기
     const typeormMetadata = getMetadataArgsStorage();
@@ -84,15 +78,11 @@ export function getPropertyNamesFromMetadata(parentClass: EntityType, group: Met
         .filter((column) => !relationPropertyNames.includes(column.propertyName))
         .map(({ propertyName }) => propertyName);
 
-    console.log('🗃️ TypeORM column fields (excluding relations):', propertyNamesFromColumns);
-    console.log('🔗 Excluded relation fields:', relationPropertyNames);
 
     // 🎯 allowedParams 우선 보장 로직
     let finalPropertyNames: string[];
 
     if (allowedParams && allowedParams.length > 0) {
-        console.log('🎯 Using allowedParams priority logic');
-
         // allowedParams에 포함된 모든 필드는 반드시 포함
         const guaranteedFields = new Set<string>(allowedParams);
 
@@ -101,8 +91,6 @@ export function getPropertyNamesFromMetadata(parentClass: EntityType, group: Met
         propertyNamesFromColumns.forEach((field) => guaranteedFields.add(field));
 
         finalPropertyNames = Array.from(guaranteedFields);
-
-        console.log('✅ Guaranteed fields (allowedParams priority):', finalPropertyNames);
 
         // allowedParams에 있지만 entity에 없는 필드 경고
         const entityFields = new Set([...propertyNamesFromValidation, ...propertyNamesFromColumns]);
@@ -113,13 +101,8 @@ export function getPropertyNamesFromMetadata(parentClass: EntityType, group: Met
         }
     } else {
         // allowedParams가 없으면 기존 로직 사용
-        console.log('📝 Using default logic (no allowedParams specified)');
-
         finalPropertyNames = [...new Set([...propertyNamesFromValidation, ...propertyNamesFromColumns])];
-
-        console.log('📋 Default combined fields:', finalPropertyNames);
     }
 
-    console.log(`🏁 Final DTO fields for ${parentClass.name}:`, finalPropertyNames);
     return finalPropertyNames;
 }

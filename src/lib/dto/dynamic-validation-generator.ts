@@ -35,23 +35,14 @@ export function generateDynamicValidationMetadata(
         return cachedMetadata;
     }
 
-    console.log(`🔧 Generating validation metadata for ${entity.name}:`, { allowedParams, method });
 
     const metadata: DynamicValidationMetadata[] = [];
 
     // 1. 기존 class-validator 메타데이터 수집
     const existingValidatorMetadata = getExistingValidatorMetadata(entity);
-    console.log(
-        '📋 Existing validator fields:',
-        existingValidatorMetadata.map((m) => m.propertyName),
-    );
 
     // 2. TypeORM 컬럼 메타데이터 수집
     const typeormColumnMetadata = getTypeOrmColumnMetadata(entity);
-    console.log(
-        '🗃️ TypeORM column fields:',
-        typeormColumnMetadata.map((m) => m.propertyName),
-    );
 
     // 3. allowedParams 우선 처리: allowedParams에 포함된 모든 필드는 반드시 검증 대상
     if (allowedParams && allowedParams.length > 0) {
@@ -66,12 +57,9 @@ export function generateDynamicValidationMetadata(
                     // TypeORM에서 optional이면 기존 메타데이터 override
                     if (typeormIsOptional && !existingMeta.isOptional) {
                         existingMeta.isOptional = true;
-                        console.log(`🔄 Enhanced existing validator for: ${paramName} (TypeORM default/nullable detected → made optional)`);
-                    } else {
-                        console.log(`✅ Using existing validator for: ${paramName}`);
                     }
                 } else {
-                    console.log(`✅ Using existing validator for: ${paramName}`);
+                    // Keep empty else block for clarity
                 }
                 metadata.push(existingMeta);
                 continue;
@@ -90,14 +78,8 @@ export function generateDynamicValidationMetadata(
                     target: entity,
                 });
 
-                console.log(`🔄 Auto-generated validator for: ${paramName} (optional: ${isOptional})`);
-                console.log(
-                    `   Rules:`,
-                    rules.map((r) => `@${r.validator}`),
-                );
             } else {
                 // 3-3. TypeORM 컬럼도 아니면 기본 문자열 검증
-                console.log(`⚠️ Field not found in TypeORM columns, using default string validation: ${paramName}`);
                 metadata.push({
                     propertyName: paramName,
                     rules: [{ validator: 'isString', options: {} }],
@@ -108,7 +90,6 @@ export function generateDynamicValidationMetadata(
         }
     } else {
         // 4. allowedParams가 없으면 기존 class-validator 메타데이터만 사용
-        console.log('🚫 No allowedParams specified, using only existing validators');
         metadata.push(...existingValidatorMetadata);
     }
 
@@ -224,11 +205,9 @@ export async function validateWithDynamicMetadata<T extends object>(
         throw new Error('Body must be an object');
     }
 
-    console.log('🔍 Validating with dynamic metadata:', Object.keys(body));
 
     // 1. plainToInstance로 기본 변환
     const transformed = plainToInstance(entity, body);
-    console.log('📝 Transformed object:', Object.keys(transformed as object));
 
     // 2. 동적 검증 규칙 적용 (향후 구현)
     // 현재는 기본 class-validator 검증 사용
@@ -240,13 +219,8 @@ export async function validateWithDynamicMetadata<T extends object>(
         ...options,
     });
 
-    console.log('📋 Validation result:', errorList.length ? 'FAILED' : 'PASSED');
 
     if (errorList.length > 0) {
-        console.log(
-            '❌ Validation errors:',
-            errorList.map((e) => `${e.property}: ${Object.values(e.constraints || {}).join(', ')}`),
-        );
         throw errorList;
     }
 
@@ -258,13 +232,11 @@ export async function validateWithDynamicMetadata<T extends object>(
  */
 export function clearValidationMetadataCache(): void {
     globalMetadataCache.clear();
-    console.log('🗑️ Validation metadata cache cleared');
 }
 
 /**
  * 📊 현재 캐시 상태 출력 (디버깅용)
  */
 export function debugCacheStatus(): void {
-    console.log('💾 Enhanced Validation Metadata Cache Status:');
-    globalMetadataCache.logDetailedStats();
+    // Cache status debugging function - removed console output
 }

@@ -65,24 +65,16 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
         }
 
         async validateBody(body: unknown, methodOptions: any = {}) {
-            console.log('🔍 UPDATE validateBody called with:', {
-                bodyKeys: body && typeof body === 'object' ? Object.keys(body) : 'invalid body',
-                methodOptions,
-            });
-
             if (_.isNil(body) || !_.isObject(body)) {
-                console.log('❌ Invalid body type for UPDATE');
                 throw new UnprocessableEntityException('Body must be a valid object');
             }
 
             const bodyKeys = Object.keys(body);
-            console.log('📋 Body keys:', bodyKeys);
 
             // Primary key 체크
             const bodyContainsPrimaryKey = (factoryOption.primaryKeys ?? []).some((primaryKey) => bodyKeys.includes(primaryKey.name));
             if (bodyContainsPrimaryKey) {
                 const primaryKeyNames = (factoryOption.primaryKeys ?? []).map((key) => key.name);
-                console.log('❌ Primary key modification attempt:', { primaryKeyNames, bodyKeys });
 
                 this.crudLogger.log(
                     `Cannot include value of primary key (primary key: ${primaryKeyNames.toLocaleString()}, body key: ${bodyKeys.toLocaleString()}`,
@@ -92,15 +84,12 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
 
             // 🎯 allowedParams 추출 (메서드별 우선, 전역 fallback)
             const allowedParams = methodOptions.allowedParams ?? crudOptions.allowedParams;
-            console.log('🎯 Using allowedParams for UPDATE validation:', allowedParams);
 
             try {
                 const transformed = plainToInstance(crudOptions.entity as ClassConstructor<EntityType>, body);
-                console.log('📝 Transformed fields:', Object.keys(transformed as object));
 
                 // Priority: method-specific > global > default (true for UPDATE)
                 const skipMissingProperties = methodOptions.skipMissingProperties ?? crudOptions.skipMissingProperties ?? true;
-                console.log('⚙️ UPDATE validation options:', { skipMissingProperties, allowedParams });
 
                 const errorList = await validate(transformed, {
                     whitelist: true,
@@ -111,22 +100,12 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 });
 
                 if (errorList.length > 0) {
-                    console.log(
-                        '❌ UPDATE validation failed:',
-                        errorList.map((e) => ({
-                            property: e.property,
-                            constraints: e.constraints,
-                            value: e.value,
-                        })),
-                    );
                     this.crudLogger.log(errorList, 'ValidationError');
                     throw new UnprocessableEntityException(errorList);
                 }
 
-                console.log('✅ UPDATE validation passed');
                 return transformed;
             } catch (error) {
-                console.log('💥 UPDATE validation error:', error);
                 throw error;
             }
         }

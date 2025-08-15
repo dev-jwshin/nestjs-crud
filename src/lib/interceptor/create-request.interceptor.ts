@@ -75,34 +75,24 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
         }
 
         async validateBody(body: unknown, methodOptions: any = {}): Promise<BaseEntityOrArray> {
-            console.log('🔍 CREATE validateBody called with:', {
-                bodyKeys: body && typeof body === 'object' ? Object.keys(body) : 'invalid body',
-                methodOptions,
-            });
-
             if (Array.isArray(body)) {
-                console.log('📋 Processing array of objects');
                 return Promise.all(body.map((b) => this.validateBody(b, methodOptions)));
             }
 
             if (!body || typeof body !== 'object') {
-                console.log('❌ Invalid body type');
                 throw new UnprocessableEntityException('Body must be a valid object');
             }
 
             // 🎯 allowedParams 추출 (메서드별 우선, 전역 fallback)
             const allowedParams = methodOptions.allowedParams ?? crudOptions.allowedParams;
-            console.log('🎯 Using allowedParams for validation:', allowedParams);
 
             // 🚀 동적 검증 메타데이터 생성
             try {
                 // 임포트 추가 필요하지만 일단 기존 검증 방식 사용하면서 로깅 강화
                 const transformed = plainToInstance(crudOptions.entity as ClassConstructor<EntityType>, body);
-                console.log('📝 Transformed fields:', Object.keys(transformed as object));
 
                 // Priority: method-specific > global > default (false for CREATE)
                 const skipMissingProperties = methodOptions.skipMissingProperties ?? crudOptions.skipMissingProperties ?? false;
-                console.log('⚙️ Validation options:', { skipMissingProperties, allowedParams });
 
                 const errorList = await validate(transformed, {
                     whitelist: true,
@@ -112,22 +102,12 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 });
 
                 if (errorList.length > 0) {
-                    console.log(
-                        '❌ Validation failed:',
-                        errorList.map((e) => ({
-                            property: e.property,
-                            constraints: e.constraints,
-                            value: e.value,
-                        })),
-                    );
                     this.crudLogger.log(errorList, 'ValidationError');
                     throw new UnprocessableEntityException(errorList);
                 }
 
-                console.log('✅ CREATE validation passed');
                 return transformed;
             } catch (error) {
-                console.log('💥 Validation error:', error);
                 throw error;
             }
         }
