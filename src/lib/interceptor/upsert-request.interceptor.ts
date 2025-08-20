@@ -12,7 +12,7 @@ import type { CallHandler, ExecutionContext, NestInterceptor, Type } from '@nest
 import type { ClassConstructor } from 'class-transformer';
 import type { Request } from 'express';
 import type { Observable } from 'rxjs';
-import type { CrudOptions, CrudUpsertRequest, EntityType, FactoryOption } from '../interface';
+import type { CrudOptions, CrudUpsertRequest, CrudUpsertManyRequest, EntityType, FactoryOption } from '../interface';
 
 const method = Method.UPSERT;
 export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption: FactoryOption): Type<NestInterceptor> {
@@ -25,45 +25,75 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
             const req = context.switchToHttp().getRequest<Request>();
             const upsertOptions = crudOptions.routes?.[method] ?? {};
 
-            const params = await this.checkParams(
-                crudOptions.entity,
-                req.params,
-                factoryOption.columns,
-                new ConflictException('Invalid params'),
-            );
-
-            const primaryKeySet = new Set((factoryOption.primaryKeys ?? []).map((primaryKey) => primaryKey.name));
-            for (const [key, value] of Object.entries(req.params)) {
-                if (primaryKeySet.has(key)) {
-                    continue;
-                }
-                if (!_.isNil(req.body[key]) && `${req.body[key]}` !== `${value}`) {
-                    this.crudLogger.log(`The value of ${req.body[key]} for ${key} is not ${value}`);
-                    throw new ConflictException(`${key}'s value of body and param do not match`);
-                }
-                req.body[key] = value;
-            }
-
+            // Check if body is array for bulk upsert
+            const isBulkUpsert = Array.isArray(req.body);
+            
             // Filter body parameters based on allowedParams
             const allowedParams = upsertOptions.allowedParams ?? crudOptions.allowedParams;
-            if (allowedParams && req.body && typeof req.body === 'object') {
-                req.body = this.filterAllowedParams(req.body, allowedParams);
+            
+            if (isBulkUpsert) {
+                // Bulk upsert handling
+                if (allowedParams) {
+                    req.body = req.body.map((item: any) => 
+                        typeof item === 'object' && item !== null ? this.filterAllowedParams(item, allowedParams) : item
+                    );
+                }
+                
+                const validatedBodies = await Promise.all(
+                    req.body.map((item: any) => this.validateBody(item, upsertOptions))
+                );
+                
+                const crudUpsertManyRequest: CrudUpsertManyRequest<typeof crudOptions.entity> = {
+                    body: validatedBodies,
+                    exclude: new Set(upsertOptions.exclude ?? []),
+                    saveOptions: {
+                        listeners: upsertOptions.listeners,
+                    },
+                    hooks: upsertOptions.hooks,
+                };
+                
+                this.crudLogger.logRequest(req, crudUpsertManyRequest);
+                (req as unknown as Record<string, unknown>)[CRUD_ROUTE_ARGS] = crudUpsertManyRequest;
+            } else {
+                // Single upsert handling (existing logic)
+                const params = await this.checkParams(
+                    crudOptions.entity,
+                    req.params,
+                    factoryOption.columns,
+                    new ConflictException('Invalid params'),
+                );
+
+                const primaryKeySet = new Set((factoryOption.primaryKeys ?? []).map((primaryKey) => primaryKey.name));
+                for (const [key, value] of Object.entries(req.params)) {
+                    if (primaryKeySet.has(key)) {
+                        continue;
+                    }
+                    if (!_.isNil(req.body[key]) && `${req.body[key]}` !== `${value}`) {
+                        this.crudLogger.log(`The value of ${req.body[key]} for ${key} is not ${value}`);
+                        throw new ConflictException(`${key}'s value of body and param do not match`);
+                    }
+                    req.body[key] = value;
+                }
+
+                if (allowedParams && req.body && typeof req.body === 'object') {
+                    req.body = this.filterAllowedParams(req.body, allowedParams);
+                }
+
+                const body = await this.validateBody(req.body ?? {}, upsertOptions);
+
+                const crudUpsertRequest: CrudUpsertRequest<typeof crudOptions.entity> = {
+                    params,
+                    body,
+                    exclude: new Set(upsertOptions.exclude ?? []),
+                    saveOptions: {
+                        listeners: upsertOptions.listeners,
+                    },
+                    hooks: upsertOptions.hooks,
+                };
+
+                this.crudLogger.logRequest(req, crudUpsertRequest);
+                (req as unknown as Record<string, unknown>)[CRUD_ROUTE_ARGS] = crudUpsertRequest;
             }
-
-            const body = await this.validateBody(req.body ?? {}, upsertOptions);
-
-            const crudUpsertRequest: CrudUpsertRequest<typeof crudOptions.entity> = {
-                params,
-                body,
-                exclude: new Set(upsertOptions.exclude ?? []),
-                saveOptions: {
-                    listeners: upsertOptions.listeners,
-                },
-                hooks: upsertOptions.hooks,
-            };
-
-            this.crudLogger.logRequest(req, crudUpsertRequest);
-            (req as unknown as Record<string, unknown>)[CRUD_ROUTE_ARGS] = crudUpsertRequest;
 
             return next.handle();
         }

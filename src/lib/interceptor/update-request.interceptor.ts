@@ -12,7 +12,7 @@ import type { CallHandler, ExecutionContext, NestInterceptor, Type } from '@nest
 import type { ClassConstructor } from 'class-transformer';
 import type { Request } from 'express';
 import type { Observable } from 'rxjs';
-import type { CrudOptions, CrudUpdateOneRequest, EntityType, FactoryOption } from '../interface';
+import type { CrudOptions, CrudUpdateOneRequest, CrudUpdateManyRequest, EntityType, FactoryOption } from '../interface';
 
 const method = Method.UPDATE;
 export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption: FactoryOption): Type<NestInterceptor> {
@@ -25,27 +25,57 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
             const req = context.switchToHttp().getRequest<Request>();
             const updatedOptions = crudOptions.routes?.[method] ?? {};
 
+            // Check if body is array for bulk update
+            const isBulkUpdate = Array.isArray(req.body);
+            
             // Filter body parameters based on allowedParams
             const allowedParams = updatedOptions.allowedParams ?? crudOptions.allowedParams;
-            if (allowedParams && req.body && typeof req.body === 'object') {
-                req.body = this.filterAllowedParams(req.body, allowedParams);
+            
+            if (isBulkUpdate) {
+                // Bulk update handling
+                if (allowedParams) {
+                    req.body = req.body.map((item: any) => 
+                        typeof item === 'object' && item !== null ? this.filterAllowedParams(item, allowedParams) : item
+                    );
+                }
+                
+                const validatedBodies = await Promise.all(
+                    req.body.map((item: any) => this.validateBulkUpdateItem(item, updatedOptions))
+                );
+                
+                const crudUpdateManyRequest: CrudUpdateManyRequest<typeof crudOptions.entity> = {
+                    body: validatedBodies,
+                    exclude: new Set(updatedOptions.exclude ?? []),
+                    saveOptions: {
+                        listeners: updatedOptions.listeners,
+                    },
+                    hooks: updatedOptions.hooks,
+                };
+                
+                this.crudLogger.logRequest(req, crudUpdateManyRequest);
+                (req as unknown as Record<string, unknown>)[CRUD_ROUTE_ARGS] = crudUpdateManyRequest;
+            } else {
+                // Single update handling (existing logic)
+                if (allowedParams && req.body && typeof req.body === 'object') {
+                    req.body = this.filterAllowedParams(req.body, allowedParams);
+                }
+
+                const body = await this.validateBody(req.body ?? {}, updatedOptions);
+
+                const params = await this.checkParams(crudOptions.entity, req.params, factoryOption.columns);
+                const crudUpdateOneRequest: CrudUpdateOneRequest<typeof crudOptions.entity> = {
+                    params,
+                    body,
+                    exclude: new Set(updatedOptions.exclude ?? []),
+                    saveOptions: {
+                        listeners: updatedOptions.listeners,
+                    },
+                    hooks: updatedOptions.hooks,
+                };
+
+                this.crudLogger.logRequest(req, crudUpdateOneRequest);
+                (req as unknown as Record<string, unknown>)[CRUD_ROUTE_ARGS] = crudUpdateOneRequest;
             }
-
-            const body = await this.validateBody(req.body ?? {}, updatedOptions);
-
-            const params = await this.checkParams(crudOptions.entity, req.params, factoryOption.columns);
-            const crudUpdateOneRequest: CrudUpdateOneRequest<typeof crudOptions.entity> = {
-                params,
-                body,
-                exclude: new Set(updatedOptions.exclude ?? []),
-                saveOptions: {
-                    listeners: updatedOptions.listeners,
-                },
-                hooks: updatedOptions.hooks,
-            };
-
-            this.crudLogger.logRequest(req, crudUpdateOneRequest);
-            (req as unknown as Record<string, unknown>)[CRUD_ROUTE_ARGS] = crudUpdateOneRequest;
 
             return next.handle();
         }
@@ -105,6 +135,49 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 }
 
                 return transformed;
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        async validateBulkUpdateItem(body: unknown, methodOptions: any = {}) {
+            if (_.isNil(body) || !_.isObject(body)) {
+                throw new UnprocessableEntityException('Each item must be a valid object');
+            }
+
+            const bodyKeys = Object.keys(body);
+
+            // Check for ID (required for bulk update)
+            const primaryKeyName = factoryOption.primaryKeys?.[0]?.name || 'id';
+            if (!bodyKeys.includes(primaryKeyName)) {
+                throw new UnprocessableEntityException(`Each item must include the primary key: ${primaryKeyName}`);
+            }
+
+            // Extract ID and validate other fields (ID is allowed in bulk update)
+            const { [primaryKeyName]: id, ...updateData } = body as any;
+            
+            // Validate update data
+            try {
+                const transformed = plainToInstance(crudOptions.entity as ClassConstructor<EntityType>, updateData);
+
+                // Priority: method-specific > global > default (true for UPDATE)
+                const skipMissingProperties = methodOptions.skipMissingProperties ?? crudOptions.skipMissingProperties ?? true;
+
+                const errorList = await validate(transformed, {
+                    whitelist: true,
+                    forbidNonWhitelisted: false,
+                    forbidUnknownValues: false,
+                    stopAtFirstError: true,
+                    skipMissingProperties,
+                });
+
+                if (errorList.length > 0) {
+                    this.crudLogger.log(errorList, 'ValidationError');
+                    throw new UnprocessableEntityException(errorList);
+                }
+
+                // Return the complete object with ID
+                return { ...transformed, [primaryKeyName]: id };
             } catch (error) {
                 throw error;
             }

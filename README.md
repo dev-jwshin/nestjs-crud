@@ -19,6 +19,7 @@ A powerful library that automatically generates RESTful CRUD APIs based on NestJ
         -   [Routes Configuration Approach (Legacy)](#🛠️-method-2-routes-configuration-approach-legacy)
     -   [Response Helpers (crudResponse)](#📋-response-helpers-crudresponse)
 -   [Soft Delete and Recovery](#🗑️-soft-delete-and-recovery)
+-   [Migration Guide](#migration-guide)
 -   [API Documentation](#api-documentation)
 -   [Examples](#examples)
 -   [License](#license)
@@ -373,9 +374,10 @@ All CRUD operations provide a consistent response structure with metadata:
 | Operation | Single | Bulk (Multiple) | Description |
 |-----------|--------|-----------------|-------------|
 | **CREATE** | ✅ Supported | ✅ Supported | Submit single object or array of objects |
-| **UPDATE** | ✅ Supported | ❌ Not Supported | Only single entity update by ID |
-| **UPSERT** | ✅ Supported | ❌ Not Supported | Only single entity upsert |
-| **DELETE** | ✅ Supported | ❌ Not Supported | Only single entity delete by ID |
+| **UPDATE** | ✅ Supported | ✅ Supported | Submit array with ID for each item |
+| **UPSERT** | ✅ Supported | ✅ Supported | Submit array of objects for bulk upsert |
+| **DELETE** | ✅ Supported | ✅ Supported | Submit array of IDs or conditions |
+| **RECOVER** | ✅ Supported | ✅ Supported | Submit array of IDs for bulk recovery |
 
 #### Bulk Create Example
 
@@ -396,7 +398,75 @@ POST /users
 ]
 ```
 
-**Note**: For bulk update/delete operations, you need to implement custom endpoints or use transactions with multiple API calls.
+#### Bulk Update Example (NEW! 🆕)
+
+```bash
+# Single update
+PUT /users/1
+{
+    "name": "John Updated",
+    "email": "john.updated@example.com"
+}
+
+# Bulk update (array submission with IDs)
+PUT /users
+[
+    { "id": 1, "name": "John Updated", "email": "john.updated@example.com" },
+    { "id": 2, "name": "Jane Updated", "email": "jane.updated@example.com" },
+    { "id": 3, "name": "Bob Updated", "email": "bob.updated@example.com" }
+]
+```
+
+#### Bulk Upsert Example (NEW! 🆕)
+
+```bash
+# Single upsert
+POST /users/upsert
+{
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com"
+}
+
+# Bulk upsert (array submission)
+POST /users/upsert
+[
+    { "id": 1, "name": "John Doe", "email": "john@example.com" },  // Update if exists
+    { "name": "New User", "email": "new@example.com" },             // Create if not exists
+    { "id": 99, "name": "Another User", "email": "another@example.com" }
+]
+```
+
+#### Bulk Delete Example (NEW! 🆕)
+
+```bash
+# Single delete
+DELETE /users/1
+
+# Bulk delete (array of IDs in query params)
+DELETE /users?ids=1,2,3
+
+# Or via request body
+DELETE /users
+{
+    "ids": [1, 2, 3]
+}
+```
+
+#### Bulk Recover Example (NEW! 🆕)
+
+```bash
+# Single recover
+POST /users/1/recover
+
+# Bulk recover (array of IDs)
+POST /users/recover
+{
+    "ids": [1, 2, 3]
+}
+```
+
+**Note**: All bulk operations support lifecycle hooks and will execute them for each item in the batch.
 
 ## 🔍 RESTful Query Parameters
 
@@ -3737,6 +3807,20 @@ GET /posts?filter[status_eq]=published&sort=-created_at&page[number]=1&page[size
 
 3. **Pagination Usage**: Essential when handling large amounts of data
 4. **Caching Strategy**: Response caching using Redis etc.
+
+## 📖 Migration Guide
+
+### Upgrading to v0.2.0
+
+Version 0.2.0 introduces **Bulk Operations Support** for UPDATE, UPSERT, DELETE, and RECOVER methods. This is a backward-compatible release that adds powerful bulk operation capabilities while maintaining full compatibility with existing code.
+
+**Key Changes:**
+- ✅ Full bulk operations support for all CRUD methods
+- ✅ Consistent response format with metadata
+- ✅ Lifecycle hooks execution for each item in bulk operations
+- ✅ No breaking changes - existing code continues to work
+
+For detailed migration instructions, see [MIGRATION.md](./MIGRATION.md).
 
 ## 📚 Additional Resources
 

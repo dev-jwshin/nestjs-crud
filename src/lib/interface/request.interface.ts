@@ -48,6 +48,30 @@ export interface CrudUpdateOneRequest<T> extends CrudCreateOneRequest<T> {
     saveOptions: SaveOptions;
 }
 
+export interface CrudUpdateManyRequest<T> extends CrudRequestBase {
+    body: Array<Partial<T> & { id: any }>;  // Each item must have an ID for update
+    exclude: Set<string>;
+    saveOptions: SaveOptions;
+    hooks?: LifecycleHooks<T>;
+}
+
+export function isCrudUpdateManyRequest<T>(x: CrudUpdateOneRequest<T> | CrudUpdateManyRequest<T>): x is CrudUpdateManyRequest<T> {
+    return Array.isArray(x.body);
+}
+
+export type CrudUpdateRequest<T> = CrudUpdateOneRequest<T> | CrudUpdateManyRequest<T>;
+
+export interface CrudUpsertManyRequest<T> extends CrudRequestBase {
+    body: Array<DeepPartial<T>>;
+    exclude: Set<string>;
+    saveOptions: SaveOptions;
+    hooks?: LifecycleHooks<T>;
+}
+
+export function isCrudUpsertManyRequest<T>(x: CrudUpsertRequest<T> | CrudUpsertManyRequest<T>): x is CrudUpsertManyRequest<T> {
+    return Array.isArray(x.body);
+}
+
 export interface CrudDeleteOneRequest<T> extends CrudRequestBase {
     params: Partial<Record<keyof T, unknown>>;
     softDeleted: boolean;
@@ -56,11 +80,36 @@ export interface CrudDeleteOneRequest<T> extends CrudRequestBase {
     hooks?: LifecycleHooks<T>;
 }
 
+export interface CrudDeleteManyRequest<T> extends CrudRequestBase {
+    params: Array<Partial<Record<keyof T, unknown>>>;  // Array of IDs or conditions
+    softDeleted: boolean;
+    exclude: Set<string>;
+    saveOptions: SaveOptions;
+    hooks?: LifecycleHooks<T>;
+}
+
+export function isCrudDeleteManyRequest<T>(x: CrudDeleteOneRequest<T> | CrudDeleteManyRequest<T>): x is CrudDeleteManyRequest<T> {
+    return Array.isArray(x.params);
+}
+
+export type CrudDeleteRequest<T> = CrudDeleteOneRequest<T> | CrudDeleteManyRequest<T>;
+
 export interface CrudRecoverRequest<T> extends CrudRequestBase {
     params: Partial<Record<keyof T, unknown>>;
     exclude: Set<string>;
     saveOptions: SaveOptions;
     hooks?: LifecycleHooks<T>;
+}
+
+export interface CrudRecoverManyRequest<T> extends CrudRequestBase {
+    params: Array<Partial<Record<keyof T, unknown>>>;  // Array of IDs or conditions
+    exclude: Set<string>;
+    saveOptions: SaveOptions;
+    hooks?: LifecycleHooks<T>;
+}
+
+export function isCrudRecoverManyRequest<T>(x: CrudRecoverRequest<T> | CrudRecoverManyRequest<T>): x is CrudRecoverManyRequest<T> {
+    return Array.isArray(x.params);
 }
 
 // ========================================

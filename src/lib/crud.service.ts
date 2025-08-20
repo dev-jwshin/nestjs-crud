@@ -3,7 +3,15 @@ import { ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { instanceToPlain } from 'class-transformer';
 import _ from 'lodash';
 
-import { createCrudArrayResponse, createCrudResponse, isCrudCreateManyRequest } from './interface';
+import { 
+    createCrudArrayResponse, 
+    createCrudResponse, 
+    isCrudCreateManyRequest,
+    isCrudUpdateManyRequest,
+    isCrudUpsertManyRequest,
+    isCrudDeleteManyRequest,
+    isCrudRecoverManyRequest
+} from './interface';
 
 import type { DeepPartial, FindOptionsWhere, Repository } from 'typeorm';
 import type {
@@ -11,11 +19,15 @@ import type {
     CrudCreateManyRequest,
     CrudCreateOneRequest,
     CrudDeleteOneRequest,
+    CrudDeleteManyRequest,
     CrudReadOneRequest,
     CrudRecoverRequest,
+    CrudRecoverManyRequest,
     CrudResponse,
     CrudUpdateOneRequest,
+    CrudUpdateManyRequest,
     CrudUpsertRequest,
+    CrudUpsertManyRequest,
     EntityType,
     HookContext,
     LifecycleHooks,
@@ -202,168 +214,409 @@ export class CrudService<T extends EntityType> {
             .catch(this.throwConflictException);
     };
 
-    readonly reservedUpsert = async (crudUpsertRequest: CrudUpsertRequest<T>): Promise<CrudResponse<T>> => {
-        return this.findOne(crudUpsertRequest.params as unknown as FindOptionsWhere<T>, true).then(async (entity: T | null) => {
-            const isNew = entity === null;
-            let upsertEntity = entity ?? this.repository.create(crudUpsertRequest.params as unknown as DeepPartial<T>);
+    readonly reservedUpsert = async (
+        crudUpsertRequest: CrudUpsertRequest<T> | CrudUpsertManyRequest<T>,
+    ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
+        const isMany = isCrudUpsertManyRequest<T>(crudUpsertRequest);
+        
+        if (isMany) {
+            // Bulk upsert handling
+            const upsertPromises = crudUpsertRequest.body.map(async (item) => {
+                // Try to find existing entity based on primary key if present
+                let entity: T | null = null;
+                let params: Partial<Record<keyof T, unknown>> = {};
+                
+                // Check if item has primary key
+                if (this.primaryKey.length > 0 && this.primaryKey[0] in item) {
+                    params = { [this.primaryKey[0]]: (item as any)[this.primaryKey[0]] } as Partial<Record<keyof T, unknown>>;
+                    entity = await this.findOne(params as unknown as FindOptionsWhere<T>, true);
+                }
+                
+                const isNew = entity === null;
+                let upsertEntity = entity ?? this.repository.create(item as unknown as DeepPartial<T>);
 
-            if ('deletedAt' in upsertEntity && upsertEntity.deletedAt != null) {
-                throw new ConflictException('it has been deleted');
-            }
+                if ('deletedAt' in upsertEntity && upsertEntity.deletedAt != null) {
+                    throw new ConflictException('One or more entities have been deleted');
+                }
 
-            const context: HookContext<T> = {
-                operation: 'upsert' as Method,
-                params: crudUpsertRequest.params,
-                currentEntity: entity ?? undefined,
-            };
+                const context: HookContext<T> = {
+                    operation: 'upsert' as Method,
+                    params,
+                    currentEntity: entity ?? undefined,
+                };
 
-            // assignBefore 훅 실행
-            const processedBody = await this.executeAssignBeforeHook(crudUpsertRequest.hooks, crudUpsertRequest.body, context);
+                // Execute hooks
+                const processedBody = await this.executeAssignBeforeHook(crudUpsertRequest.hooks, item, context);
+                _.assign(upsertEntity, processedBody);
+                upsertEntity = await this.executeAssignAfterHook(crudUpsertRequest.hooks, upsertEntity, processedBody, context);
+                upsertEntity = await this.executeSaveBeforeHook(crudUpsertRequest.hooks, upsertEntity, context);
 
-            // 엔티티에 데이터 할당
-            _.assign(upsertEntity, processedBody);
+                return { entity: upsertEntity, isNew };
+            });
 
-            // assignAfter 훅 실행
-            upsertEntity = await this.executeAssignAfterHook(crudUpsertRequest.hooks, upsertEntity, processedBody, context);
-
-            // saveBefore 훅 실행
-            upsertEntity = await this.executeSaveBeforeHook(crudUpsertRequest.hooks, upsertEntity, context);
-
+            const upsertData = await Promise.all(upsertPromises);
+            const entitiesToSave = upsertData.map(d => d.entity);
+            
             return this.repository
-                .save(upsertEntity, crudUpsertRequest.saveOptions)
-                .then(async (savedEntity) => {
-                    // saveAfter 훅 실행
-                    savedEntity = await this.executeSaveAfterHook(crudUpsertRequest.hooks, savedEntity, context);
+                .save(entitiesToSave, crudUpsertRequest.saveOptions)
+                .then(async (savedEntities) => {
+                    // Execute saveAfter hook for each entity
+                    const processedEntities = await Promise.all(
+                        savedEntities.map(async (entity, index) => {
+                            const context: HookContext<T> = {
+                                operation: 'upsert' as Method,
+                                params: {},
+                            };
+                            const afterSaveEntity = await this.executeSaveAfterHook(crudUpsertRequest.hooks, entity, context);
+                            return this.excludeEntity(afterSaveEntity, crudUpsertRequest.exclude);
+                        })
+                    );
 
-                    const processedEntity = this.excludeEntity(savedEntity, crudUpsertRequest.exclude);
-
-                    // Transform entity to plain object to apply @Exclude decorators
-                    const transformedEntity = this.transformEntityToPlain(processedEntity);
+                    // Transform entities to plain objects
+                    const transformedEntities = this.transformEntityToPlain(processedEntities);
                     const excludedFields = crudUpsertRequest.exclude.size > 0 ? [...crudUpsertRequest.exclude] : undefined;
 
-                    return createCrudResponse(transformedEntity, {
-                        isNew,
+                    return createCrudArrayResponse(transformedEntities, { 
                         excludedFields,
+                        // Track which entities were new vs updated
+                        upsertInfo: upsertData.map(d => ({ isNew: d.isNew }))
                     });
                 })
                 .catch(this.throwConflictException);
-        });
+        } else {
+            // Single upsert (existing logic)
+            return this.findOne(crudUpsertRequest.params as unknown as FindOptionsWhere<T>, true).then(async (entity: T | null) => {
+                const isNew = entity === null;
+                let upsertEntity = entity ?? this.repository.create(crudUpsertRequest.params as unknown as DeepPartial<T>);
+
+                if ('deletedAt' in upsertEntity && upsertEntity.deletedAt != null) {
+                    throw new ConflictException('it has been deleted');
+                }
+
+                const context: HookContext<T> = {
+                    operation: 'upsert' as Method,
+                    params: crudUpsertRequest.params,
+                    currentEntity: entity ?? undefined,
+                };
+
+                // assignBefore 훅 실행
+                const processedBody = await this.executeAssignBeforeHook(crudUpsertRequest.hooks, crudUpsertRequest.body, context);
+
+                // 엔티티에 데이터 할당
+                _.assign(upsertEntity, processedBody);
+
+                // assignAfter 훅 실행
+                upsertEntity = await this.executeAssignAfterHook(crudUpsertRequest.hooks, upsertEntity, processedBody, context);
+
+                // saveBefore 훅 실행
+                upsertEntity = await this.executeSaveBeforeHook(crudUpsertRequest.hooks, upsertEntity, context);
+
+                return this.repository
+                    .save(upsertEntity, crudUpsertRequest.saveOptions)
+                    .then(async (savedEntity) => {
+                        // saveAfter 훅 실행
+                        savedEntity = await this.executeSaveAfterHook(crudUpsertRequest.hooks, savedEntity, context);
+
+                        const processedEntity = this.excludeEntity(savedEntity, crudUpsertRequest.exclude);
+
+                        // Transform entity to plain object to apply @Exclude decorators
+                        const transformedEntity = this.transformEntityToPlain(processedEntity);
+                        const excludedFields = crudUpsertRequest.exclude.size > 0 ? [...crudUpsertRequest.exclude] : undefined;
+
+                        return createCrudResponse(transformedEntity, {
+                            isNew,
+                            excludedFields,
+                        });
+                    })
+                    .catch(this.throwConflictException);
+            });
+        }
     };
 
-    readonly reservedUpdate = async (crudUpdateOneRequest: CrudUpdateOneRequest<T>): Promise<CrudResponse<T>> => {
-        return this.findOne(crudUpdateOneRequest.params as unknown as FindOptionsWhere<T>, false).then(async (entity: T | null) => {
-            if (!entity) {
-                throw new NotFoundException();
-            }
+    readonly reservedUpdate = async (
+        crudUpdateRequest: CrudUpdateOneRequest<T> | CrudUpdateManyRequest<T>,
+    ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
+        const isMany = isCrudUpdateManyRequest<T>(crudUpdateRequest);
+        
+        if (isMany) {
+            // Bulk update handling
+            const updatePromises = crudUpdateRequest.body.map(async (item) => {
+                // Extract ID from the item
+                const { id, ...updateData } = item;
+                const params = { [this.primaryKey[0]]: id } as Partial<Record<keyof T, unknown>>;
+                
+                const entity = await this.findOne(params as unknown as FindOptionsWhere<T>, false);
+                if (!entity) {
+                    throw new NotFoundException(`Entity with id ${id} not found`);
+                }
 
-            const context: HookContext<T> = {
-                operation: 'update' as Method,
-                params: crudUpdateOneRequest.params,
-                currentEntity: entity,
-            };
+                const context: HookContext<T> = {
+                    operation: 'update' as Method,
+                    params,
+                    currentEntity: entity,
+                };
 
-            // 🚀 UPDATE 개선: body를 entity에 먼저 할당 후 beforeUpdate 훅에서 entity 처리
-            // 1. body 데이터를 entity에 임시 할당
-            _.assign(entity, crudUpdateOneRequest.body);
+                // Apply update data to entity
+                _.assign(entity, updateData);
 
-            // 2. assignBefore 훅 실행 (UPDATE의 경우 entity 기반)
-            entity = await this.executeAssignBeforeHookForUpdate(crudUpdateOneRequest.hooks, entity, context);
+                // Execute hooks
+                let processedEntity = await this.executeAssignBeforeHookForUpdate(crudUpdateRequest.hooks, entity, context);
+                processedEntity = await this.executeAssignAfterHook(crudUpdateRequest.hooks, processedEntity, updateData, context);
+                processedEntity = await this.executeSaveBeforeHook(crudUpdateRequest.hooks, processedEntity, context);
 
-            // assignAfter 훅 실행
-            entity = await this.executeAssignAfterHook(crudUpdateOneRequest.hooks, entity, crudUpdateOneRequest.body, context);
+                return processedEntity;
+            });
 
-            // saveBefore 훅 실행
-            entity = await this.executeSaveBeforeHook(crudUpdateOneRequest.hooks, entity, context);
-
+            const entitiesToUpdate = await Promise.all(updatePromises);
+            
             return this.repository
-                .save(entity, crudUpdateOneRequest.saveOptions)
-                .then(async (updatedEntity) => {
-                    // saveAfter 훅 실행
-                    updatedEntity = await this.executeSaveAfterHook(crudUpdateOneRequest.hooks, updatedEntity, context);
+                .save(entitiesToUpdate, crudUpdateRequest.saveOptions)
+                .then(async (updatedEntities) => {
+                    // Execute saveAfter hook for each entity
+                    const processedEntities = await Promise.all(
+                        updatedEntities.map(async (entity, index) => {
+                            const context: HookContext<T> = {
+                                operation: 'update' as Method,
+                                params: { [this.primaryKey[0]]: crudUpdateRequest.body[index].id },
+                            };
+                            const afterSaveEntity = await this.executeSaveAfterHook(crudUpdateRequest.hooks, entity, context);
+                            return this.excludeEntity(afterSaveEntity, crudUpdateRequest.exclude);
+                        })
+                    );
 
-                    const processedEntity = this.excludeEntity(updatedEntity, crudUpdateOneRequest.exclude);
+                    // Transform entities to plain objects
+                    const transformedEntities = this.transformEntityToPlain(processedEntities);
+                    const excludedFields = crudUpdateRequest.exclude.size > 0 ? [...crudUpdateRequest.exclude] : undefined;
 
-                    // Transform entity to plain object to apply @Exclude decorators
-                    const transformedEntity = this.transformEntityToPlain(processedEntity);
-                    const excludedFields = crudUpdateOneRequest.exclude.size > 0 ? [...crudUpdateOneRequest.exclude] : undefined;
-
-                    return createCrudResponse(transformedEntity, { excludedFields });
+                    return createCrudArrayResponse(transformedEntities, { excludedFields });
                 })
                 .catch(this.throwConflictException);
-        });
+        } else {
+            // Single update (existing logic)
+            return this.findOne(crudUpdateRequest.params as unknown as FindOptionsWhere<T>, false).then(async (entity: T | null) => {
+                if (!entity) {
+                    throw new NotFoundException();
+                }
+
+                const context: HookContext<T> = {
+                    operation: 'update' as Method,
+                    params: crudUpdateRequest.params,
+                    currentEntity: entity,
+                };
+
+                // 🚀 UPDATE 개선: body를 entity에 먼저 할당 후 beforeUpdate 훅에서 entity 처리
+                // 1. body 데이터를 entity에 임시 할당
+                _.assign(entity, crudUpdateRequest.body);
+
+                // 2. assignBefore 훅 실행 (UPDATE의 경우 entity 기반)
+                entity = await this.executeAssignBeforeHookForUpdate(crudUpdateRequest.hooks, entity, context);
+
+                // assignAfter 훅 실행
+                entity = await this.executeAssignAfterHook(crudUpdateRequest.hooks, entity, crudUpdateRequest.body, context);
+
+                // saveBefore 훅 실행
+                entity = await this.executeSaveBeforeHook(crudUpdateRequest.hooks, entity, context);
+
+                return this.repository
+                    .save(entity, crudUpdateRequest.saveOptions)
+                    .then(async (updatedEntity) => {
+                        // saveAfter 훅 실행
+                        updatedEntity = await this.executeSaveAfterHook(crudUpdateRequest.hooks, updatedEntity, context);
+
+                        const processedEntity = this.excludeEntity(updatedEntity, crudUpdateRequest.exclude);
+
+                        // Transform entity to plain object to apply @Exclude decorators
+                        const transformedEntity = this.transformEntityToPlain(processedEntity);
+                        const excludedFields = crudUpdateRequest.exclude.size > 0 ? [...crudUpdateRequest.exclude] : undefined;
+
+                        return createCrudResponse(transformedEntity, { excludedFields });
+                    })
+                    .catch(this.throwConflictException);
+            });
+        }
     };
 
-    readonly reservedDestroy = async (crudDeleteOneRequest: CrudDeleteOneRequest<T>): Promise<CrudResponse<T>> => {
+    readonly reservedDestroy = async (
+        crudDeleteRequest: CrudDeleteOneRequest<T> | CrudDeleteManyRequest<T>,
+    ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
         if (this.primaryKey.length === 0) {
             throw new ConflictException('cannot found primary key from entity');
         }
-        return this.findOne(crudDeleteOneRequest.params as unknown as FindOptionsWhere<T>, false).then(async (entity: T | null) => {
-            if (!entity) {
-                throw new NotFoundException();
-            }
+        
+        const isMany = isCrudDeleteManyRequest<T>(crudDeleteRequest);
+        
+        if (isMany) {
+            // Bulk delete handling
+            const deletePromises = crudDeleteRequest.params.map(async (params) => {
+                const entity = await this.findOne(params as unknown as FindOptionsWhere<T>, false);
+                if (!entity) {
+                    throw new NotFoundException(`Entity not found for params: ${JSON.stringify(params)}`);
+                }
 
-            const context: HookContext<T> = {
-                operation: 'destroy' as Method,
-                params: crudDeleteOneRequest.params,
-                currentEntity: entity,
-            };
+                const context: HookContext<T> = {
+                    operation: 'destroy' as Method,
+                    params,
+                    currentEntity: entity,
+                };
 
-            // 🚀 destroyBefore 훅 실행 - entity를 받아서 entity를 반환
-            entity = await this.executeDestroyBeforeHook(crudDeleteOneRequest.hooks, entity, context);
-
-            await (crudDeleteOneRequest.softDeleted
-                ? this.repository.softRemove(entity, crudDeleteOneRequest.saveOptions)
-                : this.repository.remove(entity, crudDeleteOneRequest.saveOptions));
-
-            // 🚀 destroyAfter 훅 실행 - 삭제 후 처리
-            entity = await this.executeDestroyAfterHook(crudDeleteOneRequest.hooks, entity, context);
-
-            const processedEntity = this.excludeEntity(entity, crudDeleteOneRequest.exclude);
-
-            // Transform entity to plain object to apply @Exclude decorators
-            const transformedEntity = this.transformEntityToPlain(processedEntity);
-            const excludedFields = crudDeleteOneRequest.exclude.size > 0 ? [...crudDeleteOneRequest.exclude] : undefined;
-
-            return createCrudResponse(transformedEntity, {
-                excludedFields,
-                wasSoftDeleted: crudDeleteOneRequest.softDeleted,
+                // Execute destroyBefore hook
+                const processedEntity = await this.executeDestroyBeforeHook(crudDeleteRequest.hooks, entity, context);
+                
+                return processedEntity;
             });
-        });
+
+            const entitiesToDelete = await Promise.all(deletePromises);
+            
+            // Perform bulk delete
+            const deletedEntities = await (crudDeleteRequest.softDeleted
+                ? this.repository.softRemove(entitiesToDelete, crudDeleteRequest.saveOptions)
+                : this.repository.remove(entitiesToDelete, crudDeleteRequest.saveOptions));
+
+            // Execute destroyAfter hook for each entity
+            const processedEntities = await Promise.all(
+                deletedEntities.map(async (entity, index) => {
+                    const context: HookContext<T> = {
+                        operation: 'destroy' as Method,
+                        params: crudDeleteRequest.params[index],
+                    };
+                    const afterDestroyEntity = await this.executeDestroyAfterHook(crudDeleteRequest.hooks, entity, context);
+                    return this.excludeEntity(afterDestroyEntity, crudDeleteRequest.exclude);
+                })
+            );
+
+            // Transform entities to plain objects
+            const transformedEntities = this.transformEntityToPlain(processedEntities);
+            const excludedFields = crudDeleteRequest.exclude.size > 0 ? [...crudDeleteRequest.exclude] : undefined;
+
+            return createCrudArrayResponse(transformedEntities, {
+                excludedFields,
+                wasSoftDeleted: crudDeleteRequest.softDeleted,
+            });
+        } else {
+            // Single delete (existing logic)
+            return this.findOne(crudDeleteRequest.params as unknown as FindOptionsWhere<T>, false).then(async (entity: T | null) => {
+                if (!entity) {
+                    throw new NotFoundException();
+                }
+
+                const context: HookContext<T> = {
+                    operation: 'destroy' as Method,
+                    params: crudDeleteRequest.params,
+                    currentEntity: entity,
+                };
+
+                // 🚀 destroyBefore 훅 실행 - entity를 받아서 entity를 반환
+                entity = await this.executeDestroyBeforeHook(crudDeleteRequest.hooks, entity, context);
+
+                await (crudDeleteRequest.softDeleted
+                    ? this.repository.softRemove(entity, crudDeleteRequest.saveOptions)
+                    : this.repository.remove(entity, crudDeleteRequest.saveOptions));
+
+                // 🚀 destroyAfter 훅 실행 - 삭제 후 처리
+                entity = await this.executeDestroyAfterHook(crudDeleteRequest.hooks, entity, context);
+
+                const processedEntity = this.excludeEntity(entity, crudDeleteRequest.exclude);
+
+                // Transform entity to plain object to apply @Exclude decorators
+                const transformedEntity = this.transformEntityToPlain(processedEntity);
+                const excludedFields = crudDeleteRequest.exclude.size > 0 ? [...crudDeleteRequest.exclude] : undefined;
+
+                return createCrudResponse(transformedEntity, {
+                    excludedFields,
+                    wasSoftDeleted: crudDeleteRequest.softDeleted,
+                });
+            });
+        }
     };
 
-    readonly reservedRecover = async (crudRecoverRequest: CrudRecoverRequest<T>): Promise<CrudResponse<T>> => {
-        return this.findOne(crudRecoverRequest.params as unknown as FindOptionsWhere<T>, true).then(async (entity: T | null) => {
-            if (!entity) {
-                throw new NotFoundException();
-            }
+    readonly reservedRecover = async (
+        crudRecoverRequest: CrudRecoverRequest<T> | CrudRecoverManyRequest<T>,
+    ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
+        const isMany = isCrudRecoverManyRequest<T>(crudRecoverRequest);
+        
+        if (isMany) {
+            // Bulk recover handling
+            const recoverPromises = crudRecoverRequest.params.map(async (params) => {
+                const entity = await this.findOne(params as unknown as FindOptionsWhere<T>, true);
+                if (!entity) {
+                    throw new NotFoundException(`Entity not found for params: ${JSON.stringify(params)}`);
+                }
 
-            const context: HookContext<T> = {
-                operation: 'recover' as Method,
-                params: crudRecoverRequest.params,
-                currentEntity: entity,
-            };
+                const context: HookContext<T> = {
+                    operation: 'recover' as Method,
+                    params,
+                    currentEntity: entity,
+                };
 
-            const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
+                const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
 
-            // 🚀 recoverBefore 훅 실행 - entity를 받아서 entity를 반환
-            entity = await this.executeRecoverBeforeHook(crudRecoverRequest.hooks, entity, context);
+                // Execute recoverBefore hook
+                const processedEntity = await this.executeRecoverBeforeHook(crudRecoverRequest.hooks, entity, context);
+                
+                return { entity: processedEntity, wasSoftDeleted };
+            });
 
-            await this.repository.recover(entity, crudRecoverRequest.saveOptions).catch(this.throwConflictException);
+            const recoverData = await Promise.all(recoverPromises);
+            const entitiesToRecover = recoverData.map(d => d.entity);
+            
+            // Perform bulk recover
+            await this.repository.recover(entitiesToRecover, crudRecoverRequest.saveOptions).catch(this.throwConflictException);
 
-            // 🚀 recoverAfter 훅 실행 - 복구 후 처리
-            entity = await this.executeRecoverAfterHook(crudRecoverRequest.hooks, entity, context);
+            // Execute recoverAfter hook for each entity
+            const processedEntities = await Promise.all(
+                entitiesToRecover.map(async (entity, index) => {
+                    const context: HookContext<T> = {
+                        operation: 'recover' as Method,
+                        params: crudRecoverRequest.params[index],
+                    };
+                    const afterRecoverEntity = await this.executeRecoverAfterHook(crudRecoverRequest.hooks, entity, context);
+                    return this.excludeEntity(afterRecoverEntity, crudRecoverRequest.exclude);
+                })
+            );
 
-            const processedEntity = this.excludeEntity(entity, crudRecoverRequest.exclude);
-
-            // Transform entity to plain object to apply @Exclude decorators
-            const transformedEntity = this.transformEntityToPlain(processedEntity);
+            // Transform entities to plain objects
+            const transformedEntities = this.transformEntityToPlain(processedEntities);
             const excludedFields = crudRecoverRequest.exclude.size > 0 ? [...crudRecoverRequest.exclude] : undefined;
 
-            return createCrudResponse(transformedEntity, {
+            return createCrudArrayResponse(transformedEntities, {
                 excludedFields,
-                wasSoftDeleted,
+                wasSoftDeleted: recoverData.some(d => d.wasSoftDeleted),
             });
-        });
+        } else {
+            // Single recover (existing logic)
+            return this.findOne(crudRecoverRequest.params as unknown as FindOptionsWhere<T>, true).then(async (entity: T | null) => {
+                if (!entity) {
+                    throw new NotFoundException();
+                }
+
+                const context: HookContext<T> = {
+                    operation: 'recover' as Method,
+                    params: crudRecoverRequest.params,
+                    currentEntity: entity,
+                };
+
+                const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
+
+                // 🚀 recoverBefore 훅 실행 - entity를 받아서 entity를 반환
+                entity = await this.executeRecoverBeforeHook(crudRecoverRequest.hooks, entity, context);
+
+                await this.repository.recover(entity, crudRecoverRequest.saveOptions).catch(this.throwConflictException);
+
+                // 🚀 recoverAfter 훅 실행 - 복구 후 처리
+                entity = await this.executeRecoverAfterHook(crudRecoverRequest.hooks, entity, context);
+
+                const processedEntity = this.excludeEntity(entity, crudRecoverRequest.exclude);
+
+                // Transform entity to plain object to apply @Exclude decorators
+                const transformedEntity = this.transformEntityToPlain(processedEntity);
+                const excludedFields = crudRecoverRequest.exclude.size > 0 ? [...crudRecoverRequest.exclude] : undefined;
+
+                return createCrudResponse(transformedEntity, {
+                    excludedFields,
+                    wasSoftDeleted,
+                });
+            });
+        }
     };
 
     private async findOne(where: FindOptionsWhere<T>, withDeleted: boolean): Promise<T | null> {
