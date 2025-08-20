@@ -29,8 +29,8 @@ export function DeleteRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 ? customDeleteRequestOptions.softDeleted
                 : deleteOptions.softDelete ?? CRUD_POLICY[method].default.softDeleted;
 
-            // Check for bulk delete (either body.ids array or query.ids)
-            const isBulkDelete = req.body?.ids && Array.isArray(req.body.ids);
+            // Check for bulk delete (either body.ids array, query.ids, or ID is "bulk")
+            const isBulkDelete = (req.body?.ids && Array.isArray(req.body.ids)) || req.params?.id === 'bulk';
             const queryIds = req.query?.ids;
             const hasQueryIds = queryIds && (typeof queryIds === 'string' || Array.isArray(queryIds));
             

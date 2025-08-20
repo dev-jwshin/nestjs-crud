@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { mixin, UnprocessableEntityException } from '@nestjs/common';
-import { plainToInstance } from 'class-transformer';
+import { plainToInstance, instanceToPlain } from 'class-transformer';
 import { validate } from 'class-validator';
 import _ from 'lodash';
 
@@ -25,18 +25,33 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
             const req = context.switchToHttp().getRequest<Request>();
             const updatedOptions = crudOptions.routes?.[method] ?? {};
 
-            // Check if body is array for bulk update
-            const isBulkUpdate = Array.isArray(req.body);
+            // Check if body is array for bulk update or if the ID is "bulk"
+            const isBulkUpdate = Array.isArray(req.body) || req.params?.id === 'bulk';
             
             // Filter body parameters based on allowedParams
             const allowedParams = updatedOptions.allowedParams ?? crudOptions.allowedParams;
             
             if (isBulkUpdate) {
                 // Bulk update handling
+                // Ensure body is an array for bulk operations
+                if (!Array.isArray(req.body)) {
+                    throw new UnprocessableEntityException('Body must be an array for bulk update operations');
+                }
+                
                 if (allowedParams) {
-                    req.body = req.body.map((item: any) => 
-                        typeof item === 'object' && item !== null ? this.filterAllowedParams(item, allowedParams) : item
-                    );
+                    // For bulk updates, we need to preserve the primary key
+                    const primaryKeyName = factoryOption.primaryKeys?.[0]?.name || 'id';
+                    req.body = req.body.map((item: any) => {
+                        if (typeof item === 'object' && item !== null) {
+                            const filtered = this.filterAllowedParams(item, allowedParams);
+                            // Always preserve the primary key for bulk updates
+                            if (item[primaryKeyName] !== undefined) {
+                                filtered[primaryKeyName] = item[primaryKeyName];
+                            }
+                            return filtered;
+                        }
+                        return item;
+                    });
                 }
                 
                 const validatedBodies = await Promise.all(
@@ -177,7 +192,9 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                 }
 
                 // Return the complete object with ID
-                return { ...transformed, [primaryKeyName]: id };
+                // Return the original body since validation passed
+                // This preserves all properties that were in the original request
+                return body;
             } catch (error) {
                 throw error;
             }

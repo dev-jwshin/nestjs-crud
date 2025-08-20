@@ -19,6 +19,7 @@ export interface CrudResponseMetadata {
   includedRelations?: string[];
   excludedFields?: string[];
   pagination?: PaginationMetadata; // for index operations
+  upsertInfo?: Array<{ isNew: boolean }>; // for bulk upsert operations
 }
 
 export interface PaginationMetadata {

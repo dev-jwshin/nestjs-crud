@@ -24,11 +24,17 @@ import { CrudLogger } from './provider/crud-logger';
 import type {
     Column,
     CrudCreateRequest,
+    CrudCreateManyRequest,
     CrudDeleteOneRequest,
+    CrudDeleteManyRequest,
     CrudOptions,
     CrudReadOneRequest,
     CrudRecoverRequest,
+    CrudRecoverManyRequest,
     CrudUpdateOneRequest,
+    CrudUpdateManyRequest,
+    CrudUpsertRequest,
+    CrudUpsertManyRequest,
     FactoryOption,
     PrimaryKey,
     EntityType,
@@ -248,25 +254,25 @@ export class CrudRouteFactory {
     }
 
     protected upsert<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedUpsert(crudCreateRequest: CrudCreateRequest<T>) {
-            return this.crudService.reservedUpsert(crudCreateRequest);
+        this.targetPrototype[controllerMethodName] = function reservedUpsert(crudUpsertRequest: CrudUpsertRequest<T> | CrudUpsertManyRequest<T>) {
+            return this.crudService.reservedUpsert(crudUpsertRequest);
         };
     }
 
     protected update<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedUpdate(crudUpdateOneRequest: CrudUpdateOneRequest<T>) {
-            return this.crudService.reservedUpdate(crudUpdateOneRequest);
+        this.targetPrototype[controllerMethodName] = function reservedUpdate(crudUpdateRequest: CrudUpdateOneRequest<T> | CrudUpdateManyRequest<T>) {
+            return this.crudService.reservedUpdate(crudUpdateRequest);
         };
     }
 
     protected destroy<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedDestroy(crudDeleteOneRequest: CrudDeleteOneRequest<T>) {
-            return this.crudService.reservedDestroy(crudDeleteOneRequest);
+        this.targetPrototype[controllerMethodName] = function reservedDestroy(crudDeleteRequest: CrudDeleteOneRequest<T> | CrudDeleteManyRequest<T>) {
+            return this.crudService.reservedDestroy(crudDeleteRequest);
         };
     }
 
     protected recover<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedRecover(crudRecoverRequest: CrudRecoverRequest<T>) {
+        this.targetPrototype[controllerMethodName] = function reservedRecover(crudRecoverRequest: CrudRecoverRequest<T> | CrudRecoverManyRequest<T>) {
             return this.crudService.reservedRecover(crudRecoverRequest);
         };
     }

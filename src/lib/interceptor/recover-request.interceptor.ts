@@ -23,8 +23,8 @@ export function RecoverRequestInterceptor(crudOptions: CrudOptions, factoryOptio
 
             const customRequestOption = req[CUSTOM_REQUEST_OPTIONS];
             
-            // Check for bulk recover (body.ids array)
-            const isBulkRecover = req.body?.ids && Array.isArray(req.body.ids);
+            // Check for bulk recover (body.ids array or ID is "bulk")
+            const isBulkRecover = (req.body?.ids && Array.isArray(req.body.ids)) || req.params?.id === 'bulk';
             
             if (isBulkRecover) {
                 // Bulk recover handling

@@ -3,7 +3,7 @@ import { Controller, INestApplication } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Entity, PrimaryGeneratedColumn, Column, DeleteDateColumn } from 'typeorm';
 import { IsString, IsEmail, IsOptional } from 'class-validator';
-import * as request from 'supertest';
+import request from 'supertest';
 
 import { Crud } from '../lib/crud.decorator';
 import { CrudService } from '../lib/crud.service';
@@ -141,7 +141,7 @@ describe('Bulk Operations Tests', () => {
             }));
 
             const response = await request(app.getHttpServer())
-                .put('/test-users')
+                .patch('/test-users/bulk')
                 .send(updates)
                 .expect(200);
 
@@ -158,7 +158,7 @@ describe('Bulk Operations Tests', () => {
             ];
 
             await request(app.getHttpServer())
-                .put('/test-users')
+                .patch('/test-users/bulk')
                 .send(updates)
                 .expect(422); // UnprocessableEntity
         });
@@ -169,7 +169,7 @@ describe('Bulk Operations Tests', () => {
             ];
 
             await request(app.getHttpServer())
-                .put('/test-users')
+                .patch('/test-users/bulk')
                 .send(updates)
                 .expect(404); // NotFoundException
         });
@@ -191,7 +191,7 @@ describe('Bulk Operations Tests', () => {
             ];
 
             const response = await request(app.getHttpServer())
-                .post('/test-users/upsert')
+                .put('/test-users/bulk')
                 .send(upsertData)
                 .expect(201);
 
@@ -218,7 +218,7 @@ describe('Bulk Operations Tests', () => {
             const idsToDelete = createdUsers.slice(0, 2).map(u => u.id);
 
             const response = await request(app.getHttpServer())
-                .delete('/test-users')
+                .delete('/test-users/bulk')
                 .send({ ids: idsToDelete })
                 .expect(200);
 
@@ -274,7 +274,7 @@ describe('Bulk Operations Tests', () => {
             ]);
 
             const response = await request(testApp.getHttpServer())
-                .delete('/soft-delete-users')
+                .delete('/soft-delete-users/bulk')
                 .send({ ids: users.map(u => u.id) })
                 .expect(200);
 
@@ -304,7 +304,7 @@ describe('Bulk Operations Tests', () => {
             const idsToRecover = users.slice(0, 2).map(u => u.id);
 
             const response = await request(app.getHttpServer())
-                .post('/test-users/recover')
+                .post('/test-users/bulk/recover')
                 .send({ ids: idsToRecover })
                 .expect(201);
 
@@ -319,7 +319,7 @@ describe('Bulk Operations Tests', () => {
 
         it('should handle not found entities in bulk recover', async () => {
             const response = await request(app.getHttpServer())
-                .post('/test-users/recover')
+                .post('/test-users/bulk/recover')
                 .send({ ids: [999, 1000] })
                 .expect(404);
         });
@@ -392,7 +392,7 @@ describe('Bulk Operations Tests', () => {
 
             // Test bulk update with hooks
             const updateResponse = await request(hookApp.getHttpServer())
-                .put('/hook-test-users')
+                .patch('/hook-test-users/bulk')
                 .send([
                     { id: createResponse.body.data[0].id, name: 'Updated 1' },
                     { id: createResponse.body.data[1].id, name: 'Updated 2' },

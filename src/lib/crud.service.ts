@@ -273,10 +273,10 @@ export class CrudService<T extends EntityType> {
                     );
 
                     // Transform entities to plain objects
-                    const transformedEntities = this.transformEntityToPlain(processedEntities);
+                    const transformedEntities = this.transformEntityToPlain(processedEntities) as T[];
                     const excludedFields = crudUpsertRequest.exclude.size > 0 ? [...crudUpsertRequest.exclude] : undefined;
 
-                    return createCrudArrayResponse(transformedEntities, { 
+                    return createCrudArrayResponse<T>(transformedEntities, { 
                         excludedFields,
                         // Track which entities were new vs updated
                         upsertInfo: upsertData.map(d => ({ isNew: d.isNew }))
@@ -361,7 +361,7 @@ export class CrudService<T extends EntityType> {
 
                 // Execute hooks
                 let processedEntity = await this.executeAssignBeforeHookForUpdate(crudUpdateRequest.hooks, entity, context);
-                processedEntity = await this.executeAssignAfterHook(crudUpdateRequest.hooks, processedEntity, updateData, context);
+                processedEntity = await this.executeAssignAfterHook(crudUpdateRequest.hooks, processedEntity, updateData as DeepPartial<T>, context);
                 processedEntity = await this.executeSaveBeforeHook(crudUpdateRequest.hooks, processedEntity, context);
 
                 return processedEntity;
@@ -385,10 +385,10 @@ export class CrudService<T extends EntityType> {
                     );
 
                     // Transform entities to plain objects
-                    const transformedEntities = this.transformEntityToPlain(processedEntities);
+                    const transformedEntities = this.transformEntityToPlain(processedEntities) as T[];
                     const excludedFields = crudUpdateRequest.exclude.size > 0 ? [...crudUpdateRequest.exclude] : undefined;
 
-                    return createCrudArrayResponse(transformedEntities, { excludedFields });
+                    return createCrudArrayResponse<T>(transformedEntities, { excludedFields });
                 })
                 .catch(this.throwConflictException);
         } else {

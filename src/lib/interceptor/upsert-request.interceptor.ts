@@ -25,14 +25,19 @@ export function UpsertRequestInterceptor(crudOptions: CrudOptions, factoryOption
             const req = context.switchToHttp().getRequest<Request>();
             const upsertOptions = crudOptions.routes?.[method] ?? {};
 
-            // Check if body is array for bulk upsert
-            const isBulkUpsert = Array.isArray(req.body);
+            // Check if body is array for bulk upsert or if the ID is "bulk"
+            const isBulkUpsert = Array.isArray(req.body) || req.params?.id === 'bulk';
             
             // Filter body parameters based on allowedParams
             const allowedParams = upsertOptions.allowedParams ?? crudOptions.allowedParams;
             
             if (isBulkUpsert) {
                 // Bulk upsert handling
+                // Ensure body is an array for bulk operations
+                if (!Array.isArray(req.body)) {
+                    throw new UnprocessableEntityException('Body must be an array for bulk upsert operations');
+                }
+                
                 if (allowedParams) {
                     req.body = req.body.map((item: any) => 
                         typeof item === 'object' && item !== null ? this.filterAllowedParams(item, allowedParams) : item
