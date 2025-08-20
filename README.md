@@ -368,6 +368,36 @@ All CRUD operations provide a consistent response structure with metadata:
 }
 ```
 
+### 📝 Bulk Operations Support
+
+| Operation | Single | Bulk (Multiple) | Description |
+|-----------|--------|-----------------|-------------|
+| **CREATE** | ✅ Supported | ✅ Supported | Submit single object or array of objects |
+| **UPDATE** | ✅ Supported | ❌ Not Supported | Only single entity update by ID |
+| **UPSERT** | ✅ Supported | ❌ Not Supported | Only single entity upsert |
+| **DELETE** | ✅ Supported | ❌ Not Supported | Only single entity delete by ID |
+
+#### Bulk Create Example
+
+```bash
+# Single creation
+POST /users
+{
+    "name": "John Doe",
+    "email": "john@example.com"
+}
+
+# Bulk creation (array submission)
+POST /users
+[
+    { "name": "John Doe", "email": "john@example.com" },
+    { "name": "Jane Smith", "email": "jane@example.com" },
+    { "name": "Bob Johnson", "email": "bob@example.com" }
+]
+```
+
+**Note**: For bulk update/delete operations, you need to implement custom endpoints or use transactions with multiple API calls.
+
 ## 🔍 RESTful Query Parameters
 
 ### 📋 Filtering
