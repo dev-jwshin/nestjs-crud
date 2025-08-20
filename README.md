@@ -18,6 +18,7 @@ A powerful library that automatically generates RESTful CRUD APIs based on NestJ
         -   [Decorator Approach (NEW! Recommended)](#🎯-method-1-decorator-approach-new--recommended)
         -   [Routes Configuration Approach (Legacy)](#🛠️-method-2-routes-configuration-approach-legacy)
     -   [Response Helpers (crudResponse)](#📋-response-helpers-crudresponse)
+    -   [CrudQueryHelper for Custom Routes](#crudqueryhelper-for-custom-routes)
 -   [Soft Delete and Recovery](#🗑️-soft-delete-and-recovery)
 -   [Migration Guide](#migration-guide)
 -   [API Documentation](#api-documentation)
@@ -2745,6 +2746,69 @@ export class UserController {
 ```
 
 #### Benefits
+
+-   Consistent response format across all endpoints
+-   Easy field exclusion and relation management
+-   Reduces boilerplate code
+-   Type-safe response handling
+
+### CrudQueryHelper for Custom Routes
+
+When you override default CRUD routes and need to implement pagination, filtering, and sorting manually, use `CrudQueryHelper`:
+
+```typescript
+import { Controller, Get, Req } from '@nestjs/common';
+import { Request } from 'express';
+import { Crud, CrudQueryHelper } from 'nestjs-crud';
+
+@Controller('users')
+@Crud({
+    entity: User,
+})
+export class UserController {
+    constructor(
+        public readonly crudService: UserService,
+        @InjectRepository(User)
+        private readonly userRepository: Repository<User>,
+    ) {}
+
+    // Override the default index route
+    @Get()
+    async index(@Req() req: Request) {
+        const qb = this.userRepository.createQueryBuilder('user');
+        
+        // Apply pagination, filtering, and sorting in one line
+        return CrudQueryHelper.applyAllToQueryBuilder(qb, req, {
+            allowedFilterFields: ['status', 'age', 'name'],
+            defaultLimit: 20
+        });
+    }
+}
+```
+
+**Supported Query Parameters:**
+
+```bash
+# Pagination
+GET /users?page=2&limit=20
+
+# Filtering
+GET /users?status=active&age=>18&name=John*
+
+# Sorting
+GET /users?sort=-createdAt,name
+
+# Combined
+GET /users?page=1&limit=10&status=active&sort=-createdAt
+```
+
+**Features:**
+- Automatic parameter extraction from request
+- Support for 30+ filter operators
+- Type-safe query building
+- Consistent response format with metadata
+
+For detailed documentation, see [CRUD_QUERY_HELPER.md](./CRUD_QUERY_HELPER.md)
 
 1. **🎯 Consistency**: Same response format across all endpoints
 2. **🤖 Automation**: Automatic metadata generation and field exclusion

@@ -10,6 +10,7 @@ export * from './lib/provider';
 export * from './lib/request';
 export * from './lib/utils/response-factory';
 export * from './lib/utils/batch-processor';
+export * from './lib/utils/crud-query-helper';
 
 // ============================================
 // 🎯 라이프사이클 훅 데코레이터들
