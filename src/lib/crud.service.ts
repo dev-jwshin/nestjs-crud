@@ -2,6 +2,7 @@
 import { ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { instanceToPlain } from 'class-transformer';
 import _ from 'lodash';
+import { In } from 'typeorm';
 
 import { 
     createCrudArrayResponse, 
@@ -12,6 +13,8 @@ import {
     isCrudDeleteManyRequest,
     isCrudRecoverManyRequest
 } from './interface';
+import { ResponseFactory } from './utils/response-factory';
+import { BatchProcessor } from './utils/batch-processor';
 
 import type { DeepPartial, FindOptionsWhere, Repository } from 'typeorm';
 import type {
@@ -186,8 +189,23 @@ export class CrudService<T extends EntityType> {
             entities[i] = await this.executeSaveBeforeHook(crudCreateRequest.hooks, entities[i], context);
         }
 
-        return this.repository
-            .save(entities, crudCreateRequest.saveOptions)
+        // Process in batches for large datasets
+        const saveEntities = async (entitiesToSave: T[]) => {
+            if (isMany && entitiesToSave.length > BatchProcessor.DEFAULT_BATCH_SIZE) {
+                // Use batch processing for large bulk operations
+                const batchSize = BatchProcessor.getOptimalBatchSize(entitiesToSave.length);
+                return BatchProcessor.processBatches(
+                    entitiesToSave,
+                    (batch) => this.repository.save(batch, crudCreateRequest.saveOptions),
+                    batchSize
+                );
+            } else {
+                // Regular save for small operations
+                return this.repository.save(entitiesToSave, crudCreateRequest.saveOptions);
+            }
+        };
+        
+        return saveEntities(entities)
             .then(async (result) => {
                 // saveAfter 훅 실행
                 for (let i = 0; i < result.length; i++) {
@@ -202,14 +220,10 @@ export class CrudService<T extends EntityType> {
                     ? result.map((entity) => this.excludeEntity(entity, crudCreateRequest.exclude))
                     : this.excludeEntity(result[0], crudCreateRequest.exclude);
 
-                // Transform entities to plain objects to apply @Exclude decorators
-                const transformedResult = this.transformEntityToPlain(processedResult);
-
+                // Use ResponseFactory for optimized transformation
                 const excludedFields = crudCreateRequest.exclude.size > 0 ? [...crudCreateRequest.exclude] : undefined;
-
-                return isMany
-                    ? createCrudArrayResponse(transformedResult, { excludedFields })
-                    : createCrudResponse(transformedResult, { excludedFields });
+                
+                return ResponseFactory.createResponse(processedResult, { excludedFields });
             })
             .catch(this.throwConflictException);
     };
@@ -339,35 +353,54 @@ export class CrudService<T extends EntityType> {
         const isMany = isCrudUpdateManyRequest<T>(crudUpdateRequest);
         
         if (isMany) {
-            // Bulk update handling
-            const updatePromises = crudUpdateRequest.body.map(async (item) => {
-                // Extract ID from the item
-                const { id, ...updateData } = item;
-                const params = { [this.primaryKey[0]]: id } as Partial<Record<keyof T, unknown>>;
-                
-                const entity = await this.findOne(params as unknown as FindOptionsWhere<T>, false);
-                if (!entity) {
-                    throw new NotFoundException(`Entity with id ${id} not found`);
-                }
-
-                const context: HookContext<T> = {
-                    operation: 'update' as Method,
-                    params,
-                    currentEntity: entity,
-                };
-
-                // Apply update data to entity
-                _.assign(entity, updateData);
-
-                // Execute hooks
-                let processedEntity = await this.executeAssignBeforeHookForUpdate(crudUpdateRequest.hooks, entity, context);
-                processedEntity = await this.executeAssignAfterHook(crudUpdateRequest.hooks, processedEntity, updateData as DeepPartial<T>, context);
-                processedEntity = await this.executeSaveBeforeHook(crudUpdateRequest.hooks, processedEntity, context);
-
-                return processedEntity;
+            // Bulk update handling - Optimized to avoid N+1 queries
+            const primaryKeyName = this.primaryKey[0];
+            
+            // 1. Collect all IDs
+            const ids = crudUpdateRequest.body.map(item => item.id || item[primaryKeyName]);
+            
+            // 2. Fetch all entities with a single query using In operator
+            const entities = await this.repository.find({
+                where: { [primaryKeyName]: In(ids) } as FindOptionsWhere<T>
             });
-
-            const entitiesToUpdate = await Promise.all(updatePromises);
+            
+            // 3. Create a map for fast lookup
+            const entityMap = new Map<any, T>();
+            entities.forEach(entity => {
+                entityMap.set(entity[primaryKeyName], entity);
+            });
+            
+            // 4. Check for missing entities
+            const missingIds = ids.filter(id => !entityMap.has(id));
+            if (missingIds.length > 0) {
+                throw new NotFoundException(`Entities not found: ${missingIds.join(', ')}`);
+            }
+            
+            // 5. Process updates with hooks
+            const entitiesToUpdate = await Promise.all(
+                crudUpdateRequest.body.map(async (item) => {
+                    const { id, ...updateData } = item;
+                    const entityId = id || item[primaryKeyName];
+                    const entity = entityMap.get(entityId)!;
+                    const params = { [primaryKeyName]: entityId } as Partial<Record<keyof T, unknown>>;
+                    
+                    const context: HookContext<T> = {
+                        operation: 'update' as Method,
+                        params,
+                        currentEntity: entity,
+                    };
+                    
+                    // Apply update data to entity
+                    _.assign(entity, updateData);
+                    
+                    // Execute hooks
+                    let processedEntity = await this.executeAssignBeforeHookForUpdate(crudUpdateRequest.hooks, entity, context);
+                    processedEntity = await this.executeAssignAfterHook(crudUpdateRequest.hooks, processedEntity, updateData as DeepPartial<T>, context);
+                    processedEntity = await this.executeSaveBeforeHook(crudUpdateRequest.hooks, processedEntity, context);
+                    
+                    return processedEntity;
+                })
+            );
             
             return this.repository
                 .save(entitiesToUpdate, crudUpdateRequest.saveOptions)
@@ -446,26 +479,47 @@ export class CrudService<T extends EntityType> {
         const isMany = isCrudDeleteManyRequest<T>(crudDeleteRequest);
         
         if (isMany) {
-            // Bulk delete handling
-            const deletePromises = crudDeleteRequest.params.map(async (params) => {
-                const entity = await this.findOne(params as unknown as FindOptionsWhere<T>, false);
-                if (!entity) {
-                    throw new NotFoundException(`Entity not found for params: ${JSON.stringify(params)}`);
-                }
-
-                const context: HookContext<T> = {
-                    operation: 'destroy' as Method,
-                    params,
-                    currentEntity: entity,
-                };
-
-                // Execute destroyBefore hook
-                const processedEntity = await this.executeDestroyBeforeHook(crudDeleteRequest.hooks, entity, context);
-                
-                return processedEntity;
+            // Bulk delete handling - Optimized to avoid N+1 queries
+            const primaryKeyName = this.primaryKey[0];
+            
+            // 1. Extract IDs from params
+            const ids = crudDeleteRequest.params.map(params => params[primaryKeyName]);
+            
+            // 2. Fetch all entities with a single query using In operator
+            const entities = await this.repository.find({
+                where: { [primaryKeyName]: In(ids) } as FindOptionsWhere<T>
             });
-
-            const entitiesToDelete = await Promise.all(deletePromises);
+            
+            // 3. Create a map for fast lookup
+            const entityMap = new Map<any, T>();
+            entities.forEach(entity => {
+                entityMap.set(entity[primaryKeyName], entity);
+            });
+            
+            // 4. Check for missing entities
+            const missingIds = ids.filter(id => !entityMap.has(id));
+            if (missingIds.length > 0) {
+                throw new NotFoundException(`Entities not found: ${missingIds.join(', ')}`);
+            }
+            
+            // 5. Process deletes with hooks
+            const entitiesToDelete = await Promise.all(
+                crudDeleteRequest.params.map(async (params) => {
+                    const entityId = params[primaryKeyName];
+                    const entity = entityMap.get(entityId)!;
+                    
+                    const context: HookContext<T> = {
+                        operation: 'destroy' as Method,
+                        params,
+                        currentEntity: entity,
+                    };
+                    
+                    // Execute destroyBefore hook
+                    const processedEntity = await this.executeDestroyBeforeHook(crudDeleteRequest.hooks, entity, context);
+                    
+                    return processedEntity;
+                })
+            );
             
             // Perform bulk delete
             const deletedEntities = await (crudDeleteRequest.softDeleted
@@ -535,28 +589,51 @@ export class CrudService<T extends EntityType> {
         const isMany = isCrudRecoverManyRequest<T>(crudRecoverRequest);
         
         if (isMany) {
-            // Bulk recover handling
-            const recoverPromises = crudRecoverRequest.params.map(async (params) => {
-                const entity = await this.findOne(params as unknown as FindOptionsWhere<T>, true);
-                if (!entity) {
-                    throw new NotFoundException(`Entity not found for params: ${JSON.stringify(params)}`);
-                }
-
-                const context: HookContext<T> = {
-                    operation: 'recover' as Method,
-                    params,
-                    currentEntity: entity,
-                };
-
-                const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
-
-                // Execute recoverBefore hook
-                const processedEntity = await this.executeRecoverBeforeHook(crudRecoverRequest.hooks, entity, context);
-                
-                return { entity: processedEntity, wasSoftDeleted };
+            // Bulk recover handling - Optimized to avoid N+1 queries
+            const primaryKeyName = this.primaryKey[0];
+            
+            // 1. Extract IDs from params
+            const ids = crudRecoverRequest.params.map(params => params[primaryKeyName]);
+            
+            // 2. Fetch all entities with a single query using In operator (with deleted records)
+            const entities = await this.repository.find({
+                where: { [primaryKeyName]: In(ids) } as FindOptionsWhere<T>,
+                withDeleted: true
             });
-
-            const recoverData = await Promise.all(recoverPromises);
+            
+            // 3. Create a map for fast lookup
+            const entityMap = new Map<any, T>();
+            entities.forEach(entity => {
+                entityMap.set(entity[primaryKeyName], entity);
+            });
+            
+            // 4. Check for missing entities
+            const missingIds = ids.filter(id => !entityMap.has(id));
+            if (missingIds.length > 0) {
+                throw new NotFoundException(`Entities not found: ${missingIds.join(', ')}`);
+            }
+            
+            // 5. Process recovers with hooks
+            const recoverData = await Promise.all(
+                crudRecoverRequest.params.map(async (params) => {
+                    const entityId = params[primaryKeyName];
+                    const entity = entityMap.get(entityId)!;
+                    
+                    const context: HookContext<T> = {
+                        operation: 'recover' as Method,
+                        params,
+                        currentEntity: entity,
+                    };
+                    
+                    const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
+                    
+                    // Execute recoverBefore hook
+                    const processedEntity = await this.executeRecoverBeforeHook(crudRecoverRequest.hooks, entity, context);
+                    
+                    return { entity: processedEntity, wasSoftDeleted };
+                })
+            );
+            
             const entitiesToRecover = recoverData.map(d => d.entity);
             
             // Perform bulk recover

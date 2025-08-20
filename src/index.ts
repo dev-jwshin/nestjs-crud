@@ -8,6 +8,8 @@ export * from './lib/interceptor';
 export * from './lib/interface';
 export * from './lib/provider';
 export * from './lib/request';
+export * from './lib/utils/response-factory';
+export * from './lib/utils/batch-processor';
 
 // ============================================
 // 🎯 라이프사이클 훅 데코레이터들
