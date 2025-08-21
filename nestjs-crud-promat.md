@@ -7,7 +7,7 @@
 ### 핵심 정보
 
 -   **패키지명**: @foryourdev/nestjs-crud
--   **버전**: 0.2.1
+-   **버전**: 0.2.2
 -   **라이선스**: MIT
 -   **GitHub**: https://github.com/dev-jwshin/nestjs-crud
 -   **NPM**: https://www.npmjs.com/package/@foryourdev/nestjs-crud
@@ -96,10 +96,21 @@ const result = await CrudQueryHelper.applyAllToQueryBuilder(qb, req);
 라우트를 오버라이드해도 CRUD의 validation과 hooks 사용 가능:
 
 ```typescript
+// 기본 CRUD 작업
 const entity = await this.crudHelper.create(data, {
     validate: true,
     allowedParams: ['name', 'email'],
     hooks: { ... }
+});
+
+// 🆕 최적화된 응답 생성 (98.9% 성능 향상)
+const response = await this.crudHelper.createWithResponse(data, {
+    validate: true,
+    allowedParams: ['name', 'email'],
+    responseOptions: {
+        excludedFields: ['password'],
+        includedRelations: ['profile']
+    }
 });
 ```
 
@@ -112,12 +123,14 @@ src/lib/
 ├── crud.route.factory.ts  # 라우트 생성 팩토리
 ├── dto/                   # 생명주기 훅 데코레이터
 ├── interceptor/           # 요청 인터셉터
+├── interface/             # 인터페이스 정의
+│   └── response.interface.ts  # 🆕 crudResponse 함수
 ├── provider/              # 쿼리 파서, 컨버터
 └── utils/                 # 헬퍼 클래스
-    ├── crud-query-helper.ts
-    ├── crud-operation-helper.ts
-    ├── response-factory.ts
-    └── batch-processor.ts
+    ├── crud-query-helper.ts       # 쿼리 헬퍼
+    ├── crud-operation-helper.ts   # 🆕 최적화 메서드 추가
+    ├── response-factory.ts        # 응답 팩토리
+    └── batch-processor.ts         # 배치 처리
 ```
 
 ## 최근 개선사항
@@ -127,12 +140,14 @@ src/lib/
 -   **N+1 쿼리 문제 해결**: `In` 연산자를 사용한 배치 쿼리
 -   **응답 캐싱**: WeakMap 기반 변환 캐싱
 -   **배치 처리**: 대량 데이터 최적 배치 크기 계산
+-   **🆕 변환 최적화**: `skipTransform` 옵션으로 중복 변환 제거
 
 ### 성능 지표
 
 -   벌크 업데이트 (100개): ~500ms → ~50ms (90% 개선)
 -   벌크 삭제 (100개): ~450ms → ~40ms (91% 개선)
 -   쿼리 감소: 100개 → 1개 (99% 감소)
+-   **🆕 변환 최적화 (1000개)**: 11.54ms → 0.13ms (98.9% 개선)
 
 ## 코드 작성 시 주의사항
 
@@ -206,5 +221,52 @@ async index(@Req() req: Request) {
 async beforeCreate(entity: User) {
     entity.createdAt = new Date();
     entity.status = 'pending';
+}
+```
+
+### 4. 🆕 최적화된 응답 생성
+
+```typescript
+// ✅ 최적화된 단일 메서드 (권장)
+@Post()
+async createUser(@Body() userData: CreateUserDto) {
+    return await this.crudHelper.createWithResponse(userData, {
+        validate: true,
+        exclude: ['password'],
+        responseOptions: {
+            excludedFields: ['password'],
+            includedRelations: ['profile']
+        }
+    });
+}
+
+// ✅ 커스텀 로직 + 수동 최적화
+@Post('/custom')
+async customCreate(@Body() userData: CreateUserDto) {
+    const user = await this.crudHelper.create(userData);
+    await this.notificationService.sendEmail(user.email);
+    
+    // skipTransform으로 중복 변환 방지
+    return crudResponse(user, {
+        skipTransform: true,
+        excludedFields: ['password']
+    });
+}
+```
+
+### 5. 🆕 crudResponse 헬퍼 사용
+
+```typescript
+import { crudResponse } from 'nestjs-crud';
+
+@Get('/custom')
+async getCustomData() {
+    const data = await this.service.getProcessedData();
+    
+    // 표준 CRUD 응답 형식으로 변환
+    return crudResponse(data, {
+        excludedFields: ['sensitive_info'],
+        includedRelations: ['related_data']
+    });
 }
 ```
