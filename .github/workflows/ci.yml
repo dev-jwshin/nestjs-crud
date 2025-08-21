@@ -31,6 +31,27 @@ jobs:
       - name: Build package
         run: npm run build
         
+      - name: Check for legacy code patterns
+        run: |
+          echo "Checking for deprecated patterns..."
+          
+          # Check for deprecated 'relations' option usage
+          if grep -r "relations:" --include="*.ts" --include="*.js" src/ | grep -v "@deprecated" | grep -v "allowedIncludes"; then
+            echo "⚠️  Warning: Found usage of deprecated 'relations' option. Use 'allowedIncludes' instead."
+          fi
+          
+          # Check for reserved prefix usage
+          if grep -r "RESERVED_" --include="*.ts" src/ | grep -v "constants.ts" | grep -v "@deprecated"; then
+            echo "⚠️  Warning: Found RESERVED_ prefix. Consider using CRUD_INTERNAL_ instead."
+          fi
+          
+          # Check for configuration-based hooks
+          if grep -r "hooks:.*{" --include="*.ts" src/test/ | head -5; then
+            echo "ℹ️  Note: Configuration-based hooks found in tests. Consider migrating to decorator-based hooks."
+          fi
+          
+          echo "✅ Legacy code check completed"
+        
       - name: Upload build artifacts
         if: matrix.node-version == '20.x'
         uses: actions/upload-artifact@v4
@@ -38,9 +59,43 @@ jobs:
           name: build-files
           path: dist/
 
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Type checking
+        run: npm run type-check
+        
+      - name: Lint checking
+        run: npm run lint
+        
+      - name: Check for TODO/FIXME comments
+        run: |
+          echo "Checking for TODO/FIXME comments..."
+          TODO_COUNT=$(grep -r "TODO\|FIXME" --include="*.ts" src/ | wc -l || echo "0")
+          if [ "$TODO_COUNT" -gt "0" ]; then
+            echo "ℹ️  Found $TODO_COUNT TODO/FIXME comments:"
+            grep -r "TODO\|FIXME" --include="*.ts" src/ | head -10
+          else
+            echo "✅ No TODO/FIXME comments found"
+          fi
+  
   publish:
     name: Publish to NPM
-    needs: test
+    needs: [test, code-quality]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
@@ -106,7 +161,7 @@ jobs:
 
   notify:
     name: Notify Results
-    needs: [test, publish]
+    needs: [test, code-quality, publish]
     runs-on: ubuntu-latest
     if: always()
     

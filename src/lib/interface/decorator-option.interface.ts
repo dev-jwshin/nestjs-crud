@@ -114,8 +114,10 @@ export interface CrudOptions {
              */
             softDelete?: boolean;
             /**
-             * @deprecated 이 옵션은 더 이상 사용되지 않습니다. allowedIncludes를 사용하세요.
+             * @deprecated This option is deprecated and will be removed in v1.0.0. Use allowedIncludes instead.
              * @default false
+             * @since v0.1.0
+             * @removal v1.0.0
              */
             relations?: false | string[];
             /**
@@ -155,10 +157,12 @@ export interface CrudOptions {
              */
             numberOfTake?: number;
             /**
-             * @deprecated 이 옵션은 더 이상 사용되지 않습니다. allowedIncludes를 사용하세요.
+             * @deprecated This option is deprecated and will be removed in v1.0.0. Use allowedIncludes instead.
              * What relations of entity should be loaded.
              * If set to false or an empty array, no relations will be loaded.
              * @default false
+             * @since v0.1.0
+             * @removal v1.0.0
              */
             relations?: false | string[];
             /**

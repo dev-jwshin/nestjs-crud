@@ -16,6 +16,7 @@ import { MetadataUtils } from 'typeorm/metadata-builder/MetadataUtils';
 import { capitalizeFirstLetter } from './capitalize-first-letter';
 import { CRUD_ROUTE_ARGS } from './constants';
 import { CRUD_POLICY } from './crud.policy';
+import { DeprecationWarnings } from './utils/deprecation-warnings';
 import { CreateRequestDto, getPropertyNamesFromMetadata } from './dto/request.dto';
 import { getLifecycleHooks, LifecycleHookMetadata } from './dto/lifecycle-hooks.decorator';
 import { Method, PaginationType, PAGINATION_SWAGGER_QUERY } from './interface';
@@ -84,6 +85,9 @@ export class CrudRouteFactory {
         this.entityInformation(crudOptions.entity);
 
         this.crudLogger = new CrudLogger(crudOptions.logging);
+        
+        // Check for deprecated features and show warnings
+        DeprecationWarnings.checkAll(crudOptions);
     }
 
     init(): void {

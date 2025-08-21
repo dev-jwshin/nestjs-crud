@@ -29,7 +29,7 @@ interface CacheStats {
     entries: number;
     hitRate: number;
     memoryUsage: number;
-    oldestEntry: number;
+    lruEntry: number; // Least Recently Used entry timestamp
     newestEntry: number;
 }
 
@@ -219,18 +219,18 @@ class MetadataCacheManager {
      * 🗑️ LRU 방식으로 가장 오래된 검증 메타데이터 캐시 제거
      */
     private evictLeastRecentlyUsed(): void {
-        let oldestKey = '';
-        let oldestTime = Date.now();
+        let lruKey = '';
+        let lruTime = Date.now();
 
         for (const [key, entry] of this.cache.entries()) {
-            if (entry.lastAccessed < oldestTime) {
-                oldestTime = entry.lastAccessed;
-                oldestKey = key;
+            if (entry.lastAccessed < lruTime) {
+                lruTime = entry.lastAccessed;
+                lruKey = key;
             }
         }
 
-        if (oldestKey) {
-            this.cache.delete(oldestKey);
+        if (lruKey) {
+            this.cache.delete(lruKey);
         }
     }
 
@@ -238,18 +238,18 @@ class MetadataCacheManager {
      * 🗑️ LRU 방식으로 가장 오래된 DTO 캐시 제거
      */
     private evictLeastRecentlyUsedDto(): void {
-        let oldestKey = '';
-        let oldestTime = Date.now();
+        let lruKey = '';
+        let lruTime = Date.now();
 
         for (const [key, entry] of this.dtoCache.entries()) {
-            if (entry.lastAccessed < oldestTime) {
-                oldestTime = entry.lastAccessed;
-                oldestKey = key;
+            if (entry.lastAccessed < lruTime) {
+                lruTime = entry.lastAccessed;
+                lruKey = key;
             }
         }
 
-        if (oldestKey) {
-            this.dtoCache.delete(oldestKey);
+        if (lruKey) {
+            this.dtoCache.delete(lruKey);
         }
     }
 
@@ -312,17 +312,17 @@ class MetadataCacheManager {
         // 메모리 사용량 추정 (대략적)
         const memoryUsage = (this.cache.size + this.dtoCache.size) * 1024; // 1KB per entry 추정
 
-        // 가장 오래된/새로운 엔트리 찾기
-        let oldestEntry = Date.now();
+        // LRU/MRU (Most Recently Used) 엔트리 찾기
+        let lruEntry = Date.now();
         let newestEntry = 0;
 
         for (const entry of this.cache.values()) {
-            if (entry.timestamp < oldestEntry) oldestEntry = entry.timestamp;
+            if (entry.timestamp < lruEntry) lruEntry = entry.timestamp;
             if (entry.timestamp > newestEntry) newestEntry = entry.timestamp;
         }
 
         for (const entry of this.dtoCache.values()) {
-            if (entry.timestamp < oldestEntry) oldestEntry = entry.timestamp;
+            if (entry.timestamp < lruEntry) lruEntry = entry.timestamp;
             if (entry.timestamp > newestEntry) newestEntry = entry.timestamp;
         }
 
@@ -332,7 +332,7 @@ class MetadataCacheManager {
             entries: this.cache.size + this.dtoCache.size,
             hitRate: Math.round(hitRate * 100) / 100,
             memoryUsage,
-            oldestEntry,
+            lruEntry,
             newestEntry,
         };
     }
