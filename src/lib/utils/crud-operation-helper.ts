@@ -1,10 +1,11 @@
 import { BadRequestException, UnprocessableEntityException } from '@nestjs/common';
-import { plainToInstance } from 'class-transformer';
+import { plainToInstance, instanceToPlain } from 'class-transformer';
 import { validate, ValidationError } from 'class-validator';
 import { Repository, DeepPartial, ObjectLiteral } from 'typeorm';
 import { Request } from 'express';
 import _ from 'lodash';
 import { CrudOptions, LifecycleHooks, HookContext, Method } from '../interface';
+import { crudResponse, CrudResponse, CrudArrayResponse } from '../interface/response.interface';
 
 /**
  * CrudOperationHelper - route 오버라이드 시에도 CRUD의 핵심 기능을 사용할 수 있게 하는 헬퍼
@@ -244,8 +245,11 @@ export class CrudOperationHelper<T extends ObjectLiteral = any> {
             finalEntity = await options.hooks.saveAfter(savedEntity, context);
         }
 
-        // 9. Exclude fields
-        return this.excludeFields(finalEntity, 'create', options?.exclude);
+        // 9. Exclude fields and return transformed data
+        const result = this.excludeFields(finalEntity, 'create', options?.exclude);
+        
+        // Apply instanceToPlain transformation for consistent output
+        return instanceToPlain(result) as T;
     }
 
     /**
@@ -312,8 +316,11 @@ export class CrudOperationHelper<T extends ObjectLiteral = any> {
             finalEntity = await options.hooks.saveAfter(savedEntity, context);
         }
 
-        // 9. Exclude fields
-        return this.excludeFields(finalEntity, 'update', options?.exclude);
+        // 9. Exclude fields and return transformed data
+        const result = this.excludeFields(finalEntity, 'update', options?.exclude);
+        
+        // Apply instanceToPlain transformation for consistent output
+        return instanceToPlain(result) as T;
     }
 
     /**
@@ -446,5 +453,116 @@ export class CrudOperationHelper<T extends ObjectLiteral = any> {
                 inverseEntityMetadata: rel.inverseEntityMetadata.tableName,
             })),
         };
+    }
+
+    /**
+     * Create operation with optimized crudResponse integration
+     * 최적화된 crudResponse와 통합된 생성 작업
+     */
+    async createWithResponse(
+        data: any,
+        options?: {
+            allowedParams?: string[];
+            exclude?: string[];
+            hooks?: LifecycleHooks<T>;
+            validate?: boolean;
+            responseOptions?: {
+                excludedFields?: string[];
+                includedRelations?: string[];
+            };
+        }
+    ): Promise<CrudResponse<T>> {
+        // Use regular create method (which now returns transformed data)
+        const result = await this.create(data, options);
+        
+        // Use crudResponse with skipTransform since data is already transformed
+        return crudResponse(result, {
+            ...options?.responseOptions,
+            skipTransform: true, // Skip redundant transformation
+        });
+    }
+
+    /**
+     * Update operation with optimized crudResponse integration
+     * 최적화된 crudResponse와 통합된 업데이트 작업
+     */
+    async updateWithResponse(
+        id: any,
+        data: any,
+        options?: {
+            allowedParams?: string[];
+            exclude?: string[];
+            hooks?: LifecycleHooks<T>;
+            validate?: boolean;
+            responseOptions?: {
+                excludedFields?: string[];
+                includedRelations?: string[];
+            };
+        }
+    ): Promise<CrudResponse<T>> {
+        // Use regular update method (which now returns transformed data)
+        const result = await this.update(id, data, options);
+        
+        // Use crudResponse with skipTransform since data is already transformed
+        return crudResponse(result, {
+            ...options?.responseOptions,
+            skipTransform: true, // Skip redundant transformation
+        });
+    }
+
+    /**
+     * Bulk create with optimized crudResponse integration
+     * 최적화된 crudResponse와 통합된 벌크 생성 작업
+     */
+    async bulkCreateWithResponse(
+        dataArray: any[],
+        options?: {
+            allowedParams?: string[];
+            exclude?: string[];
+            hooks?: LifecycleHooks<T>;
+            validate?: boolean;
+            batchSize?: number;
+            responseOptions?: {
+                excludedFields?: string[];
+                includedRelations?: string[];
+            };
+        }
+    ): Promise<CrudArrayResponse<T>> {
+        // Use regular bulkCreate method (which now returns transformed data)
+        const results = await this.bulkCreate(dataArray, options);
+        
+        // Use crudResponse with skipTransform since data is already transformed
+        return crudResponse(results, {
+            ...options?.responseOptions,
+            skipTransform: true, // Skip redundant transformation
+        });
+    }
+
+    /**
+     * Bulk update with optimized crudResponse integration
+     * 최적화된 crudResponse와 통합된 벌크 업데이트 작업
+     */
+    async bulkUpdateWithResponse(
+        updates: Array<{ id: any; [key: string]: any }>,
+        options?: {
+            allowedParams?: string[];
+            exclude?: string[];
+            hooks?: LifecycleHooks<T>;
+            validate?: boolean;
+            batchSize?: number;
+            responseOptions?: {
+                excludedFields?: string[];
+                includedRelations?: string[];
+            };
+        }
+    ): Promise<CrudArrayResponse<T>> {
+        // Use regular bulkUpdate method (which now returns transformed data)
+        const results = await this.bulkUpdate(updates, options);
+        
+        // Use crudResponse with skipTransform since data is already transformed
+        return crudResponse(results, {
+            ...options?.responseOptions,
+            skipTransform: true, // Skip redundant transformation
+        });
     }
 }

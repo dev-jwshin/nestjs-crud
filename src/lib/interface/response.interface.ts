@@ -91,6 +91,7 @@ export function crudResponse<T>(
     page?: number;
     excludedFields?: string[];
     includedRelations?: string[];
+    skipTransform?: boolean;
   },
   request?: { query?: any }
 ): CrudArrayResponse<T>;
@@ -100,6 +101,7 @@ export function crudResponse<T>(
   options?: {
     excludedFields?: string[];
     includedRelations?: string[];
+    skipTransform?: boolean;
   },
   request?: { query?: any }
 ): CrudResponse<T>;
@@ -113,6 +115,7 @@ export function crudResponse<T>(
     page?: number;
     excludedFields?: string[];
     includedRelations?: string[];
+    skipTransform?: boolean;
   },
   request?: { query?: any }
 ): CrudResponse<T> | CrudArrayResponse<T> {
@@ -126,10 +129,11 @@ export function crudResponse<T>(
     page = options?.page ?? queryPagination.page ?? 1,
     excludedFields,
     includedRelations,
+    skipTransform = false,
   } = { ...queryPagination, ...options };
 
-  // Transform data to plain object to apply @Exclude decorators
-  const transformedData = instanceToPlain(data);
+  // Transform data to plain object to apply @Exclude decorators (only if not skipped)
+  const transformedData = skipTransform ? data : instanceToPlain(data);
 
   const baseMetadata = {
     timestamp: new Date().toISOString(),
