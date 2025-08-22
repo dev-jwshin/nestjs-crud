@@ -53,3 +53,9 @@ export interface OffsetPaginationResponse<T> extends PaginationAbstractResponse<
 export type PaginationRequest = PaginationCursorDto | PaginationOffsetDto;
 
 export type PaginationResponse<T> = CursorPaginationResponse<T> | OffsetPaginationResponse<T>;
+
+export interface PaginationOptions {
+    type?: PaginationType;
+    maxLimit?: number;
+    defaultLimit?: number;
+}

@@ -18,6 +18,8 @@ import { CRUD_ROUTE_ARGS } from './constants';
 import { CRUD_POLICY } from './crud.policy';
 import { CreateRequestDto, getPropertyNamesFromMetadata } from './dto/request.dto';
 import { getLifecycleHooks, LifecycleHookMetadata } from './dto/lifecycle-hooks.decorator';
+import { buildCrudOptionsFromChaining } from './decorator/chaining.decorator';
+import { buildConditionalCrudOptions } from './decorator/conditional.decorator';
 import { Method, PaginationType, PAGINATION_SWAGGER_QUERY } from './interface';
 import { CrudLogger } from './provider/crud-logger';
 
@@ -81,9 +83,35 @@ export class CrudRouteFactory {
         protected target: any,
         protected crudOptions: CrudOptions,
     ) {
-        this.entityInformation(crudOptions.entity);
+        // 체이닝 데코레이터로부터 옵션 병합
+        this.mergeChainingOptions();
+        
+        this.entityInformation(this.crudOptions.entity);
 
-        this.crudLogger = new CrudLogger(crudOptions.logging);
+        this.crudLogger = new CrudLogger(this.crudOptions.logging);
+    }
+
+    /**
+     * 체이닝 데코레이터들로부터 옵션을 병합
+     */
+    private mergeChainingOptions(): void {
+        // 체이닝 데코레이터로부터 옵션 가져오기
+        const chainingOptions = buildCrudOptionsFromChaining(this.target);
+        const conditionalOptions = buildConditionalCrudOptions(this.target);
+
+        // 체이닝 옵션이 있으면 병합
+        if (chainingOptions) {
+            this.crudOptions = {
+                ...chainingOptions,
+                ...this.crudOptions, // 기존 옵션이 우선순위를 가짐
+            };
+        }
+
+        // 조건부 옵션 병합
+        this.crudOptions = {
+            ...this.crudOptions,
+            ...conditionalOptions,
+        };
     }
 
     init(): void {

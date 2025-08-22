@@ -1,0 +1,161 @@
+{
+  "name": "nestjs-crud-vscode",
+  "displayName": "NestJS CRUD Extension",
+  "description": "VS Code extension for NestJS CRUD development",
+  "version": "0.1.0",
+  "publisher": "foryourdev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/foryourdev/nestjs-crud"
+  },
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Snippets",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "nestjs",
+    "crud",
+    "typeorm",
+    "typescript",
+    "api"
+  ],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onCommand:nestjs-crud.generateCrud",
+    "workspaceContains:**/*.entity.ts"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "nestjs-crud.generateCrud",
+        "title": "Generate CRUD",
+        "category": "NestJS CRUD"
+      },
+      {
+        "command": "nestjs-crud.generateEntity",
+        "title": "Generate Entity",
+        "category": "NestJS CRUD"
+      },
+      {
+        "command": "nestjs-crud.generateDto",
+        "title": "Generate DTO",
+        "category": "NestJS CRUD"
+      },
+      {
+        "command": "nestjs-crud.analyzePerformance",
+        "title": "Analyze Performance",
+        "category": "NestJS CRUD"
+      },
+      {
+        "command": "nestjs-crud.generateDocs",
+        "title": "Generate Documentation",
+        "category": "NestJS CRUD"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "nestjs-crud.generateCrud",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation@1"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "nestjs-crud.generateEntity",
+          "when": "resourceExtname == .ts",
+          "group": "1_modification@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "nestjs-crud.generateCrud",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "nestjs-crud.generateEntity",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "nestjs-crud.generateDto",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "nestjs-crud.analyzePerformance",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "nestjs-crud.generateDocs",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    },
+    "snippets": [
+      {
+        "language": "typescript",
+        "path": "./snippets/nestjs-crud.json"
+      }
+    ],
+    "configuration": {
+      "title": "NestJS CRUD",
+      "properties": {
+        "nestjs-crud.autoImport": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically import NestJS CRUD decorators and classes"
+        },
+        "nestjs-crud.generateTests": {
+          "type": "boolean",
+          "default": true,
+          "description": "Generate test files along with CRUD files"
+        },
+        "nestjs-crud.defaultDatabase": {
+          "type": "string",
+          "enum": ["mysql", "postgres", "sqlite", "mongodb"],
+          "default": "mysql",
+          "description": "Default database type for entity generation"
+        },
+        "nestjs-crud.outputPath": {
+          "type": "string",
+          "default": "./src",
+          "description": "Default output path for generated files"
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "typescript",
+        "extensions": [".ts"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "typescript",
+        "scopeName": "source.ts.nestjs-crud",
+        "path": "./syntaxes/nestjs-crud.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.70.0",
+    "@types/node": "16.x",
+    "typescript": "^4.7.4",
+    "vsce": "^2.10.0"
+  },
+  "dependencies": {
+    "@foryourdev/nestjs-crud": "^0.2.2"
+  }
+}

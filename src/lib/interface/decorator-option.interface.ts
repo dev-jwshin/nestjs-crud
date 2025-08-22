@@ -297,6 +297,11 @@ export interface CrudOptions {
      * An array of methods to generate routes for. If not specified, all routes will be generated.
      */
     only?: Array<Method | `${Method}`>;
+
+    /**
+     * Pagination configuration options
+     */
+    pagination?: import('./pagination.interface').PaginationOptions;
 }
 
 /**
