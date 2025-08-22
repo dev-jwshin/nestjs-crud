@@ -1,4 +1,4 @@
-# @foryourdev/nestjs-crud v0.2.5 - 완전한 사용 가이드
+# @foryourdev/nestjs-crud v0.2.6 - 완전한 사용 가이드
 
 이 패키지는 NestJS와 TypeORM 기반으로 RESTful CRUD API를 자동 생성하는 라이브러리입니다. 21개의 고급 편의 기능과 성능 최적화 도구를 포함하여 엔터프라이즈급 애플리케이션 개발을 지원합니다.
 
@@ -230,15 +230,19 @@ CREATE INDEX CONCURRENTLY idx_posts_description_fts
 ON posts USING GIN (to_tsvector('english', description));
 ```
 
-#### 헬퍼 메서드로 인덱스 SQL 생성
+#### GIN 인덱스 생성 가이드
 
-```typescript
-import { QueryConverter } from '@foryourdev/nestjs-crud';
+```sql
+-- 한국어 전문 검색을 위한 GIN 인덱스 생성
+-- CONCURRENTLY 옵션으로 테이블 락 없이 인덱스 생성
+CREATE INDEX CONCURRENTLY idx_posts_title_fts 
+ON posts USING GIN (to_tsvector('korean', title));
 
-// GIN 인덱스 생성 SQL 자동 생성
-const indexSQL = QueryConverter.generateGinIndexSQL('posts', 'title', 'korean');
-console.log(indexSQL);
-// 출력: CREATE INDEX CONCURRENTLY idx_posts_title_fts ON posts USING GIN (to_tsvector('korean', title));
+-- 복합 필드 인덱스 (제목과 내용 동시 검색)
+CREATE INDEX CONCURRENTLY idx_posts_content_fts 
+ON posts USING GIN (
+    to_tsvector('korean', coalesce(title, '') || ' ' || coalesce(content, ''))
+);
 ```
 
 #### 주의사항
@@ -246,14 +250,16 @@ console.log(indexSQL);
 - `_fts` 연산자는 **PostgreSQL 전용**입니다
 - 다른 데이터베이스(MySQL, SQLite 등)에서 사용 시 에러가 발생합니다
 - 성능 최적화를 위해 GIN 인덱스 생성을 강력히 권장합니다
+- **보안**: 입력값은 TypeORM의 파라미터 바인딩을 통해 자동으로 이스케이프되어 SQL 인젝션으로부터 안전합니다
 
-## 최신 업데이트 (v0.2.5)
+## 최신 업데이트 (v0.2.6)
 
 ### 주요 변경사항
 - **21개 고급 편의 기능 추가**: 체이닝 데코레이터, 타입 안전 쿼리 빌더, 다층 캐싱, CLI 도구, IDE 확장 등
 - **성능 최적화**: 스마트 배치 처리, 진행 상황 추적, 쿼리 성능 분석
 - **개발 도구**: VS Code 확장, IntelliJ 플러그인, 자동 테스트 생성, 디버깅 도구
 - **응답 형식 변환**: JSON:API, HAL, OData, GraphQL 형식 지원
+- **PostgreSQL 전문 검색**: GIN 인덱스 기반 고성능 전문 검색 지원 (v0.2.6)
 
 ## 🎯 체이닝 가능한 설정 데코레이터
 
@@ -449,6 +455,88 @@ npx nestjs-crud analyze performance --connection default --output report.json
 - `NestJS CRUD: Generate DTO` - DTO 생성
 - `NestJS CRUD: Analyze Performance` - 성능 분석
 - `NestJS CRUD: Generate Documentation` - 문서 생성
+
+## 🔄 추가 고급 유틸리티
+
+### CrudConditionalHelper - 조건부 필드 처리
+
+동적으로 필드를 포함하거나 제외할 수 있습니다.
+
+```typescript
+import { CrudConditionalHelper } from '@foryourdev/nestjs-crud';
+
+const helper = new CrudConditionalHelper();
+
+// 사용자 권한에 따른 필드 제어
+const fields = helper.processFields(user, {
+    conditions: [
+        { when: (u) => u.role === 'admin', include: ['salary', 'ssn'] },
+        { when: (u) => u.role === 'user', exclude: ['salary', 'ssn', 'internalNotes'] }
+    ]
+});
+```
+
+### LazyRelationLoader - 지연 관계 로딩
+
+필요할 때만 관계를 로드하여 성능을 최적화합니다.
+
+```typescript
+import { LazyRelationLoader } from '@foryourdev/nestjs-crud';
+
+@Injectable()
+export class UserService extends CrudService<User> {
+    private lazyLoader: LazyRelationLoader<User>;
+    
+    async getUserWithLazyRelations(id: number) {
+        const user = await this.findOne(id);
+        
+        // 필요한 경우에만 관계 로드
+        if (shouldLoadPosts) {
+            await this.lazyLoader.load(user, ['posts']);
+        }
+        
+        return user;
+    }
+}
+```
+
+### ChangeDetector - 변경 감지 시스템
+
+엔티티의 변경 사항을 추적하고 감지합니다.
+
+```typescript
+import { ChangeDetector } from '@foryourdev/nestjs-crud';
+
+const detector = new ChangeDetector();
+
+// 변경 사항 감지
+const changes = detector.detectChanges(originalEntity, updatedEntity);
+console.log('변경된 필드:', changes.changedFields);
+console.log('변경 이력:', changes.history);
+
+// 변경 사항 적용 여부 결정
+if (changes.hasSignificantChanges()) {
+    await this.repository.save(updatedEntity);
+}
+```
+
+### ConditionalFieldProcessor - 조건부 필드 프로세서
+
+비즈니스 로직에 따라 필드를 동적으로 처리합니다.
+
+```typescript
+import { ConditionalFieldProcessor } from '@foryourdev/nestjs-crud';
+
+const processor = new ConditionalFieldProcessor();
+
+// 조건부 필드 처리
+const processed = processor.process(entity, {
+    rules: [
+        { field: 'discount', condition: (e) => e.vip === true, transform: (v) => v * 1.5 },
+        { field: 'price', condition: (e) => e.bulk === true, transform: (v) => v * 0.8 }
+    ]
+});
+```
 
 ## 🧪 자동 테스트 생성
 
@@ -888,12 +976,37 @@ ON posts USING GIN (
 ```
 
 ```typescript
-// ✅ 헬퍼 메서드로 인덱스 생성 SQL 자동 생성
-import { QueryConverter } from '@foryourdev/nestjs-crud';
+// ✅ TypeORM 마이그레이션으로 인덱스 생성
+export class AddFullTextSearchIndexes1234567890 implements MigrationInterface {
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`
+            CREATE INDEX CONCURRENTLY idx_posts_title_fts 
+            ON posts USING GIN (to_tsvector('korean', title))
+        `);
+    }
 
-const indexSQL = QueryConverter.generateGinIndexSQL('posts', 'title', 'korean');
-// 실행할 SQL: CREATE INDEX CONCURRENTLY idx_posts_title_fts ON posts USING GIN (to_tsvector('korean', title));
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`DROP INDEX idx_posts_title_fts`);
+    }
+}
 ```
+
+## 📝 v0.2.6 마이그레이션 가이드
+
+### 인터페이스 이름 변경
+일부 인터페이스 이름이 충돌 방지를 위해 변경되었습니다:
+
+```typescript
+// 이전 (v0.2.5)
+import { PaginationOptions } from '@foryourdev/nestjs-crud';
+
+// 이후 (v0.2.6)
+import { CrudQueryPaginationOptions } from '@foryourdev/nestjs-crud';
+```
+
+영향받는 인터페이스:
+- `PaginationOptions` → `CrudQueryPaginationOptions`
+- 대부분의 경우 타입 추론으로 자동 처리되므로 코드 변경이 필요하지 않습니다
 
 ## 일반적인 문제 해결
 
@@ -938,7 +1051,7 @@ const indexSQL = QueryConverter.generateGinIndexSQL('posts', 'title', 'korean');
 
 ---
 
-**이 프로젝트는 @foryourdev/nestjs-crud v0.2.5 패키지를 사용합니다.** 
+**이 프로젝트는 @foryourdev/nestjs-crud v0.2.6 패키지를 사용합니다.** 
 
 이 패키지는 NestJS와 TypeORM 기반의 자동 CRUD API 생성 라이브러리로, 21개의 고급 편의 기능을 포함합니다:
 
@@ -950,7 +1063,7 @@ const indexSQL = QueryConverter.generateGinIndexSQL('posts', 'title', 'korean');
 - 생명주기 훅 (`@BeforeCreate`, `@AfterUpdate` 등)
 - 소프트 삭제 및 복구 기능
 
-**🚀 고급 기능 (v0.2.5):**
+**🚀 고급 기능 (v0.2.6):**
 - **체이닝 데코레이터**: `@CrudConfig().entity(User).allowParams(['name']).apply()`
 - **조건부 설정**: 환경별 동적 CRUD 설정
 - **타입 안전 쿼리 빌더**: `TypeSafeQueryBuilder<User>()` 완전한 타입 검증
