@@ -100,6 +100,7 @@ export class QueryParser {
             not_null: FilterOperator.NOT_NULL,
             present: FilterOperator.PRESENT,
             blank: FilterOperator.BLANK,
+            fts: FilterOperator.FTS,
         };
 
         return operatorMap[operatorStr] || null;
@@ -135,6 +136,10 @@ export class QueryParser {
 
             case FilterOperator.CONTAINS:
                 return `%${stringValue}%`;
+
+            case FilterOperator.FTS:
+                // Return the search term as-is for PostgreSQL full-text search
+                return stringValue;
 
             default:
                 return stringValue;

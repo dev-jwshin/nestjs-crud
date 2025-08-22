@@ -7,5 +7,5 @@
         "module": "esnext",
         "target": "esnext"
     },
-    "exclude": ["jest.config.ts", "jest.setup.ts", "spec", "**/*.spec.ts", "**/*.test.ts", "src/test/**/*", "src/test.simple.ts"]
+    "exclude": ["jest.config.ts", "jest.setup.ts", "spec", "**/*.spec.ts", "**/*.test.ts", "src/test/**/*", "src/test.simple.ts", "examples/**/*"]
 }

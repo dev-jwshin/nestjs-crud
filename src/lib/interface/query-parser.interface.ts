@@ -33,6 +33,9 @@ export enum FilterOperator {
     NOT_NULL = 'not_null', // is not null
     PRESENT = 'present', // has value (not null/empty)
     BLANK = 'blank', // is null or empty
+
+    // PostgreSQL 전문 검색 (Full-Text Search)
+    FTS = 'fts', // PostgreSQL to_tsvector & plainto_tsquery
 }
 
 export interface SortOperation {

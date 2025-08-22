@@ -11,7 +11,8 @@ import {
     isCrudUpdateManyRequest,
     isCrudUpsertManyRequest,
     isCrudDeleteManyRequest,
-    isCrudRecoverManyRequest
+    isCrudRecoverManyRequest,
+    FilterOperator
 } from './interface';
 import { ResponseFactory } from './utils/response-factory';
 import { BatchProcessor } from './utils/batch-processor';
@@ -50,7 +51,68 @@ export class CrudService<T extends EntityType> {
         this.columnNames = this.repository.metadata.columns.map((column) => column.propertyPath);
     }
 
+    /**
+     * PostgreSQL 전문 검색 기능 사용 가능 여부를 확인합니다.
+     */
+    private validatePostgreSQLFullTextSearch(): void {
+        const databaseType = this.repository.metadata.connection?.options.type;
+        if (databaseType !== 'postgres') {
+            throw new Error(
+                'Full-text search (_fts) operator is only supported with PostgreSQL database. ' +
+                `Current database type (${databaseType}) does not support to_tsvector and plainto_tsquery functions.`
+            );
+        }
+    }
+
+    /**
+     * 요청에서 전문 검색 사용 여부를 확인하고 필요 시 PostgreSQL 검증을 수행합니다.
+     */
+    private validateFullTextSearchInRequest(crudReadManyRequest: CrudReadManyRequest<T>): void {
+        const findOptions = crudReadManyRequest.findOptions;
+        
+        // where 조건에서 Raw 쿼리 검색 (FTS는 Raw 쿼리로 변환됨)
+        if (this.hasFullTextSearchInWhere(findOptions.where)) {
+            this.validatePostgreSQLFullTextSearch();
+        }
+    }
+
+    /**
+     * Where 조건에서 전문 검색 Raw 쿼리가 있는지 확인합니다.
+     */
+    private hasFullTextSearchInWhere(where: any): boolean {
+        if (!where) return false;
+
+        if (Array.isArray(where)) {
+            return where.some(w => this.hasFullTextSearchInWhere(w));
+        }
+
+        if (typeof where === 'object') {
+            for (const value of Object.values(where)) {
+                // TypeORM Raw 객체 확인
+                if (value && typeof value === 'object' && '_type' in value && value._type === 'raw') {
+                    const sql = (value as any).sql || '';
+                    // PostgreSQL 전문 검색 함수 확인
+                    if (sql.includes('to_tsvector') && sql.includes('plainto_tsquery')) {
+                        return true;
+                    }
+                }
+                
+                // 중첩 객체 재귀 검색
+                if (value && typeof value === 'object') {
+                    if (this.hasFullTextSearchInWhere(value)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     readonly handleIndex = async (crudReadManyRequest: CrudReadManyRequest<T>): Promise<CrudArrayResponse<T>> => {
+        // PostgreSQL 전문 검색 사용 시 데이터베이스 타입 검증
+        this.validateFullTextSearchInRequest(crudReadManyRequest);
+        
         crudReadManyRequest.excludedColumns(this.columnNames);
         const { entities, total } = await (async () => {
             const findEntities = this.repository.find({ ...crudReadManyRequest.findOptions });

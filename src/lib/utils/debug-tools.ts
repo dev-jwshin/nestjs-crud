@@ -755,20 +755,20 @@ export function DebugInterceptor(options: DebugInterceptorOptions = {}) {
         const method = descriptor.value;
         
         descriptor.value = async function (...args: any[]) {
-            const debugger = this.debugger as CrudDebugger;
-            if (!debugger) return method.apply(this, args);
+            const debugInstance = this.debugger as CrudDebugger;
+            if (!debugInstance) return method.apply(this, args);
             
             const startTime = Date.now();
             
             try {
-                debugger.logEvent('request_start', `${target.constructor.name}.${propertyName}`, {
+                debugInstance.logEvent('request_start', `${target.constructor.name}.${propertyName}`, {
                     arguments: options.includeRequestData ? args : '[hidden]'
                 });
                 
                 const result = await method.apply(this, args);
                 const duration = Date.now() - startTime;
                 
-                debugger.logEvent('request_end', `${target.constructor.name}.${propertyName}`, {
+                debugInstance.logEvent('request_end', `${target.constructor.name}.${propertyName}`, {
                     duration,
                     success: true
                 });
@@ -777,7 +777,7 @@ export function DebugInterceptor(options: DebugInterceptorOptions = {}) {
             } catch (error) {
                 const duration = Date.now() - startTime;
                 
-                debugger.logError(error, `${target.constructor.name}.${propertyName}`, {
+                debugInstance.logError(error, `${target.constructor.name}.${propertyName}`, {
                     duration,
                     arguments: options.includeRequestData ? args : '[hidden]'
                 });

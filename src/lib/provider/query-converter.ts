@@ -1,12 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Between, In, Like, ILike, MoreThan, MoreThanOrEqual, LessThan, LessThanOrEqual, Not, IsNull, Equal } from 'typeorm';
+import { Between, In, Like, ILike, MoreThan, MoreThanOrEqual, LessThan, LessThanOrEqual, Not, IsNull, Equal, Raw } from 'typeorm';
 
 import { FilterOperator } from '../interface/query-parser.interface';
 
 import type { FilterOperation, SortOperation, IncludeOperation, PageOperation, ParsedQuery } from '../interface/query-parser.interface';
-import type { FindManyOptions, FindOptionsWhere, FindOptionsOrder, FindOptionsRelations } from 'typeorm';
+import type { FindManyOptions, FindOptionsWhere, FindOptionsOrder, FindOptionsRelations, DataSource, Repository } from 'typeorm';
 
 export class QueryConverter<T = any> {
+    private dataSource?: DataSource;
+
+    constructor(dataSourceOrRepository?: DataSource | Repository<any>) {
+        if (dataSourceOrRepository) {
+            if ('metadata' in dataSourceOrRepository && 'manager' in dataSourceOrRepository) {
+                // Repository가 전달된 경우
+                this.dataSource = dataSourceOrRepository.manager.connection;
+            } else {
+                // DataSource가 전달된 경우
+                this.dataSource = dataSourceOrRepository as DataSource;
+            }
+        }
+    }
+
     convertToFindOptions(parsedQuery: ParsedQuery): FindManyOptions<T> {
         const options: FindManyOptions<T> = {};
 
@@ -121,6 +135,9 @@ export class QueryConverter<T = any> {
                 }
                 return undefined;
 
+            case FilterOperator.FTS:
+                return this.createFullTextSearchCondition(filter.field, value as string);
+
             default:
                 return Equal(value);
         }
@@ -223,5 +240,51 @@ export class QueryConverter<T = any> {
         where[cursorField] = direction === 'ASC' ? MoreThan(cursorValue) : LessThan(cursorValue);
 
         return where;
+    }
+
+    /**
+     * PostgreSQL 전문 검색 조건을 생성합니다.
+     * to_tsvector와 plainto_tsquery를 사용하여 GIN 인덱스를 활용한 빠른 전문 검색을 제공합니다.
+     */
+    private createFullTextSearchCondition(field: string, searchTerm: string): any {
+        // 검색어가 비어있는 경우 처리
+        if (!searchTerm?.trim()) {
+            throw new Error('Full-text search requires a non-empty search term.');
+        }
+
+        // DataSource가 있는 경우에만 검증 수행
+        if (this.dataSource && !this.isPostgreSQL()) {
+            throw new Error(
+                'Full-text search (_fts) operator is only supported with PostgreSQL database. ' +
+                'Current database type does not support to_tsvector and plainto_tsquery functions.'
+            );
+        }
+
+        // PostgreSQL 전문 검색 Raw 쿼리 생성
+        // to_tsvector('korean', field) @@ plainto_tsquery('korean', :searchTerm)
+        return Raw(
+            (alias) => `to_tsvector('korean', ${alias}.${field}) @@ plainto_tsquery('korean', :searchTerm)`,
+            { searchTerm: searchTerm.trim() }
+        );
+    }
+
+    /**
+     * 현재 데이터베이스가 PostgreSQL인지 확인합니다.
+     */
+    private isPostgreSQL(): boolean {
+        if (!this.dataSource) {
+            // DataSource가 없는 경우 기본적으로 false 반환 (안전하게)
+            return false;
+        }
+
+        return this.dataSource.options.type === 'postgres';
+    }
+
+    /**
+     * PostgreSQL GIN 인덱스 생성을 위한 헬퍼 메서드
+     * 개발자가 수동으로 인덱스를 생성할 때 참고용
+     */
+    static generateGinIndexSQL(tableName: string, columnName: string, language: string = 'korean'): string {
+        return `CREATE INDEX CONCURRENTLY idx_${tableName}_${columnName}_fts ON ${tableName} USING GIN (to_tsvector('${language}', ${columnName}));`;
     }
 }
