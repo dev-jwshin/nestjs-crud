@@ -88,7 +88,7 @@ export class CrudCodeGenerator {
             result.stats.created = result.files.length;
             
         } catch (error) {
-            result.errors.push(error.message);
+            result.errors.push((error as Error).message);
             result.stats.errors++;
         }
 
@@ -100,6 +100,7 @@ export class CrudCodeGenerator {
      */
     private async generateEntity(options: CodeGeneratorOptions): Promise<GeneratedFile> {
         const template = this.templates.get('entity');
+        if (!template) throw new Error('Entity template not found');
         const content = await template.render({
             entityName: options.entityName,
             className: this.pascalCase(options.entityName),
@@ -123,6 +124,9 @@ export class CrudCodeGenerator {
 
         // Create DTO
         const createTemplate = this.templates.get('create-dto');
+        if (!createTemplate) {
+            throw new Error('Create DTO template not found');
+        }
         const createContent = await createTemplate.render({
             entityName: options.entityName,
             className
@@ -136,6 +140,9 @@ export class CrudCodeGenerator {
 
         // Update DTO
         const updateTemplate = this.templates.get('update-dto');
+        if (!updateTemplate) {
+            throw new Error('Update DTO template not found');
+        }
         const updateContent = await updateTemplate.render({
             entityName: options.entityName,
             className
@@ -155,6 +162,7 @@ export class CrudCodeGenerator {
      */
     private async generateService(options: CodeGeneratorOptions): Promise<GeneratedFile> {
         const template = this.templates.get('service');
+        if (!template) throw new Error('Service template not found');
         const content = await template.render({
             entityName: options.entityName,
             className: this.pascalCase(options.entityName),
@@ -173,6 +181,7 @@ export class CrudCodeGenerator {
      */
     private async generateController(options: CodeGeneratorOptions): Promise<GeneratedFile> {
         const template = this.templates.get('controller');
+        if (!template) throw new Error('Controller template not found');
         const content = await template.render({
             entityName: options.entityName,
             className: this.pascalCase(options.entityName),
@@ -193,6 +202,7 @@ export class CrudCodeGenerator {
      */
     private async generateModule(options: CodeGeneratorOptions): Promise<GeneratedFile> {
         const template = this.templates.get('module');
+        if (!template) throw new Error('Module template not found');
         const content = await template.render({
             entityName: options.entityName,
             className: this.pascalCase(options.entityName),
@@ -217,6 +227,9 @@ export class CrudCodeGenerator {
 
         // Service test
         const serviceTestTemplate = this.templates.get('service-test');
+        if (!serviceTestTemplate) {
+            throw new Error('Service test template not found');
+        }
         const serviceTestContent = await serviceTestTemplate.render({
             entityName: options.entityName,
             className,
@@ -231,6 +244,9 @@ export class CrudCodeGenerator {
 
         // Controller test
         const controllerTestTemplate = this.templates.get('controller-test');
+        if (!controllerTestTemplate) {
+            throw new Error('Controller test template not found');
+        }
         const controllerTestContent = await controllerTestTemplate.render({
             entityName: options.entityName,
             className,

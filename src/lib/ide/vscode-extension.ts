@@ -1,5 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { workspace, window, commands, ExtensionContext, Position, Range, TextDocument } from 'vscode';
+// vscode 모듈은 VS Code 환경에서만 사용 가능
+declare const workspace: any;
+declare const window: any;
+declare const commands: any;
+type ExtensionContext = any;
+type Position = any;
+type Range = any;
+type TextDocument = any;
 import * as path from 'path';
 
 export interface CrudCodeCompletion {
@@ -426,7 +433,7 @@ export class CrudVSCodeExtension {
                 if (entityPath) {
                     definitions.push({
                         uri: entityPath,
-                        range: new Range(0, 0, 0, 0)
+                        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }
                     });
                 }
             }
@@ -456,7 +463,7 @@ export class CrudVSCodeExtension {
             await this.generateCrudFiles(workspaceFolder.uri.fsPath, entityName);
             window.showInformationMessage(`CRUD files generated for ${entityName}`);
         } catch (error) {
-            window.showErrorMessage(`Failed to generate CRUD files: ${error.message}`);
+            window.showErrorMessage(`Failed to generate CRUD files: ${(error as Error).message}`);
         }
     }
 

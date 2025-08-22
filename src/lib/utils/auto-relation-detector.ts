@@ -31,7 +31,9 @@ export class AutoRelationDetector {
             const relationInfo: RelationInfo = {
                 propertyName: relationMeta.propertyName,
                 relationType: relationMeta.relationType,
-                inverseSide: relationMeta.inverseSideProperty,
+                inverseSide: typeof relationMeta.inverseSideProperty === 'string' 
+                    ? relationMeta.inverseSideProperty 
+                    : relationMeta.inverseSideProperty?.toString(),
                 isLazy: relationMeta.isLazy || false,
                 cascadeOptions: this.extractCascadeOptions(relationMeta),
                 joinColumns: this.extractJoinColumns(relationMeta),
@@ -230,7 +232,7 @@ export class AutoRelationDetector {
         return 'left'; // 선택적 관계
     }
 
-    private static applyOptimizedJoin<T>(
+    private static applyOptimizedJoin<T extends ObjectLiteral>(
         queryBuilder: SelectQueryBuilder<T>,
         optimizedInclude: OptimizedInclude
     ): void {
@@ -243,7 +245,7 @@ export class AutoRelationDetector {
         }
     }
 
-    private static handleLazyRelations<T>(
+    private static handleLazyRelations<T extends ObjectLiteral>(
         queryBuilder: SelectQueryBuilder<T>,
         entityRelations: RelationInfo[],
         requestedRelations: string[]
@@ -262,7 +264,7 @@ export class AutoRelationDetector {
         }
     }
 
-    private static preventCircularReferences<T>(
+    private static preventCircularReferences<T extends ObjectLiteral>(
         queryBuilder: SelectQueryBuilder<T>,
         entityRelations: RelationInfo[],
         requestedRelations: string[]

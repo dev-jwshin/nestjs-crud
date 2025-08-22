@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Repository, SelectQueryBuilder, ObjectLiteral } from 'typeorm';
 import { CrudQueryBuilder, CrudQueryCondition } from './crud-query-builder';
-import { PaginationResult, PaginationOptions } from './crud-query-helper';
+import { PaginationResult, CrudQueryPaginationOptions } from './crud-query-helper';
 
 // 타입 안전 유틸리티 타입들
 type KeysOfType<T, U> = {
@@ -128,7 +128,7 @@ export class TypeSafeCrudQueryBuilder<T extends ObjectLiteral = any> {
     /**
      * 페이지네이션 설정
      */
-    paginate(options: PaginationOptions): this {
+    paginate(options: CrudQueryPaginationOptions): this {
         this.queryBuilder.paginate(options);
         return this;
     }

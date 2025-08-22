@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Repository, SelectQueryBuilder, ObjectLiteral, FindManyOptions } from 'typeorm';
-import { CrudQueryHelper, PaginationOptions, FilterOptions, SortOptions, PaginationResult } from './crud-query-helper';
+import { CrudQueryHelper, CrudQueryPaginationOptions, FilterOptions, SortOptions, PaginationResult } from './crud-query-helper';
 
 /**
  * 메서드 체이닝이 가능한 CRUD 쿼리 빌더
@@ -12,7 +12,7 @@ export class CrudQueryBuilder<T extends ObjectLiteral = any> {
     private filters: FilterOptions = {};
     private sorts: SortOptions[] = [];
     private includes: string[] = [];
-    private pagination?: PaginationOptions;
+    private pagination?: CrudQueryPaginationOptions;
     private entity: any;
 
     constructor(entity: any, repository: Repository<T>, alias: string = 'entity') {
@@ -81,7 +81,7 @@ export class CrudQueryBuilder<T extends ObjectLiteral = any> {
     /**
      * 페이지네이션 설정
      */
-    paginate(options: PaginationOptions): this {
+    paginate(options: CrudQueryPaginationOptions): this {
         this.pagination = options;
         return this;
     }

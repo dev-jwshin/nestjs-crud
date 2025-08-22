@@ -213,7 +213,7 @@ export class ResponseTransformer {
                 return this.transform(data, format, context);
             } catch (error) {
                 if (options?.continueOnError) {
-                    return { error: error.message, originalData: data };
+                    return { error: (error as Error).message, originalData: data };
                 }
                 throw error;
             }

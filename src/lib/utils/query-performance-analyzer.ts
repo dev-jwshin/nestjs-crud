@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Injectable, Logger } from '@nestjs/common';
-import { Connection, QueryRunner, SelectQueryBuilder } from 'typeorm';
+import { Connection, QueryRunner, SelectQueryBuilder, ObjectLiteral } from 'typeorm';
 
 export interface QueryPerformanceMetrics {
     query: string;
@@ -192,7 +192,7 @@ export class QueryPerformanceAnalyzer {
             }
             
         } catch (error) {
-            this.logger.error(`쿼리 분석 실패: ${error.message}`, error.stack);
+            this.logger.error(`쿼리 분석 실패: ${(error as Error).message}`, (error as Error).stack);
             throw error;
         }
     }
@@ -200,7 +200,7 @@ export class QueryPerformanceAnalyzer {
     /**
      * QueryBuilder 분석
      */
-    async analyzeQueryBuilder<T>(
+    async analyzeQueryBuilder<T extends ObjectLiteral>(
         queryBuilder: SelectQueryBuilder<T>,
         options: PerformanceAnalysisOptions = {}
     ): Promise<QueryPerformanceMetrics> {
@@ -356,7 +356,7 @@ export class QueryPerformanceAnalyzer {
                     break;
             }
         } catch (error) {
-            this.logger.warn(`프로파일링 비활성화 실패: ${error.message}`);
+            this.logger.warn(`프로파일링 비활성화 실패: ${(error as Error).message}`);
         }
     }
 
@@ -382,7 +382,7 @@ export class QueryPerformanceAnalyzer {
                     return null;
             }
         } catch (error) {
-            this.logger.warn(`EXPLAIN 실행 실패: ${error.message}`);
+            this.logger.warn(`EXPLAIN 실행 실패: ${(error as Error).message}`);
             return null;
         }
     }
@@ -738,7 +738,7 @@ export function AnalyzePerformance(options: PerformanceAnalysisOptions = {}) {
         const method = descriptor.value;
         
         descriptor.value = async function (...args: any[]) {
-            const analyzer = new QueryPerformanceAnalyzer(this.connection || this.repository?.manager?.connection);
+            const analyzer = new QueryPerformanceAnalyzer((this as any).connection || (this as any).repository?.manager?.connection);
             
             if (analyzer) {
                 // 메서드 실행 전후로 성능 분석

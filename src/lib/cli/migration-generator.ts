@@ -263,7 +263,7 @@ export class MigrationGenerator {
             this.connection = await createConnection(config);
             
         } catch (error) {
-            throw new Error(`Failed to connect to database: ${error.message}`);
+            throw new Error(`Failed to connect to database: ${(error as Error).message}`);
         }
     }
 
@@ -292,7 +292,7 @@ export class MigrationGenerator {
             result.success = true;
             
         } catch (error) {
-            result.errors.push(error.message);
+            result.errors.push((error as Error).message);
         }
 
         result.executionTime = Date.now() - startTime;

@@ -18,7 +18,7 @@ export interface IndexSuggestion {
 
 export type IndexType = 'btree' | 'hash' | 'gin' | 'gist' | 'partial' | 'unique' | 'composite';
 
-export interface QueryPattern {
+export interface IndexQueryPattern {
     pattern: string;
     frequency: number;
     columns: string[];
@@ -105,7 +105,7 @@ export interface IndexOptimizationOptions {
 @Injectable()
 export class IndexSuggestionEngine {
     private readonly logger = new Logger(IndexSuggestionEngine.name);
-    private queryPatterns: Map<string, QueryPattern> = new Map();
+    private queryPatterns: Map<string, IndexQueryPattern> = new Map();
     private columnStatistics: Map<string, ColumnStatistics> = new Map();
 
     constructor(private readonly connection: Connection) {}
@@ -149,7 +149,7 @@ export class IndexSuggestionEngine {
             }
 
             // 2. 쿼리 패턴 분석
-            await this.analyzeQueryPatterns();
+            await this.analyzeIndexQueryPatterns();
 
             // 3. 컬럼 통계 수집
             if (defaultOptions.considerCardinality) {
@@ -175,7 +175,7 @@ export class IndexSuggestionEngine {
             return result;
 
         } catch (error) {
-            this.logger.error(`인덱스 분석 실패: ${error.message}`, error.stack);
+            this.logger.error(`인덱스 분석 실패: ${(error as Error).message}`, (error as Error).stack);
             throw error;
         }
     }
@@ -188,6 +188,35 @@ export class IndexSuggestionEngine {
             .filter(pattern => pattern.pattern.toLowerCase().includes(tableName.toLowerCase()));
 
         return this.generateSuggestionsForPatterns(tablePatterns, tableName, options);
+    }
+
+    /**
+     * 패턴을 기반으로 인덱스 제안 생성
+     */
+    private generateSuggestionsForPatterns(
+        patterns: IndexQueryPattern[],
+        tableName: string,
+        options: IndexOptimizationOptions
+    ): IndexSuggestion[] {
+        const suggestions: IndexSuggestion[] = [];
+        
+        for (const pattern of patterns) {
+            suggestions.push({
+                tableName: tableName,
+                indexName: `idx_${tableName}_${pattern.columns.join('_')}`,
+                columns: pattern.columns,
+                type: 'btree',
+                reasoning: `패턴 "${pattern.pattern}"에 기반한 제안`,
+                priority: pattern.frequency / 100,
+                estimatedImpact: pattern.frequency * 10,
+                queryPatterns: [pattern.pattern],
+                createStatement: `CREATE INDEX idx_${tableName}_${pattern.columns.join('_')} ON ${tableName} (${pattern.columns.join(', ')})`,
+                estimatedSize: pattern.columns.length * 1024,
+                maintenanceCost: pattern.frequency * 0.1
+            });
+        }
+
+        return suggestions;
     }
 
     /**
@@ -327,11 +356,11 @@ export class IndexSuggestionEngine {
     /**
      * 쿼리 패턴 분석
      */
-    private async analyzeQueryPatterns(): Promise<void> {
+    private async analyzeIndexQueryPatterns(): Promise<void> {
         // 실제 구현에서는 쿼리 로그나 성능 분석 데이터를 사용
         // 여기서는 예시 패턴을 사용
         
-        const samplePatterns: QueryPattern[] = [
+        const samplePatterns: IndexQueryPattern[] = [
             {
                 pattern: 'SELECT * FROM users WHERE email = ?',
                 frequency: 1000,
@@ -493,7 +522,7 @@ export class IndexSuggestionEngine {
         this.queryPatterns.forEach((pattern, key) => {
             if (pattern.frequency < (options.minFrequency || 5)) return;
 
-            pattern.operations.forEach(op => {
+            pattern.operations.forEach((op: ColumnOperation) => {
                 if (op.operation === 'equality' || op.operation === 'range') {
                     const tableName = this.extractTableName(pattern.pattern);
                     if (!tableName) return;
@@ -630,8 +659,8 @@ export class IndexSuggestionEngine {
             if (!tableName) return;
 
             const requiredColumns = pattern.operations
-                .filter(op => op.operation === 'equality' || op.operation === 'range')
-                .map(op => op.column);
+                .filter((op: ColumnOperation) => op.operation === 'equality' || op.operation === 'range')
+                .map((op: ColumnOperation) => op.column);
 
             if (requiredColumns.length === 0) return;
 
@@ -661,7 +690,7 @@ export class IndexSuggestionEngine {
         return match ? match[1] : null;
     }
 
-    private calculatePriority(pattern: QueryPattern, operations: ColumnOperation[]): number {
+    private calculatePriority(pattern: IndexQueryPattern, operations: ColumnOperation[]): number {
         let priority = 0;
         
         // 빈도수 기반 점수
@@ -681,7 +710,7 @@ export class IndexSuggestionEngine {
         return Math.round(priority);
     }
 
-    private estimateImpact(pattern: QueryPattern, operations: ColumnOperation[]): number {
+    private estimateImpact(pattern: IndexQueryPattern, operations: ColumnOperation[]): number {
         const baseImprovement = 50; // 기본 50% 개선
         const frequencyBonus = Math.min(pattern.frequency / 1000, 1) * 30;
         const performanceBonus = pattern.performance.averageExecutionTime > 1000 ? 20 : 0;
@@ -774,7 +803,7 @@ export class IndexSuggestionEngine {
         return requiredColumns.every((col, index) => indexColumns[index] === col);
     }
 
-    private estimateBenefit(pattern: QueryPattern): number {
+    private estimateBenefit(pattern: IndexQueryPattern): number {
         return pattern.frequency * (pattern.performance.averageExecutionTime / 1000);
     }
 

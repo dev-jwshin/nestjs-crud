@@ -54,7 +54,7 @@ class CrudCli {
                     process.exit(1);
             }
         } catch (error) {
-            console.error(`❌ Error: ${error.message}`);
+            console.error(`❌ Error: ${(error as Error).message}`);
             process.exit(1);
         }
     }

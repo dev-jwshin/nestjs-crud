@@ -2,7 +2,7 @@ import { SelectQueryBuilder, Repository, FindManyOptions, ObjectLiteral } from '
 import { Request } from 'express';
 import _ from 'lodash';
 
-export interface PaginationOptions {
+export interface CrudQueryPaginationOptions {
     page?: number;
     limit?: number;
     offset?: number;
@@ -49,7 +49,7 @@ export class CrudQueryHelper {
     /**
      * Request 객체에서 페이지네이션 파라미터 추출
      */
-    static extractPaginationParams(req: Request, defaultLimit: number = 20): PaginationOptions {
+    static extractPaginationParams(req: Request, defaultLimit: number = 20): CrudQueryPaginationOptions {
         const page = parseInt(req.query.page as string) || 1;
         const limit = Math.min(
             parseInt(req.query.limit as string) || defaultLimit,
@@ -255,7 +255,7 @@ export class CrudQueryHelper {
      */
     static async applyPaginationToQueryBuilder<T extends ObjectLiteral>(
         qb: SelectQueryBuilder<T>,
-        pagination: PaginationOptions
+        pagination: CrudQueryPaginationOptions
     ): Promise<PaginationResult<T>> {
         const { page = 1, limit = 20, offset = 0 } = pagination;
 
@@ -289,7 +289,7 @@ export class CrudQueryHelper {
     static async paginate<T extends ObjectLiteral>(
         repository: Repository<T>,
         options: FindManyOptions<T> = {},
-        pagination: PaginationOptions = {}
+        pagination: CrudQueryPaginationOptions = {}
     ): Promise<PaginationResult<T>> {
         const { page = 1, limit = 20 } = pagination;
         const offset = (page - 1) * limit;

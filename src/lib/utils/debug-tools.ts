@@ -101,7 +101,7 @@ export class CrudDebugger {
     private eventHandlers: Map<DebugEventType, DebugEventHandler[]> = new Map();
     private isEnabled = false;
 
-    constructor(private readonly options: DebugInterceptorOptions = {}) {
+    constructor(private options: DebugInterceptorOptions = {}) {
         this.setupDefaultOptions();
         this.registerDefaultHandlers();
     }
@@ -472,7 +472,7 @@ export class CrudDebugger {
             try {
                 handler(event);
             } catch (error) {
-                this.logger.error(`이벤트 핸들러 실행 실패: ${error.message}`);
+                this.logger.error(`이벤트 핸들러 실행 실패: ${(error as Error).message}`);
             }
         });
     }
@@ -755,7 +755,7 @@ export function DebugInterceptor(options: DebugInterceptorOptions = {}) {
         const method = descriptor.value;
         
         descriptor.value = async function (...args: any[]) {
-            const debugInstance = this.debugger as CrudDebugger;
+            const debugInstance = (this as any).debugger as CrudDebugger;
             if (!debugInstance) return method.apply(this, args);
             
             const startTime = Date.now();
@@ -777,7 +777,7 @@ export function DebugInterceptor(options: DebugInterceptorOptions = {}) {
             } catch (error) {
                 const duration = Date.now() - startTime;
                 
-                debugInstance.logError(error, `${target.constructor.name}.${propertyName}`, {
+                debugInstance.logError(error as Error, `${target.constructor.name}.${propertyName}`, {
                     duration,
                     arguments: options.includeRequestData ? args : '[hidden]'
                 });

@@ -64,10 +64,10 @@ export interface PropertyDefinition {
     required: boolean;
     description: string;
     example?: any;
-    validation?: ValidationRule[];
+    validation?: DocumentationValidationRule[];
 }
 
-export interface ValidationRule {
+export interface DocumentationValidationRule {
     type: string;
     value?: any;
     message?: string;
@@ -115,7 +115,7 @@ export class DocumentationGenerator {
             console.log(`🏗️  ${result.metadata.totalModels} models documented`);
             
         } catch (error) {
-            console.error(`❌ Error generating documentation: ${error.message}`);
+            console.error(`❌ Error generating documentation: ${(error as Error).message}`);
             throw error;
         }
     }
@@ -203,7 +203,7 @@ export class DocumentationGenerator {
             return result;
             
         } catch (error) {
-            throw new Error(`Failed to analyze project: ${error.message}`);
+            throw new Error(`Failed to analyze project: ${(error as Error).message}`);
         }
     }
 

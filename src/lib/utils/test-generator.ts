@@ -139,7 +139,7 @@ export class AutoTestGenerator {
             return tests;
 
         } catch (error) {
-            this.logger.error(`테스트 생성 실패: ${error.message}`, error.stack);
+            this.logger.error(`테스트 생성 실패: ${(error as Error).message}`, (error as Error).stack);
             throw error;
         }
     }

@@ -16,16 +16,32 @@ export * from './lib/utils/crud-conditional-helper';
 export * from './lib/utils/crud-query-builder';
 export * from './lib/utils/type-safe-query-builder';
 export * from './lib/utils/auto-relation-detector';
-export * from './lib/utils/crud-cache-helper';
-export * from './lib/utils/smart-batch-processor';
+export {
+    CrudCacheHelper,
+    CacheEntry as CrudCacheEntry,
+    CacheLayer as CrudCacheLayer,
+    CacheResult as CrudCacheResult,
+    CrudCacheStats
+} from './lib/utils/crud-cache-helper';
+export {
+    SmartBatchProcessor,
+    PerformanceProfile as SmartBatchPerformanceProfile
+} from './lib/utils/smart-batch-processor';
 export * from './lib/utils/progress-tracker';
 export * from './lib/utils/change-detector';
 export * from './lib/utils/conditional-field-processor';
 export * from './lib/utils/lazy-relation-loader';
-export * from './lib/utils/response-transformer';
+export {
+    ResponseTransformer,
+    ResponseFormat as TransformerResponseFormat
+} from './lib/utils/response-transformer';
 export * from './lib/utils/query-performance-analyzer';
 export * from './lib/utils/index-suggestion-engine';
-export * from './lib/utils/multi-tier-cache';
+export { 
+    MultiTierCache,
+    CacheOptions as MultiTierCacheOptions,
+    PerformanceMetrics as MultiTierPerformanceMetrics
+} from './lib/utils/multi-tier-cache';
 export * from './lib/utils/debug-tools';
 export * from './lib/utils/test-generator';
 

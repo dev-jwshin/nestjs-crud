@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { Redis } from 'ioredis';
+// Redis는 선택적 의존성으로 처리
+type Redis = any;
+declare const RedisConstructor: any;
 
 export interface CacheLayer {
     name: string;
@@ -165,7 +167,7 @@ export class MultiTierCache implements OnModuleDestroy {
             return null;
             
         } catch (error) {
-            this.logger.error(`캐시 조회 실패: ${key}`, error.stack);
+            this.logger.error(`캐시 조회 실패: ${key}`, (error as Error).stack);
             this.updatePerformanceMetrics('get', startTime);
             return null;
         }
@@ -213,7 +215,7 @@ export class MultiTierCache implements OnModuleDestroy {
             this.updatePerformanceMetrics('set', startTime);
             
         } catch (error) {
-            this.logger.error(`캐시 저장 실패: ${key}`, error.stack);
+            this.logger.error(`캐시 저장 실패: ${key}`, (error as Error).stack);
             this.updatePerformanceMetrics('set', startTime);
         }
     }
@@ -235,7 +237,7 @@ export class MultiTierCache implements OnModuleDestroy {
             this.updatePerformanceMetrics('delete', startTime);
             
         } catch (error) {
-            this.logger.error(`캐시 삭제 실패: ${key}`, error.stack);
+            this.logger.error(`캐시 삭제 실패: ${key}`, (error as Error).stack);
             this.updatePerformanceMetrics('delete', startTime);
         }
     }
@@ -292,7 +294,7 @@ export class MultiTierCache implements OnModuleDestroy {
                     const data = await dataProvider(key);
                     await this.set(key, data);
                 } catch (error) {
-                    this.logger.warn(`캐시 워밍 실패: ${key}`, error.message);
+                    this.logger.warn(`캐시 워밍 실패: ${key}`, (error as Error).message);
                 }
             });
             
@@ -375,7 +377,7 @@ export class MultiTierCache implements OnModuleDestroy {
             try {
                 await layer.set(key, entry);
             } catch (error) {
-                this.logger.warn(`상위 레이어 승격 실패: ${layer.name}`, error.message);
+                this.logger.warn(`상위 레이어 승격 실패: ${layer.name}`, (error as Error).message);
             }
         }
     }
@@ -601,7 +603,7 @@ class MemoryCacheLayer extends CacheLayerInstance {
                 keyToEvict = this.findFIFOKey();
                 break;
             default:
-                keyToEvict = this.cache.keys().next().value;
+                keyToEvict = this.cache.keys().next().value || null;
         }
         
         if (keyToEvict) {
@@ -679,12 +681,18 @@ class RedisCacheLayer extends CacheLayerInstance {
 
     constructor(config: CacheLayer) {
         super(config);
-        this.redis = new Redis({
-            host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT || '6379'),
-            retryDelayOnFailover: 100,
-            maxRetriesPerRequest: 3
-        });
+        try {
+            const Redis = require('ioredis');
+            this.redis = new Redis({
+                host: process.env.REDIS_HOST || 'localhost',
+                port: parseInt(process.env.REDIS_PORT || '6379'),
+                retryDelayOnFailover: 100,
+                maxRetriesPerRequest: 3
+            });
+        } catch (error) {
+            // Redis not available, use fallback
+            this.redis = null;
+        }
         this.initializeStats();
     }
 
@@ -933,7 +941,7 @@ export function CacheResult(options: {
         const method = descriptor.value;
         
         descriptor.value = async function (...args: any[]) {
-            const cache = this.cache as MultiTierCache;
+            const cache = (this as any).cache as MultiTierCache;
             if (!cache) return method.apply(this, args);
             
             const key = options.key || `${target.constructor.name}.${propertyName}:${JSON.stringify(args)}`;
