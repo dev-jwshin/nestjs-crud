@@ -37,7 +37,6 @@ export function RecoverRequestInterceptor(crudOptions: CrudOptions, factoryOptio
                     saveOptions: {
                         listeners: recoverOptions.listeners,
                     },
-                    hooks: recoverOptions.hooks,
                 };
                 
                 this.crudLogger.logRequest(req, crudRecoverManyRequest);
@@ -51,7 +50,6 @@ export function RecoverRequestInterceptor(crudOptions: CrudOptions, factoryOptio
                     saveOptions: {
                         listeners: recoverOptions.listeners,
                     },
-                    hooks: recoverOptions.hooks,
                 };
 
                 this.crudLogger.logRequest(req, crudRecoverRequest);

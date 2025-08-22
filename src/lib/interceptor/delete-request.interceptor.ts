@@ -54,7 +54,6 @@ export function DeleteRequestInterceptor(crudOptions: CrudOptions, factoryOption
                     saveOptions: {
                         listeners: deleteOptions.listeners,
                     },
-                    hooks: deleteOptions.hooks,
                 };
                 
                 this.crudLogger.logRequest(req, crudDeleteManyRequest);
@@ -69,7 +68,6 @@ export function DeleteRequestInterceptor(crudOptions: CrudOptions, factoryOption
                     saveOptions: {
                         listeners: deleteOptions.listeners,
                     },
-                    hooks: deleteOptions.hooks,
                 };
 
                 this.crudLogger.logRequest(req, crudDeleteOneRequest);

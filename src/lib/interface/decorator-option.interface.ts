@@ -114,13 +114,6 @@ export interface CrudOptions {
              */
             softDelete?: boolean;
             /**
-             * @deprecated This option is deprecated and will be removed in v1.0.0. Use allowedIncludes instead.
-             * @default false
-             * @since v0.1.0
-             * @removal v1.0.0
-             */
-            relations?: false | string[];
-            /**
              * Array of column names that are allowed to be filtered.
              * If not specified, uses the global allowedFilters from CrudOptions.
              * If both are not specified, no columns can be filtered.
@@ -134,11 +127,6 @@ export interface CrudOptions {
              * @example ['department', 'posts', 'posts.comments']
              */
             allowedIncludes?: string[];
-            /**
-             * 생명주기 훅 함수들을 설정합니다.
-             * Show 작업에서는 assignBefore와 assignAfter만 지원됩니다.
-             */
-            hooks?: Pick<LifecycleHooks, 'assignBefore' | 'assignAfter'>;
         } & RouteBaseOption;
         [Method.INDEX]?: {
             /**
@@ -156,15 +144,6 @@ export interface CrudOptions {
              * @default 100
              */
             numberOfTake?: number;
-            /**
-             * @deprecated This option is deprecated and will be removed in v1.0.0. Use allowedIncludes instead.
-             * What relations of entity should be loaded.
-             * If set to false or an empty array, no relations will be loaded.
-             * @default false
-             * @since v0.1.0
-             * @removal v1.0.0
-             */
-            relations?: false | string[];
             /**
              * If set to true, soft-deleted entity could be included in the result.
              * @default true
@@ -199,10 +178,6 @@ export interface CrudOptions {
                 body?: Type<unknown>;
             };
 
-            /**
-             * 생명주기 훅 함수들을 설정합니다.
-             */
-            hooks?: LifecycleHooks;
 
             /**
              * Array of column names that are allowed in request parameters.
@@ -238,10 +213,6 @@ export interface CrudOptions {
                 body?: Type<unknown>;
             };
             /**
-             * 생명주기 훅 함수들을 설정합니다.
-             */
-            hooks?: LifecycleHooks;
-            /**
              * Array of column names that are allowed in request parameters.
              * If not specified, uses the global allowedParams from CrudOptions.
              * If both are not specified, no columns can be used in request parameters.
@@ -273,10 +244,6 @@ export interface CrudOptions {
              * @default false
              */
             softDelete?: boolean;
-            /**
-             * 🚀 생명주기 훅 함수들을 설정합니다.
-             */
-            hooks?: LifecycleHooks;
         } & RouteBaseOption &
             SaveOptions;
         [Method.UPSERT]?: {
@@ -296,10 +263,6 @@ export interface CrudOptions {
                  */
                 body?: Type<unknown>;
             };
-            /**
-             * 생명주기 훅 함수들을 설정합니다.
-             */
-            hooks?: LifecycleHooks;
             /**
              * Array of column names that are allowed in request parameters.
              * If not specified, uses the global allowedParams from CrudOptions.
@@ -327,10 +290,6 @@ export interface CrudOptions {
              * It will generate the route `/:id/:subId`
              */
             params?: string[];
-            /**
-             * 🚀 생명주기 훅 함수들을 설정합니다.
-             */
-            hooks?: LifecycleHooks;
         } & RouteBaseOption &
             SaveOptions;
     };
@@ -341,88 +300,80 @@ export interface CrudOptions {
 }
 
 /**
- * 생명주기 훅 컨텍스트 정보
+ * Lifecycle hook context information
  */
 export interface HookContext<T = any> {
     /**
-     * 현재 실행 중인 CRUD 작업 타입
+     * Current CRUD operation type
      */
     operation: Method;
     /**
-     * 요청 파라미터 (예: { id: 1 })
+     * Request parameters (e.g., { id: 1 })
      */
     params?: Record<string, any>;
     /**
-     * 현재 엔티티 (update, upsert, destroy, recover 시에만 제공)
+     * Current entity (only provided for update, upsert, destroy, recover operations)
      */
     currentEntity?: T;
     /**
-     * 요청 객체에서 추가 정보
+     * Additional information from request object
      */
     request?: any;
 }
 
 /**
- * 생명주기 훅 함수 타입 정의
+ * Lifecycle hook function type definitions (for decorator-based hooks only)
  */
 export interface LifecycleHooks<T = any> {
     /**
-     * 모델에 데이터를 할당하기 전에 실행됩니다.
-     *
-     * 🚀 UPDATE의 경우 특별 동작:
-     * - CREATE/UPSERT: body 데이터를 받아서 수정된 body 데이터를 반환
-     * - UPDATE: entity를 받아서 수정된 entity를 반환 (body는 이미 entity에 할당됨)
-     *
-     * @param bodyOrEntity CREATE/UPSERT시 body, UPDATE시 entity
-     * @param context 훅 실행 컨텍스트
+     * Executed before assigning data to the model.
+     * 
+     * Special behavior for UPDATE:
+     * - CREATE/UPSERT: receives body data and returns modified body data
+     * - UPDATE: receives entity and returns modified entity (body already assigned to entity)
      */
     assignBefore?: (bodyOrEntity: DeepPartial<T> | T, context: HookContext<T>) => Promise<DeepPartial<T> | T> | DeepPartial<T> | T;
 
     /**
-     * 모델에 데이터를 할당한 후에 실행됩니다.
-     * 생성된 엔티티를 추가로 수정할 수 있습니다.
+     * Executed after assigning data to the model.
+     * Can further modify the created entity.
      */
     assignAfter?: (entity: T, body: DeepPartial<T>, context: HookContext<T>) => Promise<T> | T;
 
     /**
-     * 데이터베이스에 저장하기 전에 실행됩니다.
-     * 최종 검증이나 추가 처리를 할 수 있습니다.
+     * Executed before saving to database.
+     * Can perform final validation or additional processing.
      */
     saveBefore?: (entity: T, context: HookContext<T>) => Promise<T> | T;
 
     /**
-     * 데이터베이스에 저장한 후에 실행됩니다.
-     * 후처리나 이벤트 발생 등을 할 수 있습니다.
+     * Executed after saving to database.
+     * Can perform post-processing or trigger events.
      */
     saveAfter?: (entity: T, context: HookContext<T>) => Promise<T> | T;
 
     /**
-     * 🚀 엔티티를 삭제하기 전에 실행됩니다.
-     * 삭제 권한 확인, 관련 데이터 정리, 로깅 등을 할 수 있습니다.
-     *
-     * UPDATE와 마찬가지로 entity를 받아서 entity를 반환합니다.
-     * (entity ID로 이미 DB에서 조회한 상태)
+     * Executed before deleting an entity.
+     * Can check permissions, clean up related data, or perform logging.
      */
     destroyBefore?: (entity: T, context: HookContext<T>) => Promise<T> | T;
 
     /**
-     * 🚀 엔티티를 삭제한 후에 실행됩니다.
-     * 관련 데이터 정리, 알림 발송, 이벤트 발생 등을 할 수 있습니다.
+     * Executed after deleting an entity.
+     * Can clean up related data, send notifications, or trigger events.
      */
     destroyAfter?: (entity: T, context: HookContext<T>) => Promise<T> | T;
 
     /**
-     * 🚀 소프트 삭제된 엔티티를 복구하기 전에 실행됩니다.
-     * 복구 권한 확인, 관련 데이터 준비, 로깅 등을 할 수 있습니다.
-     *
-     * DESTROY와 마찬가지로 entity를 받아서 entity를 반환합니다.
-     * (entity ID로 이미 소프트 삭제된 데이터를 조회한 상태)
+     * Executed before recovering a soft-deleted entity.
+     * Can check permissions, prepare related data, or perform logging.
      */
     recoverBefore?: (entity: T, context: HookContext<T>) => Promise<T> | T;
 
     /**
-     * 🚀 소프트 삭제된 엔티티를 복구한 후에 실행됩니다.
-     * 관련 데이터 복구, 알림 발송, 이벤트 발생 등을 할 수 있습니다.
+     * Executed after recovering a soft-deleted entity.
+     * Can restore related data, send notifications, or trigger events.
      */
     recoverAfter?: (entity: T, context: HookContext<T>) => Promise<T> | T;
 }
+

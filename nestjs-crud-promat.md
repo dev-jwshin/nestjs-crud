@@ -202,6 +202,13 @@ GET /users?include=posts,profile
 GET /users?include=posts,posts.comments,posts.author
 ```
 
+## 최신 업데이트 (v1.0.0)
+
+### 주요 변경사항
+- **레거시 코드 제거 완료**: 모든 deprecated 기능이 제거되었습니다
+- **메서드 이름 개선**: 내부 CRUD 메서드가 `handle*` 패턴으로 변경되었습니다
+- **코드 품질 향상**: 타입 안정성 및 캐시 관리가 개선되었습니다
+
 ## 생명주기 훅
 
 ### 데코레이터 방식 (권장)
@@ -241,28 +248,6 @@ export class UserService extends CrudService<User> {
 }
 ```
 
-### 설정 방식 (레거시)
-
-```typescript
-@Crud({
-    entity: User,
-    routes: {
-        create: {
-            hooks: {
-                assignBefore: async (entity) => { 
-                    entity.createdAt = new Date();
-                },
-                saveBefore: async (entity) => { 
-                    entity.password = await bcrypt.hash(entity.password, 10);
-                },
-                saveAfter: async (entity) => {
-                    await this.auditLog.create('USER_CREATED', entity);
-                }
-            }
-        }
-    }
-})
-```
 
 ## 소프트 삭제 & 복구
 
@@ -448,6 +433,7 @@ async bulkCreate(@Body() users: CreateUserDto[]) {
     exclude: ['password', 'salt', 'refreshToken'] // 응답에서 제외
 })
 ```
+
 
 ## 실제 API 호출 예시
 

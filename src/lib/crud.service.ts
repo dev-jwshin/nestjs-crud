@@ -33,7 +33,6 @@ import type {
     CrudUpsertManyRequest,
     EntityType,
     HookContext,
-    LifecycleHooks,
     Method,
 } from './interface';
 import type { CrudReadManyRequest } from './request';
@@ -51,7 +50,7 @@ export class CrudService<T extends EntityType> {
         this.columnNames = this.repository.metadata.columns.map((column) => column.propertyPath);
     }
 
-    readonly reservedIndex = async (crudReadManyRequest: CrudReadManyRequest<T>): Promise<CrudArrayResponse<T>> => {
+    readonly handleIndex = async (crudReadManyRequest: CrudReadManyRequest<T>): Promise<CrudArrayResponse<T>> => {
         crudReadManyRequest.excludedColumns(this.columnNames);
         const { entities, total } = await (async () => {
             const findEntities = this.repository.find({ ...crudReadManyRequest.findOptions });
@@ -111,19 +110,15 @@ export class CrudService<T extends EntityType> {
         });
     };
 
-    readonly reservedShow = async (crudReadOneRequest: CrudReadOneRequest<T>): Promise<CrudResponse<T>> => {
+    readonly handleShow = async (crudReadOneRequest: CrudReadOneRequest<T>): Promise<CrudResponse<T>> => {
         // 1. Hook context 생성
         const context: HookContext<T> = {
             operation: 'show' as Method,
             params: crudReadOneRequest.params,
         };
 
-        // 2. assignBefore 훅 실행 (파라미터 전처리)
-        const processedParams = await this.executeAssignBeforeHookForShow(
-            crudReadOneRequest.hooks,
-            crudReadOneRequest.params,
-            context,
-        );
+        // 2. No configuration-based hooks anymore
+        const processedParams = crudReadOneRequest.params;
 
         // 3. 엔티티 조회
         const entity = await this.repository.findOne({
@@ -139,8 +134,8 @@ export class CrudService<T extends EntityType> {
             throw new NotFoundException();
         }
 
-        // 4. assignAfter 훅 실행 (엔티티 가공)
-        const processedEntity = await this.executeAssignAfterHookForShow(crudReadOneRequest.hooks, entity, context);
+        // 4. No configuration-based hooks anymore
+        const processedEntity = entity;
 
         // 5. Transform entity to plain object to apply @Exclude decorators
         const transformedEntity = this.transformEntityToPlain(processedEntity);
@@ -151,7 +146,7 @@ export class CrudService<T extends EntityType> {
         });
     };
 
-    readonly reservedCreate = async (
+    readonly handleCreate = async (
         crudCreateRequest: CrudCreateOneRequest<T> | CrudCreateManyRequest<T>,
     ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
         const isMany = isCrudCreateManyRequest<T>(crudCreateRequest);
@@ -164,7 +159,7 @@ export class CrudService<T extends EntityType> {
                     operation: 'create' as Method,
                     params: {},
                 };
-                return await this.executeAssignBeforeHook(crudCreateRequest.hooks, body, context);
+                return body;
             }),
         );
 
@@ -177,7 +172,7 @@ export class CrudService<T extends EntityType> {
                 operation: 'create' as Method,
                 params: {},
             };
-            entities[i] = await this.executeAssignAfterHook(crudCreateRequest.hooks, entities[i], processedBodyArray[i], context);
+            // No configuration-based hooks
         }
 
         // saveBefore 훅 실행
@@ -186,7 +181,7 @@ export class CrudService<T extends EntityType> {
                 operation: 'create' as Method,
                 params: {},
             };
-            entities[i] = await this.executeSaveBeforeHook(crudCreateRequest.hooks, entities[i], context);
+            // No configuration-based hooks
         }
 
         // Process in batches for large datasets
@@ -213,7 +208,7 @@ export class CrudService<T extends EntityType> {
                         operation: 'create' as Method,
                         params: {},
                     };
-                    result[i] = await this.executeSaveAfterHook(crudCreateRequest.hooks, result[i], context);
+                    // No configuration-based hooks
                 }
 
                 const processedResult = isMany
@@ -228,7 +223,7 @@ export class CrudService<T extends EntityType> {
             .catch(this.throwConflictException);
     };
 
-    readonly reservedUpsert = async (
+    readonly handleUpsert = async (
         crudUpsertRequest: CrudUpsertRequest<T> | CrudUpsertManyRequest<T>,
     ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
         const isMany = isCrudUpsertManyRequest<T>(crudUpsertRequest);
@@ -260,10 +255,10 @@ export class CrudService<T extends EntityType> {
                 };
 
                 // Execute hooks
-                const processedBody = await this.executeAssignBeforeHook(crudUpsertRequest.hooks, item, context);
+                const processedBody = item;
                 _.assign(upsertEntity, processedBody);
-                upsertEntity = await this.executeAssignAfterHook(crudUpsertRequest.hooks, upsertEntity, processedBody, context);
-                upsertEntity = await this.executeSaveBeforeHook(crudUpsertRequest.hooks, upsertEntity, context);
+                // No configuration-based hooks
+                // No configuration-based hooks
 
                 return { entity: upsertEntity, isNew };
             });
@@ -281,7 +276,7 @@ export class CrudService<T extends EntityType> {
                                 operation: 'upsert' as Method,
                                 params: {},
                             };
-                            const afterSaveEntity = await this.executeSaveAfterHook(crudUpsertRequest.hooks, entity, context);
+                            const afterSaveEntity = entity;
                             return this.excludeEntity(afterSaveEntity, crudUpsertRequest.exclude);
                         })
                     );
@@ -314,22 +309,22 @@ export class CrudService<T extends EntityType> {
                 };
 
                 // assignBefore 훅 실행
-                const processedBody = await this.executeAssignBeforeHook(crudUpsertRequest.hooks, crudUpsertRequest.body, context);
+                const processedBody = crudUpsertRequest.body;
 
                 // 엔티티에 데이터 할당
                 _.assign(upsertEntity, processedBody);
 
                 // assignAfter 훅 실행
-                upsertEntity = await this.executeAssignAfterHook(crudUpsertRequest.hooks, upsertEntity, processedBody, context);
+                // No configuration-based hooks
 
                 // saveBefore 훅 실행
-                upsertEntity = await this.executeSaveBeforeHook(crudUpsertRequest.hooks, upsertEntity, context);
+                // No configuration-based hooks
 
                 return this.repository
                     .save(upsertEntity, crudUpsertRequest.saveOptions)
                     .then(async (savedEntity) => {
                         // saveAfter 훅 실행
-                        savedEntity = await this.executeSaveAfterHook(crudUpsertRequest.hooks, savedEntity, context);
+                        // No configuration-based hooks
 
                         const processedEntity = this.excludeEntity(savedEntity, crudUpsertRequest.exclude);
 
@@ -347,7 +342,7 @@ export class CrudService<T extends EntityType> {
         }
     };
 
-    readonly reservedUpdate = async (
+    readonly handleUpdate = async (
         crudUpdateRequest: CrudUpdateOneRequest<T> | CrudUpdateManyRequest<T>,
     ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
         const isMany = isCrudUpdateManyRequest<T>(crudUpdateRequest);
@@ -394,9 +389,9 @@ export class CrudService<T extends EntityType> {
                     _.assign(entity, updateData);
                     
                     // Execute hooks
-                    let processedEntity = await this.executeAssignBeforeHookForUpdate(crudUpdateRequest.hooks, entity, context);
-                    processedEntity = await this.executeAssignAfterHook(crudUpdateRequest.hooks, processedEntity, updateData as DeepPartial<T>, context);
-                    processedEntity = await this.executeSaveBeforeHook(crudUpdateRequest.hooks, processedEntity, context);
+                    let processedEntity = entity;
+                    // No configuration-based hooks
+                    // No configuration-based hooks
                     
                     return processedEntity;
                 })
@@ -412,7 +407,7 @@ export class CrudService<T extends EntityType> {
                                 operation: 'update' as Method,
                                 params: { [this.primaryKey[0]]: crudUpdateRequest.body[index].id },
                             };
-                            const afterSaveEntity = await this.executeSaveAfterHook(crudUpdateRequest.hooks, entity, context);
+                            const afterSaveEntity = entity;
                             return this.excludeEntity(afterSaveEntity, crudUpdateRequest.exclude);
                         })
                     );
@@ -442,19 +437,19 @@ export class CrudService<T extends EntityType> {
                 _.assign(entity, crudUpdateRequest.body);
 
                 // 2. assignBefore 훅 실행 (UPDATE의 경우 entity 기반)
-                entity = await this.executeAssignBeforeHookForUpdate(crudUpdateRequest.hooks, entity, context);
+                // No configuration-based hooks
 
                 // assignAfter 훅 실행
-                entity = await this.executeAssignAfterHook(crudUpdateRequest.hooks, entity, crudUpdateRequest.body, context);
+                // No configuration-based hooks
 
                 // saveBefore 훅 실행
-                entity = await this.executeSaveBeforeHook(crudUpdateRequest.hooks, entity, context);
+                // No configuration-based hooks
 
                 return this.repository
                     .save(entity, crudUpdateRequest.saveOptions)
                     .then(async (updatedEntity) => {
                         // saveAfter 훅 실행
-                        updatedEntity = await this.executeSaveAfterHook(crudUpdateRequest.hooks, updatedEntity, context);
+                        // No configuration-based hooks
 
                         const processedEntity = this.excludeEntity(updatedEntity, crudUpdateRequest.exclude);
 
@@ -469,7 +464,7 @@ export class CrudService<T extends EntityType> {
         }
     };
 
-    readonly reservedDestroy = async (
+    readonly handleDestroy = async (
         crudDeleteRequest: CrudDeleteOneRequest<T> | CrudDeleteManyRequest<T>,
     ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
         if (this.primaryKey.length === 0) {
@@ -515,7 +510,7 @@ export class CrudService<T extends EntityType> {
                     };
                     
                     // Execute destroyBefore hook
-                    const processedEntity = await this.executeDestroyBeforeHook(crudDeleteRequest.hooks, entity, context);
+                    const processedEntity = entity;
                     
                     return processedEntity;
                 })
@@ -533,7 +528,7 @@ export class CrudService<T extends EntityType> {
                         operation: 'destroy' as Method,
                         params: crudDeleteRequest.params[index],
                     };
-                    const afterDestroyEntity = await this.executeDestroyAfterHook(crudDeleteRequest.hooks, entity, context);
+                    const afterDestroyEntity = entity;
                     return this.excludeEntity(afterDestroyEntity, crudDeleteRequest.exclude);
                 })
             );
@@ -560,14 +555,14 @@ export class CrudService<T extends EntityType> {
                 };
 
                 // 🚀 destroyBefore 훅 실행 - entity를 받아서 entity를 반환
-                entity = await this.executeDestroyBeforeHook(crudDeleteRequest.hooks, entity, context);
+                // No configuration-based hooks
 
                 await (crudDeleteRequest.softDeleted
                     ? this.repository.softRemove(entity, crudDeleteRequest.saveOptions)
                     : this.repository.remove(entity, crudDeleteRequest.saveOptions));
 
                 // 🚀 destroyAfter 훅 실행 - 삭제 후 처리
-                entity = await this.executeDestroyAfterHook(crudDeleteRequest.hooks, entity, context);
+                // No configuration-based hooks
 
                 const processedEntity = this.excludeEntity(entity, crudDeleteRequest.exclude);
 
@@ -583,7 +578,7 @@ export class CrudService<T extends EntityType> {
         }
     };
 
-    readonly reservedRecover = async (
+    readonly handleRecover = async (
         crudRecoverRequest: CrudRecoverRequest<T> | CrudRecoverManyRequest<T>,
     ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
         const isMany = isCrudRecoverManyRequest<T>(crudRecoverRequest);
@@ -628,7 +623,7 @@ export class CrudService<T extends EntityType> {
                     const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
                     
                     // Execute recoverBefore hook
-                    const processedEntity = await this.executeRecoverBeforeHook(crudRecoverRequest.hooks, entity, context);
+                    const processedEntity = entity;
                     
                     return { entity: processedEntity, wasSoftDeleted };
                 })
@@ -646,7 +641,7 @@ export class CrudService<T extends EntityType> {
                         operation: 'recover' as Method,
                         params: crudRecoverRequest.params[index],
                     };
-                    const afterRecoverEntity = await this.executeRecoverAfterHook(crudRecoverRequest.hooks, entity, context);
+                    const afterRecoverEntity = entity;
                     return this.excludeEntity(afterRecoverEntity, crudRecoverRequest.exclude);
                 })
             );
@@ -675,12 +670,12 @@ export class CrudService<T extends EntityType> {
                 const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
 
                 // 🚀 recoverBefore 훅 실행 - entity를 받아서 entity를 반환
-                entity = await this.executeRecoverBeforeHook(crudRecoverRequest.hooks, entity, context);
+                // No configuration-based hooks
 
                 await this.repository.recover(entity, crudRecoverRequest.saveOptions).catch(this.throwConflictException);
 
                 // 🚀 recoverAfter 훅 실행 - 복구 후 처리
-                entity = await this.executeRecoverAfterHook(crudRecoverRequest.hooks, entity, context);
+                // No configuration-based hooks
 
                 const processedEntity = this.excludeEntity(entity, crudRecoverRequest.exclude);
 
@@ -733,164 +728,5 @@ export class CrudService<T extends EntityType> {
         Logger.error(error);
         throw new ConflictException(error);
     }
-
-    /**
-     * 생명주기 훅을 실행하는 헬퍼 메서드들
-     */
-    private async executeAssignBeforeHook<TEntity>(
-        hooks: LifecycleHooks<TEntity> | undefined,
-        body: DeepPartial<TEntity>,
-        context: HookContext<TEntity>,
-    ): Promise<DeepPartial<TEntity>> {
-        if (!hooks?.assignBefore) {
-            return body;
-        }
-        return await hooks.assignBefore(body, context);
-    }
-
-    /**
-     * UPDATE 전용 assignBefore 훅 실행 - entity를 받아서 entity를 반환
-     */
-    private async executeAssignBeforeHookForUpdate<TEntity>(
-        hooks: LifecycleHooks<TEntity> | undefined,
-        entity: TEntity,
-        context: HookContext<TEntity>,
-    ): Promise<TEntity> {
-        if (!hooks?.assignBefore) {
-            return entity;
-        }
-
-        // 🚀 UPDATE의 경우: assignBefore 훅에 entity를 전달하고 entity를 반환받음
-        // 타입 캐스팅을 통해 entity 기반 처리 지원
-        const result = await hooks.assignBefore(entity as any, context);
-
-        // 결과가 entity인지 확인하고 반환
-        return (result as TEntity) || entity;
-    }
-
-    /**
-     * 🚀 DESTROY 전용 destroyBefore 훅 실행 - entity를 받아서 entity를 반환
-     */
-    private async executeDestroyBeforeHook<TEntity>(
-        hooks: LifecycleHooks<TEntity> | undefined,
-        entity: TEntity,
-        context: HookContext<TEntity>,
-    ): Promise<TEntity> {
-        if (!hooks?.destroyBefore) {
-            return entity;
-        }
-
-        return await hooks.destroyBefore(entity, context);
-    }
-
-    /**
-     * 🚀 DESTROY 전용 destroyAfter 훅 실행 - 삭제 후 처리
-     */
-    private async executeDestroyAfterHook<TEntity>(
-        hooks: LifecycleHooks<TEntity> | undefined,
-        entity: TEntity,
-        context: HookContext<TEntity>,
-    ): Promise<TEntity> {
-        if (!hooks?.destroyAfter) {
-            return entity;
-        }
-
-        return await hooks.destroyAfter(entity, context);
-    }
-
-    /**
-     * 🚀 RECOVER 전용 recoverBefore 훅 실행 - 복구 전 처리
-     */
-    private async executeRecoverBeforeHook<TEntity>(
-        hooks: LifecycleHooks<TEntity> | undefined,
-        entity: TEntity,
-        context: HookContext<TEntity>,
-    ): Promise<TEntity> {
-        if (!hooks?.recoverBefore) {
-            return entity;
-        }
-
-        return await hooks.recoverBefore(entity, context);
-    }
-
-    /**
-     * 🚀 RECOVER 전용 recoverAfter 훅 실행 - 복구 후 처리
-     */
-    private async executeRecoverAfterHook<TEntity>(
-        hooks: LifecycleHooks<TEntity> | undefined,
-        entity: TEntity,
-        context: HookContext<TEntity>,
-    ): Promise<TEntity> {
-        if (!hooks?.recoverAfter) {
-            return entity;
-        }
-
-        return await hooks.recoverAfter(entity, context);
-    }
-
-    private async executeAssignAfterHook<TEntity>(
-        hooks: LifecycleHooks<TEntity> | undefined,
-        entity: TEntity,
-        body: DeepPartial<TEntity>,
-        context: HookContext<TEntity>,
-    ): Promise<TEntity> {
-        if (!hooks?.assignAfter) {
-            return entity;
-        }
-        return await hooks.assignAfter(entity, body, context);
-    }
-
-    private async executeSaveBeforeHook<TEntity>(
-        hooks: LifecycleHooks<TEntity> | undefined,
-        entity: TEntity,
-        context: HookContext<TEntity>,
-    ): Promise<TEntity> {
-        if (!hooks?.saveBefore) {
-            return entity;
-        }
-        return await hooks.saveBefore(entity, context);
-    }
-
-    private async executeSaveAfterHook<TEntity>(
-        hooks: LifecycleHooks<TEntity> | undefined,
-        entity: TEntity,
-        context: HookContext<TEntity>,
-    ): Promise<TEntity> {
-        if (!hooks?.saveAfter) {
-            return entity;
-        }
-        return await hooks.saveAfter(entity, context);
-    }
-
-    /**
-     * SHOW 작업을 위한 assignBefore 훅 실행 - 파라미터 전처리
-     */
-    private async executeAssignBeforeHookForShow(
-        hooks: Pick<LifecycleHooks<T>, 'assignBefore' | 'assignAfter'> | undefined,
-        params: Partial<Record<keyof T, unknown>>,
-        context: HookContext<T>,
-    ): Promise<Partial<Record<keyof T, unknown>>> {
-        if (!hooks?.assignBefore) {
-            return params;
-        }
-        // assignBefore 훅에 파라미터를 전달하고 처리된 파라미터를 반환
-        const result = await hooks.assignBefore(params as DeepPartial<T>, context);
-        return result as Partial<Record<keyof T, unknown>>;
-    }
-
-    /**
-     * SHOW 작업을 위한 assignAfter 훅 실행 - 엔티티 가공
-     */
-    private async executeAssignAfterHookForShow(
-        hooks: Pick<LifecycleHooks<T>, 'assignBefore' | 'assignAfter'> | undefined,
-        entity: T,
-        context: HookContext<T>,
-    ): Promise<T> {
-        if (!hooks?.assignAfter) {
-            return entity;
-        }
-        // assignAfter 훅에 엔티티를 전달하고 처리된 엔티티를 반환
-        // body는 빈 객체로 전달 (show 작업에서는 body가 없음)
-        return await hooks.assignAfter(entity, {} as DeepPartial<T>, context);
-    }
 }
+

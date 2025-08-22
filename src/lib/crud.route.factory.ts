@@ -16,7 +16,6 @@ import { MetadataUtils } from 'typeorm/metadata-builder/MetadataUtils';
 import { capitalizeFirstLetter } from './capitalize-first-letter';
 import { CRUD_ROUTE_ARGS } from './constants';
 import { CRUD_POLICY } from './crud.policy';
-import { DeprecationWarnings } from './utils/deprecation-warnings';
 import { CreateRequestDto, getPropertyNamesFromMetadata } from './dto/request.dto';
 import { getLifecycleHooks, LifecycleHookMetadata } from './dto/lifecycle-hooks.decorator';
 import { Method, PaginationType, PAGINATION_SWAGGER_QUERY } from './interface';
@@ -85,9 +84,6 @@ export class CrudRouteFactory {
         this.entityInformation(crudOptions.entity);
 
         this.crudLogger = new CrudLogger(crudOptions.logging);
-        
-        // Check for deprecated features and show warnings
-        DeprecationWarnings.checkAll(crudOptions);
     }
 
     init(): void {
@@ -238,46 +234,46 @@ export class CrudRouteFactory {
     }
 
     protected show<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedShow(crudReadOneRequest: CrudReadOneRequest<T>) {
-            return this.crudService.reservedShow(crudReadOneRequest);
+        this.targetPrototype[controllerMethodName] = function handleShow(crudReadOneRequest: CrudReadOneRequest<T>) {
+            return this.crudService.handleShow(crudReadOneRequest);
         };
     }
 
     protected index<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedIndex(crudReadManyRequest: CrudReadManyRequest<T>) {
-            return this.crudService.reservedIndex(crudReadManyRequest);
+        this.targetPrototype[controllerMethodName] = function handleIndex(crudReadManyRequest: CrudReadManyRequest<T>) {
+            return this.crudService.handleIndex(crudReadManyRequest);
         };
     }
 
 
 
     protected create<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedCreate(crudCreateRequest: CrudCreateRequest<T>) {
-            return this.crudService.reservedCreate(crudCreateRequest);
+        this.targetPrototype[controllerMethodName] = function handleCreate(crudCreateRequest: CrudCreateRequest<T>) {
+            return this.crudService.handleCreate(crudCreateRequest);
         };
     }
 
     protected upsert<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedUpsert(crudUpsertRequest: CrudUpsertRequest<T> | CrudUpsertManyRequest<T>) {
-            return this.crudService.reservedUpsert(crudUpsertRequest);
+        this.targetPrototype[controllerMethodName] = function handleUpsert(crudUpsertRequest: CrudUpsertRequest<T> | CrudUpsertManyRequest<T>) {
+            return this.crudService.handleUpsert(crudUpsertRequest);
         };
     }
 
     protected update<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedUpdate(crudUpdateRequest: CrudUpdateOneRequest<T> | CrudUpdateManyRequest<T>) {
-            return this.crudService.reservedUpdate(crudUpdateRequest);
+        this.targetPrototype[controllerMethodName] = function handleUpdate(crudUpdateRequest: CrudUpdateOneRequest<T> | CrudUpdateManyRequest<T>) {
+            return this.crudService.handleUpdate(crudUpdateRequest);
         };
     }
 
     protected destroy<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedDestroy(crudDeleteRequest: CrudDeleteOneRequest<T> | CrudDeleteManyRequest<T>) {
-            return this.crudService.reservedDestroy(crudDeleteRequest);
+        this.targetPrototype[controllerMethodName] = function handleDestroy(crudDeleteRequest: CrudDeleteOneRequest<T> | CrudDeleteManyRequest<T>) {
+            return this.crudService.handleDestroy(crudDeleteRequest);
         };
     }
 
     protected recover<T>(controllerMethodName: string): void {
-        this.targetPrototype[controllerMethodName] = function reservedRecover(crudRecoverRequest: CrudRecoverRequest<T> | CrudRecoverManyRequest<T>) {
-            return this.crudService.reservedRecover(crudRecoverRequest);
+        this.targetPrototype[controllerMethodName] = function handleRecover(crudRecoverRequest: CrudRecoverRequest<T> | CrudRecoverManyRequest<T>) {
+            return this.crudService.handleRecover(crudRecoverRequest);
         };
     }
 
