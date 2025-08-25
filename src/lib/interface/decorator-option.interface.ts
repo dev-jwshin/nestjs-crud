@@ -94,6 +94,35 @@ export interface CrudOptions {
     allowedIncludes?: string[];
 
     /**
+     * Array of field names to exclude from all responses.
+     * This applies globally to all routes unless overridden at the route level.
+     * @example ['password', 'salt', 'refreshToken']
+     */
+    exclude?: string[];
+
+    /**
+     * Cache configuration for CRUD operations
+     */
+    cache?: {
+        enabled: boolean;
+        ttl?: number;  // Time to live in seconds
+        keyPrefix?: string;
+        strategy?: 'memory' | 'redis' | 'multi-tier';
+    };
+
+    /**
+     * Enable lazy loading for relations
+     * @default false
+     */
+    lazyLoading?: boolean;
+
+    /**
+     * Automatically detect and optimize relation loading
+     * @default false
+     */
+    autoRelationDetection?: boolean;
+
+    /**
      * Configures each CRUD method
      */
     routes?: {

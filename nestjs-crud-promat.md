@@ -1,4 +1,4 @@
-# @foryourdev/nestjs-crud v0.2.6 - 완전한 사용 가이드
+# @foryourdev/nestjs-crud - 완전한 사용 가이드
 
 이 패키지는 NestJS와 TypeORM 기반으로 RESTful CRUD API를 자동 생성하는 라이브러리입니다. 21개의 고급 편의 기능과 성능 최적화 도구를 포함하여 엔터프라이즈급 애플리케이션 개발을 지원합니다.
 
@@ -36,10 +36,10 @@ export class User {
     @IsOptional()
     @IsString()
     bio?: string;
-    
+
     @Column({ select: false })
     password: string;
-    
+
     @DeleteDateColumn()
     deletedAt?: Date;
 }
@@ -79,7 +79,7 @@ import { UserService } from './user.service';
     allowedParams: ['name', 'email', 'bio'],
     exclude: ['password'],
     allowedFilters: ['name', 'email', 'status'],
-    allowedIncludes: ['posts', 'profile']
+    allowedIncludes: ['posts', 'profile'],
 })
 export class UserController {
     constructor(public readonly crudService: UserService) {}
@@ -90,15 +90,15 @@ export class UserController {
 
 다음 7개의 기본 엔드포인트가 자동 생성됩니다:
 
-| 메서드 | 경로 | 설명 | 벌크 지원 |
-|--------|------|------|-----------|
-| GET | `/users` | 목록 조회 (페이지네이션, 필터링, 정렬) | - |
-| GET | `/users/:id` | 단일 조회 | - |
-| POST | `/users` | 생성 | ✅ 배열 전송으로 벌크 생성 |
-| PUT | `/users/:id` | 전체 수정 또는 생성 (Upsert) | ✅ 배열 전송으로 벌크 upsert |
-| PATCH | `/users/:id` | 부분 수정 | ✅ 배열 전송으로 벌크 수정 |
-| DELETE | `/users/:id` | 삭제 | ✅ body에 배열 전송으로 벌크 삭제 |
-| POST | `/users/:id/recover` | 소프트 삭제 복구 | ✅ body에 배열 전송으로 벌크 복구 |
+| 메서드 | 경로                 | 설명                                   | 벌크 지원                         |
+| ------ | -------------------- | -------------------------------------- | --------------------------------- |
+| GET    | `/users`             | 목록 조회 (페이지네이션, 필터링, 정렬) | -                                 |
+| GET    | `/users/:id`         | 단일 조회                              | -                                 |
+| POST   | `/users`             | 생성                                   | ✅ 배열 전송으로 벌크 생성        |
+| PUT    | `/users/:id`         | 전체 수정 또는 생성 (Upsert)           | ✅ 배열 전송으로 벌크 upsert      |
+| PATCH  | `/users/:id`         | 부분 수정                              | ✅ 배열 전송으로 벌크 수정        |
+| DELETE | `/users/:id`         | 삭제                                   | ✅ body에 배열 전송으로 벌크 삭제 |
+| POST   | `/users/:id/recover` | 소프트 삭제 복구                       | ✅ body에 배열 전송으로 벌크 복구 |
 
 ### 벌크 작업 예시
 
@@ -144,7 +144,7 @@ GET /users?filter[status_eq]=active&filter[age_gte]=18
 
 # 지원 연산자 (총 19개)
 _eq       # 같음
-_ne       # 같지 않음  
+_ne       # 같지 않음
 _gt       # 큼
 _gte      # 크거나 같음
 _lt       # 작음
@@ -222,11 +222,11 @@ GET /posts?filter[title_fts]=NestJS&filter[status_eq]=published
 
 ```sql
 -- 기본 한국어 설정
-CREATE INDEX CONCURRENTLY idx_posts_title_fts 
+CREATE INDEX CONCURRENTLY idx_posts_title_fts
 ON posts USING GIN (to_tsvector('korean', title));
 
 -- 영어 설정
-CREATE INDEX CONCURRENTLY idx_posts_description_fts 
+CREATE INDEX CONCURRENTLY idx_posts_description_fts
 ON posts USING GIN (to_tsvector('english', description));
 ```
 
@@ -235,11 +235,11 @@ ON posts USING GIN (to_tsvector('english', description));
 ```sql
 -- 한국어 전문 검색을 위한 GIN 인덱스 생성
 -- CONCURRENTLY 옵션으로 테이블 락 없이 인덱스 생성
-CREATE INDEX CONCURRENTLY idx_posts_title_fts 
+CREATE INDEX CONCURRENTLY idx_posts_title_fts
 ON posts USING GIN (to_tsvector('korean', title));
 
 -- 복합 필드 인덱스 (제목과 내용 동시 검색)
-CREATE INDEX CONCURRENTLY idx_posts_content_fts 
+CREATE INDEX CONCURRENTLY idx_posts_content_fts
 ON posts USING GIN (
     to_tsvector('korean', coalesce(title, '') || ' ' || coalesce(content, ''))
 );
@@ -247,19 +247,20 @@ ON posts USING GIN (
 
 #### 주의사항
 
-- `_fts` 연산자는 **PostgreSQL 전용**입니다
-- 다른 데이터베이스(MySQL, SQLite 등)에서 사용 시 에러가 발생합니다
-- 성능 최적화를 위해 GIN 인덱스 생성을 강력히 권장합니다
-- **보안**: 입력값은 TypeORM의 파라미터 바인딩을 통해 자동으로 이스케이프되어 SQL 인젝션으로부터 안전합니다
+-   `_fts` 연산자는 **PostgreSQL 전용**입니다
+-   다른 데이터베이스(MySQL, SQLite 등)에서 사용 시 에러가 발생합니다
+-   성능 최적화를 위해 GIN 인덱스 생성을 강력히 권장합니다
+-   **보안**: 입력값은 TypeORM의 파라미터 바인딩을 통해 자동으로 이스케이프되어 SQL 인젝션으로부터 안전합니다
 
 ## 최신 업데이트 (v0.2.6)
 
 ### 주요 변경사항
-- **21개 고급 편의 기능 추가**: 체이닝 데코레이터, 타입 안전 쿼리 빌더, 다층 캐싱, CLI 도구, IDE 확장 등
-- **성능 최적화**: 스마트 배치 처리, 진행 상황 추적, 쿼리 성능 분석
-- **개발 도구**: VS Code 확장, IntelliJ 플러그인, 자동 테스트 생성, 디버깅 도구
-- **응답 형식 변환**: JSON:API, HAL, OData, GraphQL 형식 지원
-- **PostgreSQL 전문 검색**: GIN 인덱스 기반 고성능 전문 검색 지원 (v0.2.6)
+
+-   **21개 고급 편의 기능 추가**: 체이닝 데코레이터, 타입 안전 쿼리 빌더, 다층 캐싱, CLI 도구, IDE 확장 등
+-   **성능 최적화**: 스마트 배치 처리, 진행 상황 추적, 쿼리 성능 분석
+-   **개발 도구**: VS Code 확장, IntelliJ 플러그인, 자동 테스트 생성, 디버깅 도구
+-   **응답 형식 변환**: JSON:API, HAL, OData, GraphQL 형식 지원
+-   **PostgreSQL 전문 검색**: GIN 인덱스 기반 고성능 전문 검색 지원 (v0.2.6)
 
 ## 🎯 체이닝 가능한 설정 데코레이터
 
@@ -289,13 +290,13 @@ export class UserController {
     config: {
         logging: true,
         allowedFilters: ['*'], // 개발 환경에서는 모든 필터 허용
-        exclude: []
+        exclude: [],
     },
     fallback: {
         logging: false,
         allowedFilters: ['name', 'email', 'status'],
-        exclude: ['password', 'salt']
-    }
+        exclude: ['password', 'salt'],
+    },
 })
 export class UserController {}
 ```
@@ -309,7 +310,7 @@ import { TypeSafeQueryBuilder } from '@foryourdev/nestjs-crud';
 
 // 타입 안전한 쿼리 빌더
 const query = new TypeSafeQueryBuilder<User>()
-    .select('name', 'email')  // 타입 검증됨
+    .select('name', 'email') // 타입 검증됨
     .where('status', 'eq', 'active')
     .andWhere('age', 'gte', 18)
     .orderBy('createdAt', 'DESC')
@@ -330,9 +331,9 @@ import { SmartBatchProcessor } from '@foryourdev/nestjs-crud';
 export class UserService extends CrudService<User> {
     async bulkCreate(users: CreateUserDto[]) {
         const processor = new SmartBatchProcessor(this.repository);
-        
+
         return await processor
-            .setBatchSize(100)  // 자동 최적화
+            .setBatchSize(100) // 자동 최적화
             .setRetryPolicy({ maxRetries: 3, backoff: 'exponential' })
             .enableProgressTracking()
             .process(users, 'create');
@@ -368,16 +369,20 @@ eventSource.onmessage = (event) => {
 ```typescript
 import { MultiTierCache } from '@foryourdev/nestjs-crud';
 
-@Crud({
-    entity: User,
-    cache: {
-        enabled: true,
-        strategy: 'multi-tier',
-        memory: { ttl: 60, max: 1000 },
-        redis: { ttl: 300, keyPrefix: 'user:' },
-        database: { ttl: 3600, table: 'query_cache' }
+// 다층 캐싱은 별도 서비스로 구현
+@Injectable()
+export class UserService extends CrudService<User> {
+    private cache = new MultiTierCache<User>();
+
+    async findOne(id: number): Promise<User> {
+        const cached = await this.cache.get(`user:${id}`);
+        if (cached) return cached;
+
+        const user = await super.findOne(id);
+        await this.cache.set(`user:${id}`, user, { ttl: 300 });
+        return user;
     }
-})
+}
 export class UserController {}
 
 // 수동 캐시 제어
@@ -399,16 +404,16 @@ export class PerformanceService {
         const analyzer = new QueryPerformanceAnalyzer();
         const analysis = await analyzer.analyzeSlowQueries({
             threshold: 1000, // 1초 이상 쿼리
-            timeframe: '24h'
+            timeframe: '24h',
         });
-        
+
         const suggestions = IndexSuggestionEngine.generateSuggestions(analysis);
         console.log('인덱스 제안:', suggestions);
-        
+
         return {
             slowQueries: analysis.queries,
             indexSuggestions: suggestions,
-            optimizationTips: analysis.recommendations
+            optimizationTips: analysis.recommendations,
         };
     }
 }
@@ -450,11 +455,12 @@ npx nestjs-crud analyze performance --connection default --output report.json
 ```
 
 ### 사용 가능한 명령어
-- `NestJS CRUD: Generate CRUD` - 완전한 CRUD 생성
-- `NestJS CRUD: Generate Entity` - 엔티티 생성
-- `NestJS CRUD: Generate DTO` - DTO 생성
-- `NestJS CRUD: Analyze Performance` - 성능 분석
-- `NestJS CRUD: Generate Documentation` - 문서 생성
+
+-   `NestJS CRUD: Generate CRUD` - 완전한 CRUD 생성
+-   `NestJS CRUD: Generate Entity` - 엔티티 생성
+-   `NestJS CRUD: Generate DTO` - DTO 생성
+-   `NestJS CRUD: Analyze Performance` - 성능 분석
+-   `NestJS CRUD: Generate Documentation` - 문서 생성
 
 ## 🔄 추가 고급 유틸리티
 
@@ -471,8 +477,8 @@ const helper = new CrudConditionalHelper();
 const fields = helper.processFields(user, {
     conditions: [
         { when: (u) => u.role === 'admin', include: ['salary', 'ssn'] },
-        { when: (u) => u.role === 'user', exclude: ['salary', 'ssn', 'internalNotes'] }
-    ]
+        { when: (u) => u.role === 'user', exclude: ['salary', 'ssn', 'internalNotes'] },
+    ],
 });
 ```
 
@@ -486,15 +492,15 @@ import { LazyRelationLoader } from '@foryourdev/nestjs-crud';
 @Injectable()
 export class UserService extends CrudService<User> {
     private lazyLoader: LazyRelationLoader<User>;
-    
+
     async getUserWithLazyRelations(id: number) {
         const user = await this.findOne(id);
-        
+
         // 필요한 경우에만 관계 로드
         if (shouldLoadPosts) {
             await this.lazyLoader.load(user, ['posts']);
         }
-        
+
         return user;
     }
 }
@@ -533,8 +539,8 @@ const processor = new ConditionalFieldProcessor();
 const processed = processor.process(entity, {
     rules: [
         { field: 'discount', condition: (e) => e.vip === true, transform: (v) => v * 1.5 },
-        { field: 'price', condition: (e) => e.bulk === true, transform: (v) => v * 0.8 }
-    ]
+        { field: 'price', condition: (e) => e.bulk === true, transform: (v) => v * 0.8 },
+    ],
 });
 ```
 
@@ -552,7 +558,7 @@ await generator.generateE2ETests({
     entity: User,
     endpoints: ['create', 'read', 'update', 'delete'],
     scenarios: ['success', 'validation', 'authorization'],
-    outputPath: './test/e2e'
+    outputPath: './test/e2e',
 });
 
 // 단위 테스트 생성
@@ -560,7 +566,7 @@ await generator.generateUnitTests({
     service: UserService,
     methods: ['create', 'findOne', 'update', 'remove'],
     mockStrategy: 'auto',
-    outputPath: './test/unit'
+    outputPath: './test/unit',
 });
 ```
 
@@ -575,20 +581,20 @@ import { DebugTools } from '@foryourdev/nestjs-crud';
 DebugTools.enableQueryLogging({
     slowQueryThreshold: 1000,
     logLevel: 'verbose',
-    includeStackTrace: true
+    includeStackTrace: true,
 });
 
 // 메모리 사용량 모니터링
 DebugTools.enableMemoryMonitoring({
     interval: 5000,
-    alertThreshold: '500MB'
+    alertThreshold: '500MB',
 });
 
 // API 요청 추적
 DebugTools.enableRequestTracing({
     includeHeaders: true,
     includeBody: true,
-    sensitiveFields: ['password', 'token']
+    sensitiveFields: ['password', 'token'],
 });
 ```
 
@@ -644,14 +650,21 @@ async getUsersGraphQL(@Req() req: Request) {
 ### 데코레이터 방식 (권장)
 
 ```typescript
-import { 
-    BeforeCreate, AfterCreate,
-    BeforeUpdate, AfterUpdate,
-    BeforeDestroy, AfterDestroy,
-    BeforeRecover, AfterRecover,
-    BeforeShow, AfterShow,
-    BeforeAssign, AfterAssign,
-    BeforeSave, AfterSave
+import {
+    BeforeCreate,
+    AfterCreate,
+    BeforeUpdate,
+    AfterUpdate,
+    BeforeDestroy,
+    AfterDestroy,
+    BeforeRecover,
+    AfterRecover,
+    BeforeShow,
+    AfterShow,
+    BeforeAssign,
+    AfterAssign,
+    BeforeSave,
+    AfterSave,
 } from '@foryourdev/nestjs-crud';
 
 @Injectable()
@@ -684,15 +697,14 @@ export class UserService extends CrudService<User> {
 @Crud({
     entity: User,
     routes: {
-        destroy: { 
-            softDelete: true  // 실제 삭제 대신 deletedAt 필드 업데이트
+        destroy: {
+            softDelete: true, // 실제 삭제 대신 deletedAt 필드 업데이트
         },
-        recover: { 
-            enabled: true     // POST /users/:id/recover 엔드포인트 활성화
-        }
-    }
+        recover: {
+            enabled: true, // POST /users/:id/recover 엔드포인트 활성화
+        },
+    },
 })
-
 // Entity에 soft delete 컬럼 추가
 @Entity()
 export class User {
@@ -712,13 +724,13 @@ import { CrudQueryHelper } from '@foryourdev/nestjs-crud';
 async getActiveUsers(@Req() req: Request) {
     const qb = this.repository.createQueryBuilder('user')
         .where('user.isActive = :active', { active: true });
-    
+
     // 필터링, 정렬, 페이지네이션 자동 적용
     const result = await CrudQueryHelper.applyAllToQueryBuilder(qb, req, {
         allowedFilterFields: ['name', 'email', 'role'],
         defaultLimit: 20
     });
-    
+
     return result;
 }
 ```
@@ -731,39 +743,42 @@ import { CrudOperationHelper } from '@foryourdev/nestjs-crud';
 @Injectable()
 export class UserService extends CrudService<User> {
     private crudHelper: CrudOperationHelper<User>;
-    
+
     constructor(@InjectRepository(User) repository: Repository<User>) {
         super(repository);
         this.crudHelper = new CrudOperationHelper(repository, crudOptions);
     }
-    
+
     // 커스텀 생성 메서드
     async createWithRole(data: CreateUserDto, role: string) {
         // CRUD의 validation과 hooks 사용
-        const user = await this.crudHelper.create({
-            ...data,
-            role
-        }, {
-            validate: true,
-            allowedParams: ['name', 'email', 'role'],
-            hooks: {
-                saveBefore: async (entity) => {
-                    entity.password = await bcrypt.hash(entity.password, 10);
-                }
-            }
-        });
-        
+        const user = await this.crudHelper.create(
+            {
+                ...data,
+                role,
+            },
+            {
+                validate: true,
+                allowedParams: ['name', 'email', 'role'],
+                hooks: {
+                    saveBefore: async (entity) => {
+                        entity.password = await bcrypt.hash(entity.password, 10);
+                    },
+                },
+            },
+        );
+
         return user;
     }
-    
+
     // 최적화된 응답 포함 메서드
     async createWithResponse(data: CreateUserDto) {
         return await this.crudHelper.createWithResponse(data, {
             validate: true,
             responseOptions: {
                 excludedFields: ['password'],
-                skipTransform: true  // 98.9% 성능 향상
-            }
+                skipTransform: true, // 98.9% 성능 향상
+            },
         });
     }
 }
@@ -787,7 +802,7 @@ async getProfile(@CurrentUser() user: User) {
 @Get('/search')
 async searchUsers(@Query() query: any) {
     const users = await this.userService.search(query);
-    
+
     return crudResponse(users, {
         paginationType: 'offset',
         limit: 20,
@@ -800,11 +815,98 @@ async searchUsers(@Query() query: any) {
 @Post('/bulk')
 async bulkCreate(@Body() users: CreateUserDto[]) {
     const created = await this.crudHelper.bulkCreate(users);
-    
+
     return crudResponse(created, {
         skipTransform: true,  // 중복 변환 방지 (98.9% 성능 향상)
         excludedFields: ['password']
     });
+}
+```
+
+## @Crud 데코레이터 실제 지원 옵션
+
+### ✅ 지원되는 옵션들
+
+| 옵션                    | 타입                | 설명                             | 기본값                            |
+| ----------------------- | ------------------- | -------------------------------- | --------------------------------- |
+| `entity`                | `Type<Entity>`      | **필수** - TypeORM 엔티티 클래스 | -                                 |
+| `logging`               | `boolean`           | SQL 쿼리 로깅 활성화             | `false`                           |
+| `skipMissingProperties` | `boolean`           | 존재하지 않는 속성 검증 생략     | `true` (UPDATE), `false` (CREATE) |
+| `allowedParams`         | `string[]`          | CREATE/UPDATE 허용 필드          | `[]` (모두 차단)                  |
+| `allowedFilters`        | `string[]`          | 필터링 허용 필드                 | `[]` (모두 차단)                  |
+| `allowedIncludes`       | `string[]`          | 관계 포함 허용                   | `[]` (모두 차단)                  |
+| `routes`                | `RouteOptions`      | 라우트별 세부 설정               | -                                 |
+| `only`                  | `Method[]`          | 생성할 라우트 지정               | 모든 라우트                       |
+| `pagination`            | `PaginationOptions` | 페이지네이션 설정                | -                                 |
+
+### ✅ 신규 지원 옵션들 (v0.2.7+)
+
+#### 1. 캐싱 지원
+
+```typescript
+@Crud({
+  entity: User,
+  cache: {
+    enabled: true,
+    ttl: 300, // 5분 (초 단위)
+    keyPrefix: 'user',
+    strategy: 'memory' | 'redis' | 'multi-tier'
+  }
+})
+```
+
+**사용법**: `CacheableCrudService` 사용
+
+```typescript
+@Injectable()
+export class UserService extends CacheableCrudService<User> {
+    constructor(@InjectRepository(User) repository: Repository<User>) {
+        super(repository, {
+            cache: { enabled: true, ttl: 300 },
+        });
+    }
+}
+```
+
+#### 2. 지연 로딩 (Lazy Loading)
+
+```typescript
+@Crud({
+  entity: User,
+  lazyLoading: true // 관계를 필요시에만 로드
+})
+```
+
+#### 3. 자동 관계 감지 (N+1 쿼리 최적화)
+
+```typescript
+@Crud({
+  entity: User,
+  autoRelationDetection: true // N+1 쿼리 자동 최적화
+})
+```
+
+#### 4. 전역 필드 제외
+
+```typescript
+@Crud({
+  entity: User,
+  exclude: ['password', 'internalId'] // 모든 응답에서 제외
+})
+```
+
+**통합 서비스 사용**: `EnhancedCrudService`
+
+```typescript
+@Injectable()
+export class UserService extends EnhancedCrudService<User> {
+    constructor(@InjectRepository(User) repository: Repository<User>) {
+        super(repository, {
+            exclude: ['password'],
+            lazyLoading: true,
+            autoRelationDetection: true,
+        });
+    }
 }
 ```
 
@@ -813,13 +915,12 @@ async bulkCreate(@Body() users: CreateUserDto[]) {
 ```typescript
 @Crud({
     entity: User,
-    
+
     // 보안 설정
     allowedParams: ['name', 'email', 'bio'],      // CREATE/UPDATE 허용 필드
     allowedFilters: ['name', 'email', 'status'],  // 필터링 허용 필드
     allowedIncludes: ['posts', 'profile'],        // 관계 포함 허용
-    exclude: ['password', 'refreshToken'],        // 응답에서 제외할 필드
-    
+
     // 라우트별 설정
     routes: {
         create: {
@@ -840,7 +941,7 @@ async bulkCreate(@Body() users: CreateUserDto[]) {
             enabled: true     // 복구 엔드포인트 활성화
         }
     },
-    
+
     logging: false  // SQL 로깅 비활성화
 })
 ```
@@ -859,19 +960,27 @@ async bulkCreate(@Body() users: CreateUserDto[]) {
     entity: User,
     allowedParams: ['name', 'email', 'bio'],      // 수정 가능 필드만
     allowedFilters: ['status', 'role', 'email'],  // 필터 가능 필드만
-    exclude: ['password', 'salt', 'refreshToken'] // 응답에서 제외
+    routes: {
+        // 라우트별로 exclude 설정 필요
+        create: { exclude: ['password', 'salt', 'refreshToken'] },
+        update: { exclude: ['password', 'salt', 'refreshToken'] },
+        show: { exclude: ['password', 'salt', 'refreshToken'] },
+        index: { exclude: ['password', 'salt', 'refreshToken'] }
+    }
 })
 ```
 
 ## 실제 API 호출 예시
 
 ### 사용자 목록 조회
+
 ```bash
 # 활성 사용자 20명, 최신 가입순
 curl "http://localhost:3000/users?filter[status_eq]=active&page[limit]=20&sort=-created_at"
 ```
 
 ### 사용자 생성
+
 ```bash
 curl -X POST http://localhost:3000/users \
   -H "Content-Type: application/json" \
@@ -879,6 +988,7 @@ curl -X POST http://localhost:3000/users \
 ```
 
 ### 사용자 수정
+
 ```bash
 curl -X PATCH http://localhost:3000/users/1 \
   -H "Content-Type: application/json" \
@@ -886,6 +996,7 @@ curl -X PATCH http://localhost:3000/users/1 \
 ```
 
 ### 복잡한 필터링
+
 ```bash
 # 18세 이상, Gmail 사용자, 이름에 'John' 포함
 curl "http://localhost:3000/users?\
@@ -898,6 +1009,7 @@ page[number]=1&page[size]=10"
 ```
 
 ### PostgreSQL 전문 검색
+
 ```bash
 # 제목에서 "NestJS 개발" 전문 검색 (PostgreSQL 전용)
 curl "http://localhost:3000/posts?filter[title_fts]=NestJS 개발"
@@ -914,17 +1026,19 @@ page[limit]=10"
 ## 성능 최적화 팁
 
 ### 1. Transform 최적화
+
 ```typescript
 // CrudOperationHelper의 최적화된 메서드 사용
 const response = await this.crudHelper.createWithResponse(data, {
-    responseOptions: { 
+    responseOptions: {
         excludedFields: ['password'],
-        skipTransform: true  // 98.9% 성능 향상
-    }
+        skipTransform: true, // 98.9% 성능 향상
+    },
 });
 ```
 
 ### 2. 스마트 배치 처리 활용
+
 ```typescript
 // 대용량 데이터 처리 시 SmartBatchProcessor 사용
 const processor = new SmartBatchProcessor(this.repository);
@@ -932,20 +1046,24 @@ await processor.setBatchSize(100).process(largeDataSet, 'create');
 ```
 
 ### 3. 다층 캐싱 활용
+
 ```typescript
-// 자주 조회되는 데이터는 캐싱 활용
-@Crud({
-    entity: User,
-    cache: {
-        enabled: true,
-        strategy: 'multi-tier',
-        memory: { ttl: 60 },
-        redis: { ttl: 300 }
-    }
-})
+// 자주 조회되는 데이터는 서비스 레벨에서 캐싱 구현
+@Injectable()
+export class UserService extends CrudService<User> {
+    private cache = new MultiTierCache<User>({
+        layers: [
+            { name: 'memory', priority: 1, ttl: 60 },
+            { name: 'redis', priority: 2, ttl: 300 },
+        ],
+    });
+
+    // findOne, findMany 등에서 캐시 활용
+}
 ```
 
 ### 4. 관계 로딩 최적화
+
 ```typescript
 // ❌ N+1 쿼리 발생 가능
 @Crud({
@@ -953,23 +1071,23 @@ await processor.setBatchSize(100).process(largeDataSet, 'create');
     allowedIncludes: ['posts', 'comments', 'likes']  // 너무 많은 관계
 })
 
-// ✅ 지연 로딩과 자동 관계 감지 활용
+// ✅ 필요한 관계만 허용
 @Crud({
     entity: User,
-    allowedIncludes: ['posts'],  // 필요한 관계만
-    lazyLoading: true,           // 지연 로딩 활성화
-    autoRelationDetection: true  // 자동 관계 감지
+    allowedIncludes: ['posts'],  // 필요한 관계만 명시적으로 허용
+    logging: false               // SQL 로깅 비활성화로 성능 향상
 })
 ```
 
 ### 5. PostgreSQL 전문 검색 최적화
+
 ```sql
 -- ✅ GIN 인덱스 생성으로 전문 검색 성능 향상
-CREATE INDEX CONCURRENTLY idx_posts_title_fts 
+CREATE INDEX CONCURRENTLY idx_posts_title_fts
 ON posts USING GIN (to_tsvector('korean', title));
 
 -- ✅ 복합 GIN 인덱스로 여러 필드 동시 검색
-CREATE INDEX CONCURRENTLY idx_posts_content_fts 
+CREATE INDEX CONCURRENTLY idx_posts_content_fts
 ON posts USING GIN (
     to_tsvector('korean', coalesce(title, '') || ' ' || coalesce(content, ''))
 );
@@ -994,6 +1112,7 @@ export class AddFullTextSearchIndexes1234567890 implements MigrationInterface {
 ## 📝 v0.2.6 마이그레이션 가이드
 
 ### 인터페이스 이름 변경
+
 일부 인터페이스 이름이 충돌 방지를 위해 변경되었습니다:
 
 ```typescript
@@ -1005,43 +1124,50 @@ import { CrudQueryPaginationOptions } from '@foryourdev/nestjs-crud';
 ```
 
 영향받는 인터페이스:
-- `PaginationOptions` → `CrudQueryPaginationOptions`
-- 대부분의 경우 타입 추론으로 자동 처리되므로 코드 변경이 필요하지 않습니다
+
+-   `PaginationOptions` → `CrudQueryPaginationOptions`
+-   대부분의 경우 타입 추론으로 자동 처리되므로 코드 변경이 필요하지 않습니다
 
 ## 일반적인 문제 해결
 
 ### 1. 필터가 작동하지 않을 때
-- `allowedFilters`에 필터링할 필드가 포함되어 있는지 확인
-- 필터 형식이 `field_operator` 패턴인지 확인 (예: `name_like`, `age_gt`)
+
+-   `allowedFilters`에 필터링할 필드가 포함되어 있는지 확인
+-   필터 형식이 `field_operator` 패턴인지 확인 (예: `name_like`, `age_gt`)
 
 ### 2. 관계가 로드되지 않을 때
-- `allowedIncludes`에 관계가 포함되어 있는지 확인
-- Entity에 관계가 올바르게 정의되어 있는지 확인
-- `AutoRelationDetector`를 사용하여 자동 감지 활성화
+
+-   `allowedIncludes`에 관계가 포함되어 있는지 확인
+-   Entity에 관계가 올바르게 정의되어 있는지 확인
+-   `AutoRelationDetector`를 사용하여 자동 감지 활성화
 
 ### 3. 수정/생성 시 필드가 저장되지 않을 때
-- `allowedParams`에 해당 필드가 포함되어 있는지 확인
-- Entity의 validation 데코레이터 확인
+
+-   `allowedParams`에 해당 필드가 포함되어 있는지 확인
+-   Entity의 validation 데코레이터 확인
 
 ### 4. 성능 문제가 발생할 때
-- `QueryPerformanceAnalyzer`를 사용하여 느린 쿼리 분석
-- `IndexSuggestionEngine`으로 인덱스 최적화 제안 확인
-- 다층 캐싱 활성화 고려
+
+-   `QueryPerformanceAnalyzer`를 사용하여 느린 쿼리 분석
+-   `IndexSuggestionEngine`으로 인덱스 최적화 제안 확인
+-   다층 캐싱 활성화 고려
 
 ### 5. 응답에 민감한 정보가 노출될 때
-- `exclude` 옵션에 제외할 필드 추가
-- Entity에서 `@Exclude()` 데코레이터 사용
+
+-   `exclude` 옵션에 제외할 필드 추가
+-   Entity에서 `@Exclude()` 데코레이터 사용
 
 ### 6. PostgreSQL 전문 검색 문제가 발생할 때
-- **에러**: "Full-text search (_fts) operator is only supported with PostgreSQL"
-  - PostgreSQL 데이터베이스를 사용하고 있는지 확인
-  - MySQL, SQLite 등에서는 `_fts` 연산자 대신 `_like` 또는 `_contains` 사용
-- **느린 전문 검색 성능**
-  - GIN 인덱스가 생성되어 있는지 확인
-  - `QueryConverter.generateGinIndexSQL()` 메서드로 인덱스 생성 SQL 확인
-- **한국어 검색 결과 부정확**
-  - `to_tsvector('korean', ...)` 설정 확인
-  - PostgreSQL의 한국어 사전 설정 확인
+
+-   **에러**: "Full-text search (\_fts) operator is only supported with PostgreSQL"
+    -   PostgreSQL 데이터베이스를 사용하고 있는지 확인
+    -   MySQL, SQLite 등에서는 `_fts` 연산자 대신 `_like` 또는 `_contains` 사용
+-   **느린 전문 검색 성능**
+    -   GIN 인덱스가 생성되어 있는지 확인
+    -   `QueryConverter.generateGinIndexSQL()` 메서드로 인덱스 생성 SQL 확인
+-   **한국어 검색 결과 부정확**
+    -   `to_tsvector('korean', ...)` 설정 확인
+    -   PostgreSQL의 한국어 사전 설정 확인
 
 ---
 
@@ -1051,39 +1177,43 @@ import { CrudQueryPaginationOptions } from '@foryourdev/nestjs-crud';
 
 ---
 
-**이 프로젝트는 @foryourdev/nestjs-crud v0.2.6 패키지를 사용합니다.** 
+**이 프로젝트는 @foryourdev/nestjs-crud v0.2.6 패키지를 사용합니다.**
 
 이 패키지는 NestJS와 TypeORM 기반의 자동 CRUD API 생성 라이브러리로, 21개의 고급 편의 기능을 포함합니다:
 
 **🎯 핵심 기능:**
-- `@Crud` 데코레이터로 7개 엔드포인트 자동 생성 (GET, POST, PUT, PATCH, DELETE, 복구)
-- 벌크 작업 지원 (배열 기반 생성/수정/삭제)
-- 19개 필터 연산자, 3가지 페이지네이션 방식
-- PostgreSQL 전문 검색 (`_fts`) - GIN 인덱스와 to_tsvector/plainto_tsquery 지원
-- 생명주기 훅 (`@BeforeCreate`, `@AfterUpdate` 등)
-- 소프트 삭제 및 복구 기능
+
+-   `@Crud` 데코레이터로 7개 엔드포인트 자동 생성 (GET, POST, PUT, PATCH, DELETE, 복구)
+-   벌크 작업 지원 (배열 기반 생성/수정/삭제)
+-   19개 필터 연산자, 3가지 페이지네이션 방식
+-   PostgreSQL 전문 검색 (`_fts`) - GIN 인덱스와 to_tsvector/plainto_tsquery 지원
+-   생명주기 훅 (`@BeforeCreate`, `@AfterUpdate` 등)
+-   소프트 삭제 및 복구 기능
 
 **🚀 고급 기능 (v0.2.6):**
-- **체이닝 데코레이터**: `@CrudConfig().entity(User).allowParams(['name']).apply()`
-- **조건부 설정**: 환경별 동적 CRUD 설정
-- **타입 안전 쿼리 빌더**: `TypeSafeQueryBuilder<User>()` 완전한 타입 검증
-- **스마트 배치 처리**: `SmartBatchProcessor` 대용량 데이터 최적화
-- **진행 상황 추적**: `ProgressTracker` 실시간 SSE 모니터링
-- **다층 캐싱**: 메모리/Redis/DB 지능형 캐시
-- **성능 분석**: `QueryPerformanceAnalyzer`, `IndexSuggestionEngine`
-- **응답 변환**: JSON:API, HAL, OData, GraphQL 형식 지원
-- **CLI 도구**: 코드 생성, 마이그레이션, 문서화
-- **IDE 확장**: VS Code/IntelliJ 플러그인
-- **자동 테스트 생성**: E2E/단위 테스트 자동 생성
-- **디버깅 도구**: `DebugTools` 쿼리/메모리 모니터링
+
+-   **체이닝 데코레이터**: `@CrudConfig().entity(User).allowParams(['name']).apply()`
+-   **조건부 설정**: 환경별 동적 CRUD 설정
+-   **타입 안전 쿼리 빌더**: `TypeSafeQueryBuilder<User>()` 완전한 타입 검증
+-   **스마트 배치 처리**: `SmartBatchProcessor` 대용량 데이터 최적화
+-   **진행 상황 추적**: `ProgressTracker` 실시간 SSE 모니터링
+-   **다층 캐싱**: 메모리/Redis/DB 지능형 캐시
+-   **성능 분석**: `QueryPerformanceAnalyzer`, `IndexSuggestionEngine`
+-   **응답 변환**: JSON:API, HAL, OData, GraphQL 형식 지원
+-   **CLI 도구**: 코드 생성, 마이그레이션, 문서화
+-   **IDE 확장**: VS Code/IntelliJ 플러그인
+-   **자동 테스트 생성**: E2E/단위 테스트 자동 생성
+-   **디버깅 도구**: `DebugTools` 쿼리/메모리 모니터링
 
 **🛠️ 개발 시 고려사항:**
-- **보안**: `allowedParams`, `allowedFilters`, `exclude` 필드 반드시 설정
-- **성능**: `skipTransform: true` 사용 시 98.9% 성능 향상
-- **타입 안전성**: TypeScript 타입 활용한 완전한 타입 검증
-- **확장성**: `CrudQueryHelper`, `CrudOperationHelper`로 커스텀 라우트 지원
+
+-   **보안**: `allowedParams`, `allowedFilters`, `exclude` 필드 반드시 설정
+-   **성능**: `skipTransform: true` 사용 시 98.9% 성능 향상
+-   **타입 안전성**: TypeScript 타입 활용한 완전한 타입 검증
+-   **확장성**: `CrudQueryHelper`, `CrudOperationHelper`로 커스텀 라우트 지원
 
 **코드 작성 시:**
+
 1. Entity에 적절한 validation 데코레이터 추가
 2. `@Crud` 데코레이터에서 보안 필드 설정 필수
 3. 대용량 처리 시 `SmartBatchProcessor` 활용

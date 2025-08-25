@@ -51,6 +51,7 @@ A powerful library that automatically generates RESTful CRUD APIs based on NestJ
 -   **Lifecycle Hooks**: Execute custom logic at each stage of CRUD operations
     -   **Decorator Approach 🆕**: Intuitive method decorators like `@BeforeCreate()`, `@AfterUpdate()`, `@BeforeDestroy()`, `@BeforeRecover()`
     -   **Routes Configuration Approach**: Legacy `routes.hooks` configuration approach
+-   **Full-Text Search 🆕**: PostgreSQL FTS support with GIN indexes and `plainto_tsquery`
 
 ### 🔒 Security and Control Features
 
@@ -58,6 +59,14 @@ A powerful library that automatically generates RESTful CRUD APIs based on NestJ
 -   **Parameter Restrictions**: Only columns specified in allowedParams can be used as request parameters
 -   **Relation Inclusion Restrictions**: Only relations specified in allowedIncludes can be included
 -   **Default Block Policy**: If not configured, all filtering/parameters/relation inclusion is blocked
+-   **Field Exclusion 🆕**: Global and route-specific field exclusion from responses
+
+### ⚡ Performance Features (v0.2.7+)
+
+-   **Built-in Caching**: Memory, Redis, and multi-tier caching strategies
+-   **Lazy Loading**: Load relations only when needed
+-   **Auto Relation Detection**: Automatic N+1 query optimization
+-   **Enhanced Services**: `CacheableCrudService` and `EnhancedCrudService` for advanced features
 
 ## 📦 Installation
 

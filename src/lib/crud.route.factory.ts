@@ -346,12 +346,24 @@ export class CrudRouteFactory {
             this.validatePaginationKeys(this.crudOptions.routes?.[crudMethod]?.paginationKeys);
         }
 
+        // Add ExcludeFieldsInterceptor if there are fields to exclude
+        const hasExcludeFields = (this.crudOptions.exclude?.length ?? 0) > 0 || 
+                                 ((this.crudOptions.routes?.[crudMethod] as any)?.exclude?.length ?? 0) > 0;
+        
+        const interceptors = [
+            ...(this.crudOptions.routes?.[crudMethod]?.interceptors ?? []),
+            CRUD_POLICY[crudMethod].interceptor(this.crudOptions, factoryOption),
+        ];
+
+        // Add ExcludeFieldsInterceptor at the end to process the final response
+        if (hasExcludeFields) {
+            const { ExcludeFieldsInterceptor } = require('./interceptor/exclude-fields.interceptor');
+            interceptors.push(ExcludeFieldsInterceptor);
+        }
+
         Reflect.defineMetadata(
             INTERCEPTORS_METADATA,
-            [
-                ...(this.crudOptions.routes?.[crudMethod]?.interceptors ?? []),
-                CRUD_POLICY[crudMethod].interceptor(this.crudOptions, factoryOption),
-            ].filter(Boolean),
+            interceptors.filter(Boolean),
             targetMethod,
         );
 
