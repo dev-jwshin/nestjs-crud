@@ -156,7 +156,9 @@ export interface CrudOptions {
              * @example ['department', 'posts', 'posts.comments']
              */
             allowedIncludes?: string[];
-        } & RouteBaseOption;
+        } & RouteBaseOption & {
+            hooks?: LifecycleHooks;
+        };
         [Method.INDEX]?: {
             /**
              * Way to order the result
@@ -223,7 +225,9 @@ export interface CrudOptions {
              */
             skipMissingProperties?: boolean;
         } & RouteBaseOption &
-            SaveOptions;
+            SaveOptions & {
+                hooks?: LifecycleHooks;
+            };
         [Method.UPDATE]?: {
             /**
              * Array of path parameters to use for the route
@@ -256,7 +260,9 @@ export interface CrudOptions {
              */
             skipMissingProperties?: boolean;
         } & RouteBaseOption &
-            SaveOptions;
+            SaveOptions & {
+                hooks?: LifecycleHooks;
+            };
         [Method.DESTROY]?: {
             /**
              * Array of path parameters to use for the route
@@ -274,7 +280,9 @@ export interface CrudOptions {
              */
             softDelete?: boolean;
         } & RouteBaseOption &
-            SaveOptions;
+            SaveOptions & {
+                hooks?: LifecycleHooks;
+            };
         [Method.UPSERT]?: {
             /**
              * Array of path parameters to use for the route
@@ -307,7 +315,9 @@ export interface CrudOptions {
              */
             skipMissingProperties?: boolean;
         } & RouteBaseOption &
-            SaveOptions;
+            SaveOptions & {
+                hooks?: LifecycleHooks;
+            };
         [Method.RECOVER]?: {
             /**
              * Array of path parameters to use for the route
@@ -320,7 +330,9 @@ export interface CrudOptions {
              */
             params?: string[];
         } & RouteBaseOption &
-            SaveOptions;
+            SaveOptions & {
+                hooks?: LifecycleHooks;
+            };
     };
     /**
      * An array of methods to generate routes for. If not specified, all routes will be generated.

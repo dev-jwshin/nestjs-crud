@@ -221,7 +221,11 @@ export class CrudService<T extends EntityType> {
                     operation: 'create' as Method,
                     params: {},
                 };
-                return body;
+                let processedBody = body;
+                if (crudCreateRequest.hooks?.assignBefore) {
+                    processedBody = await crudCreateRequest.hooks.assignBefore(body, context) as DeepPartial<T>;
+                }
+                return processedBody;
             }),
         );
 
@@ -234,7 +238,9 @@ export class CrudService<T extends EntityType> {
                 operation: 'create' as Method,
                 params: {},
             };
-            // No configuration-based hooks
+            if (crudCreateRequest.hooks?.assignAfter) {
+                entities[i] = await crudCreateRequest.hooks.assignAfter(entities[i], processedBodyArray[i], context);
+            }
         }
 
         // saveBefore 훅 실행
@@ -243,7 +249,9 @@ export class CrudService<T extends EntityType> {
                 operation: 'create' as Method,
                 params: {},
             };
-            // No configuration-based hooks
+            if (crudCreateRequest.hooks?.saveBefore) {
+                entities[i] = await crudCreateRequest.hooks.saveBefore(entities[i], context);
+            }
         }
 
         // Process in batches for large datasets
@@ -270,7 +278,9 @@ export class CrudService<T extends EntityType> {
                         operation: 'create' as Method,
                         params: {},
                     };
-                    // No configuration-based hooks
+                    if (crudCreateRequest.hooks?.saveAfter) {
+                        result[i] = await crudCreateRequest.hooks.saveAfter(result[i], context);
+                    }
                 }
 
                 const processedResult = isMany

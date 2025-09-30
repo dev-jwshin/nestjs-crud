@@ -1,5 +1,5 @@
 import type { DeepPartial } from 'typeorm';
-import type { SaveOptions } from '.';
+import type { SaveOptions, LifecycleHooks } from '.';
 
 export type CrudRequestId<T> = keyof T | Array<keyof T>;
 
@@ -15,18 +15,21 @@ export interface CrudReadOneRequest<T> extends CrudReadRequestBase {
     selectColumns?: string[];
     excludedColumns?: string[];
     params: Partial<Record<keyof T, unknown>>;
+    hooks?: LifecycleHooks<T>;
 }
 
 export interface CrudCreateOneRequest<T> extends CrudRequestBase {
     body: DeepPartial<T>;
     exclude: Set<string>;
     saveOptions?: SaveOptions;
+    hooks?: LifecycleHooks<T>;
 }
 
 export interface CrudCreateManyRequest<T> extends CrudRequestBase {
     body: Array<DeepPartial<T>>;
     exclude: Set<string>;
     saveOptions?: SaveOptions;
+    hooks?: LifecycleHooks<T>;
 }
 
 export function isCrudCreateManyRequest<T>(x: CrudCreateOneRequest<T> | CrudCreateManyRequest<T>): x is CrudCreateManyRequest<T> {
@@ -49,6 +52,7 @@ export interface CrudUpdateManyRequest<T> extends CrudRequestBase {
     body: Array<Partial<T> & { id: any }>;  // Each item must have an ID for update
     exclude: Set<string>;
     saveOptions: SaveOptions;
+    hooks?: LifecycleHooks<T>;
 }
 
 export function isCrudUpdateManyRequest<T>(x: CrudUpdateOneRequest<T> | CrudUpdateManyRequest<T>): x is CrudUpdateManyRequest<T> {
@@ -61,6 +65,7 @@ export interface CrudUpsertManyRequest<T> extends CrudRequestBase {
     body: Array<DeepPartial<T>>;
     exclude: Set<string>;
     saveOptions: SaveOptions;
+    hooks?: LifecycleHooks<T>;
 }
 
 export function isCrudUpsertManyRequest<T>(x: CrudUpsertRequest<T> | CrudUpsertManyRequest<T>): x is CrudUpsertManyRequest<T> {
@@ -72,6 +77,7 @@ export interface CrudDeleteOneRequest<T> extends CrudRequestBase {
     softDeleted: boolean;
     exclude: Set<string>;
     saveOptions: SaveOptions;
+    hooks?: LifecycleHooks<T>;
 }
 
 export interface CrudDeleteManyRequest<T> extends CrudRequestBase {
@@ -79,6 +85,7 @@ export interface CrudDeleteManyRequest<T> extends CrudRequestBase {
     softDeleted: boolean;
     exclude: Set<string>;
     saveOptions: SaveOptions;
+    hooks?: LifecycleHooks<T>;
 }
 
 export function isCrudDeleteManyRequest<T>(x: CrudDeleteOneRequest<T> | CrudDeleteManyRequest<T>): x is CrudDeleteManyRequest<T> {
@@ -91,12 +98,14 @@ export interface CrudRecoverRequest<T> extends CrudRequestBase {
     params: Partial<Record<keyof T, unknown>>;
     exclude: Set<string>;
     saveOptions: SaveOptions;
+    hooks?: LifecycleHooks<T>;
 }
 
 export interface CrudRecoverManyRequest<T> extends CrudRequestBase {
     params: Array<Partial<Record<keyof T, unknown>>>;  // Array of IDs or conditions
     exclude: Set<string>;
     saveOptions: SaveOptions;
+    hooks?: LifecycleHooks<T>;
 }
 
 export function isCrudRecoverManyRequest<T>(x: CrudRecoverRequest<T> | CrudRecoverManyRequest<T>): x is CrudRecoverManyRequest<T> {

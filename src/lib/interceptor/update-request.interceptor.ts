@@ -64,6 +64,7 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                     saveOptions: {
                         listeners: updatedOptions.listeners,
                     },
+                    hooks: updatedOptions.hooks,
                 };
                 
                 this.crudLogger.logRequest(req, crudUpdateManyRequest);
@@ -84,6 +85,7 @@ export function UpdateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                     saveOptions: {
                         listeners: updatedOptions.listeners,
                     },
+                    hooks: updatedOptions.hooks,
                 };
 
                 this.crudLogger.logRequest(req, crudUpdateOneRequest);
