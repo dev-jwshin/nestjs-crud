@@ -127,7 +127,7 @@ export class CrudRouteFactory {
     }
 
     private processLifecycleHooks(): void {
-        const lifecycleHooks = getLifecycleHooks(this.target);
+        const lifecycleHooks = getLifecycleHooks(this.target.prototype);
 
         if (lifecycleHooks.length === 0) {
             return;
@@ -172,13 +172,19 @@ export class CrudRouteFactory {
                 const chainedHookFunction = async (data: any, context: any) => {
                     let result = data;
 
+                    // 컨트롤러 인스턴스를 context에서 가져오기
+                    // context.controller가 실제 DI된 컨트롤러 인스턴스
+                    const controllerInstance = context.controller || context.instance;
+
                     // 각 훅을 순차적으로 실행하면서 결과를 다음 훅으로 전달
                     for (const hookMetadata of hookMetadataList) {
-                        const controllerInstance = new this.target();
                         const methodName = hookMetadata.methodName;
 
-                        if (typeof controllerInstance[methodName] === 'function') {
-                            result = await controllerInstance[methodName](result, context);
+                        if (controllerInstance && typeof controllerInstance[methodName] === 'function') {
+                            // Hook 실행 결과를 반드시 반환값으로 사용
+                            const hookResult = await controllerInstance[methodName](result, context);
+                            // Hook이 값을 반환하면 사용, 아니면 원래 값 유지
+                            result = hookResult !== undefined ? hookResult : result;
                         }
                     }
 
@@ -277,18 +283,30 @@ export class CrudRouteFactory {
 
     protected create<T>(controllerMethodName: string): void {
         this.targetPrototype[controllerMethodName] = function handleCreate(crudCreateRequest: CrudCreateRequest<T>) {
+            // Set controller instance for hooks
+            if (this.crudService.setControllerInstance) {
+                this.crudService.setControllerInstance(this);
+            }
             return this.crudService.handleCreate(crudCreateRequest);
         };
     }
 
     protected upsert<T>(controllerMethodName: string): void {
         this.targetPrototype[controllerMethodName] = function handleUpsert(crudUpsertRequest: CrudUpsertRequest<T> | CrudUpsertManyRequest<T>) {
+            // Set controller instance for hooks
+            if (this.crudService.setControllerInstance) {
+                this.crudService.setControllerInstance(this);
+            }
             return this.crudService.handleUpsert(crudUpsertRequest);
         };
     }
 
     protected update<T>(controllerMethodName: string): void {
         this.targetPrototype[controllerMethodName] = function handleUpdate(crudUpdateRequest: CrudUpdateOneRequest<T> | CrudUpdateManyRequest<T>) {
+            // Set controller instance for hooks
+            if (this.crudService.setControllerInstance) {
+                this.crudService.setControllerInstance(this);
+            }
             return this.crudService.handleUpdate(crudUpdateRequest);
         };
     }

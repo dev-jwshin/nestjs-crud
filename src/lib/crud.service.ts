@@ -44,11 +44,16 @@ export class CrudService<T extends EntityType> {
     private primaryKey: string[];
     private columnNames: string[];
     private usableQueryRunner = false;
+    private controllerInstance?: any;
 
     constructor(public readonly repository: Repository<T>) {
         this.usableQueryRunner = SUPPORTED_REPLICATION_TYPES.has(this.repository.metadata.connection?.options.type);
         this.primaryKey = this.repository.metadata.primaryColumns?.map((columnMetadata) => columnMetadata.propertyName) ?? [];
         this.columnNames = this.repository.metadata.columns.map((column) => column.propertyPath);
+    }
+
+    setControllerInstance(controller: any): void {
+        this.controllerInstance = controller;
     }
 
     /**
@@ -177,6 +182,7 @@ export class CrudService<T extends EntityType> {
         const context: HookContext<T> = {
             operation: 'show' as Method,
             params: crudReadOneRequest.params,
+            controller: this.controllerInstance,
         };
 
         // 2. No configuration-based hooks anymore
@@ -220,6 +226,7 @@ export class CrudService<T extends EntityType> {
                 const context: HookContext<T> = {
                     operation: 'create' as Method,
                     params: {},
+                    controller: this.controllerInstance,
                 };
                 let processedBody = body;
                 if (crudCreateRequest.hooks?.assignBefore) {
@@ -237,6 +244,7 @@ export class CrudService<T extends EntityType> {
             const context: HookContext<T> = {
                 operation: 'create' as Method,
                 params: {},
+                controller: this.controllerInstance,
             };
             if (crudCreateRequest.hooks?.assignAfter) {
                 entities[i] = await crudCreateRequest.hooks.assignAfter(entities[i], processedBodyArray[i], context);
@@ -248,6 +256,7 @@ export class CrudService<T extends EntityType> {
             const context: HookContext<T> = {
                 operation: 'create' as Method,
                 params: {},
+                controller: this.controllerInstance,
             };
             if (crudCreateRequest.hooks?.saveBefore) {
                 entities[i] = await crudCreateRequest.hooks.saveBefore(entities[i], context);
@@ -277,6 +286,7 @@ export class CrudService<T extends EntityType> {
                     const context: HookContext<T> = {
                         operation: 'create' as Method,
                         params: {},
+                        controller: this.controllerInstance,
                     };
                     if (crudCreateRequest.hooks?.saveAfter) {
                         result[i] = await crudCreateRequest.hooks.saveAfter(result[i], context);
@@ -324,13 +334,23 @@ export class CrudService<T extends EntityType> {
                     operation: 'upsert' as Method,
                     params,
                     currentEntity: entity ?? undefined,
+                    controller: this.controllerInstance,
                 };
 
                 // Execute hooks
-                const processedBody = item;
+                let processedBody = item;
+                if (crudUpsertRequest.hooks?.assignBefore) {
+                    processedBody = await crudUpsertRequest.hooks.assignBefore(processedBody as DeepPartial<T>, context) as DeepPartial<T>;
+                }
                 _.assign(upsertEntity, processedBody);
-                // No configuration-based hooks
-                // No configuration-based hooks
+
+                if (crudUpsertRequest.hooks?.assignAfter) {
+                    upsertEntity = await crudUpsertRequest.hooks.assignAfter(upsertEntity, processedBody, context);
+                }
+
+                if (crudUpsertRequest.hooks?.saveBefore) {
+                    upsertEntity = await crudUpsertRequest.hooks.saveBefore(upsertEntity, context);
+                }
 
                 return { entity: upsertEntity, isNew };
             });
@@ -347,8 +367,12 @@ export class CrudService<T extends EntityType> {
                             const context: HookContext<T> = {
                                 operation: 'upsert' as Method,
                                 params: {},
+                                controller: this.controllerInstance,
                             };
-                            const afterSaveEntity = entity;
+                            let afterSaveEntity = entity;
+                            if (crudUpsertRequest.hooks?.saveAfter) {
+                                afterSaveEntity = await crudUpsertRequest.hooks.saveAfter(entity, context);
+                            }
                             return this.excludeEntity(afterSaveEntity, crudUpsertRequest.exclude);
                         })
                     );
@@ -381,24 +405,34 @@ export class CrudService<T extends EntityType> {
                 };
 
                 // assignBefore 훅 실행
-                const processedBody = crudUpsertRequest.body;
+                let processedBody = crudUpsertRequest.body;
+                if (crudUpsertRequest.hooks?.assignBefore) {
+                    processedBody = await crudUpsertRequest.hooks.assignBefore(processedBody, context) as DeepPartial<T>;
+                }
 
                 // 엔티티에 데이터 할당
                 _.assign(upsertEntity, processedBody);
 
                 // assignAfter 훅 실행
-                // No configuration-based hooks
+                if (crudUpsertRequest.hooks?.assignAfter) {
+                    upsertEntity = await crudUpsertRequest.hooks.assignAfter(upsertEntity, processedBody, context);
+                }
 
                 // saveBefore 훅 실행
-                // No configuration-based hooks
+                if (crudUpsertRequest.hooks?.saveBefore) {
+                    upsertEntity = await crudUpsertRequest.hooks.saveBefore(upsertEntity, context);
+                }
 
                 return this.repository
                     .save(upsertEntity, crudUpsertRequest.saveOptions)
                     .then(async (savedEntity) => {
                         // saveAfter 훅 실행
-                        // No configuration-based hooks
+                        let finalEntity = savedEntity;
+                        if (crudUpsertRequest.hooks?.saveAfter) {
+                            finalEntity = await crudUpsertRequest.hooks.saveAfter(savedEntity, context);
+                        }
 
-                        const processedEntity = this.excludeEntity(savedEntity, crudUpsertRequest.exclude);
+                        const processedEntity = this.excludeEntity(finalEntity, crudUpsertRequest.exclude);
 
                         // Transform entity to plain object to apply @Exclude decorators
                         const transformedEntity = this.transformEntityToPlain(processedEntity);
@@ -455,6 +489,7 @@ export class CrudService<T extends EntityType> {
                         operation: 'update' as Method,
                         params,
                         currentEntity: entity,
+                        controller: this.controllerInstance,
                     };
                     
                     // Apply update data to entity
@@ -478,6 +513,7 @@ export class CrudService<T extends EntityType> {
                             const context: HookContext<T> = {
                                 operation: 'update' as Method,
                                 params: { [this.primaryKey[0]]: crudUpdateRequest.body[index].id },
+                                controller: this.controllerInstance,
                             };
                             const afterSaveEntity = entity;
                             return this.excludeEntity(afterSaveEntity, crudUpdateRequest.exclude);
@@ -502,6 +538,7 @@ export class CrudService<T extends EntityType> {
                     operation: 'update' as Method,
                     params: crudUpdateRequest.params,
                     currentEntity: entity,
+                    controller: this.controllerInstance,
                 };
 
                 // 🚀 UPDATE 개선: body를 entity에 먼저 할당 후 beforeUpdate 훅에서 entity 처리
@@ -509,21 +546,31 @@ export class CrudService<T extends EntityType> {
                 _.assign(entity, crudUpdateRequest.body);
 
                 // 2. assignBefore 훅 실행 (UPDATE의 경우 entity 기반)
-                // No configuration-based hooks
+                let processedEntity = entity;
+                if (crudUpdateRequest.hooks?.assignBefore) {
+                    processedEntity = await crudUpdateRequest.hooks.assignBefore(entity, context) as T;
+                }
 
                 // assignAfter 훅 실행
-                // No configuration-based hooks
+                if (crudUpdateRequest.hooks?.assignAfter) {
+                    processedEntity = await crudUpdateRequest.hooks.assignAfter(processedEntity, crudUpdateRequest.body, context);
+                }
 
                 // saveBefore 훅 실행
-                // No configuration-based hooks
+                if (crudUpdateRequest.hooks?.saveBefore) {
+                    processedEntity = await crudUpdateRequest.hooks.saveBefore(processedEntity, context);
+                }
 
                 return this.repository
-                    .save(entity, crudUpdateRequest.saveOptions)
+                    .save(processedEntity, crudUpdateRequest.saveOptions)
                     .then(async (updatedEntity) => {
                         // saveAfter 훅 실행
-                        // No configuration-based hooks
+                        let finalEntity = updatedEntity;
+                        if (crudUpdateRequest.hooks?.saveAfter) {
+                            finalEntity = await crudUpdateRequest.hooks.saveAfter(updatedEntity, context);
+                        }
 
-                        const processedEntity = this.excludeEntity(updatedEntity, crudUpdateRequest.exclude);
+                        const processedEntity = this.excludeEntity(finalEntity, crudUpdateRequest.exclude);
 
                         // Transform entity to plain object to apply @Exclude decorators
                         const transformedEntity = this.transformEntityToPlain(processedEntity);
@@ -579,11 +626,15 @@ export class CrudService<T extends EntityType> {
                         operation: 'destroy' as Method,
                         params,
                         currentEntity: entity,
+                        controller: this.controllerInstance,
                     };
                     
                     // Execute destroyBefore hook
-                    const processedEntity = entity;
-                    
+                    let processedEntity = entity;
+                    if (crudDeleteRequest.hooks?.destroyBefore) {
+                        processedEntity = await crudDeleteRequest.hooks.destroyBefore(entity, context);
+                    }
+
                     return processedEntity;
                 })
             );
@@ -599,8 +650,12 @@ export class CrudService<T extends EntityType> {
                     const context: HookContext<T> = {
                         operation: 'destroy' as Method,
                         params: crudDeleteRequest.params[index],
+                        controller: this.controllerInstance,
                     };
-                    const afterDestroyEntity = entity;
+                    let afterDestroyEntity = entity;
+                    if (crudDeleteRequest.hooks?.destroyAfter) {
+                        afterDestroyEntity = await crudDeleteRequest.hooks.destroyAfter(entity, context);
+                    }
                     return this.excludeEntity(afterDestroyEntity, crudDeleteRequest.exclude);
                 })
             );
@@ -624,22 +679,29 @@ export class CrudService<T extends EntityType> {
                     operation: 'destroy' as Method,
                     params: crudDeleteRequest.params,
                     currentEntity: entity,
+                    controller: this.controllerInstance,
                 };
 
                 // 🚀 destroyBefore 훅 실행 - entity를 받아서 entity를 반환
-                // No configuration-based hooks
+                let processedEntity = entity;
+                if (crudDeleteRequest.hooks?.destroyBefore) {
+                    processedEntity = await crudDeleteRequest.hooks.destroyBefore(entity, context);
+                }
 
-                await (crudDeleteRequest.softDeleted
-                    ? this.repository.softRemove(entity, crudDeleteRequest.saveOptions)
-                    : this.repository.remove(entity, crudDeleteRequest.saveOptions));
+                const deletedEntity = await (crudDeleteRequest.softDeleted
+                    ? this.repository.softRemove(processedEntity, crudDeleteRequest.saveOptions)
+                    : this.repository.remove(processedEntity, crudDeleteRequest.saveOptions));
 
                 // 🚀 destroyAfter 훅 실행 - 삭제 후 처리
-                // No configuration-based hooks
+                let finalEntity = deletedEntity;
+                if (crudDeleteRequest.hooks?.destroyAfter) {
+                    finalEntity = await crudDeleteRequest.hooks.destroyAfter(deletedEntity, context);
+                }
 
-                const processedEntity = this.excludeEntity(entity, crudDeleteRequest.exclude);
+                const excludedEntity = this.excludeEntity(finalEntity, crudDeleteRequest.exclude);
 
                 // Transform entity to plain object to apply @Exclude decorators
-                const transformedEntity = this.transformEntityToPlain(processedEntity);
+                const transformedEntity = this.transformEntityToPlain(excludedEntity);
                 const excludedFields = crudDeleteRequest.exclude.size > 0 ? [...crudDeleteRequest.exclude] : undefined;
 
                 return createCrudResponse(transformedEntity, {
@@ -690,13 +752,17 @@ export class CrudService<T extends EntityType> {
                         operation: 'recover' as Method,
                         params,
                         currentEntity: entity,
+                        controller: this.controllerInstance,
                     };
                     
                     const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
                     
                     // Execute recoverBefore hook
-                    const processedEntity = entity;
-                    
+                    let processedEntity = entity;
+                    if (crudRecoverRequest.hooks?.recoverBefore) {
+                        processedEntity = await crudRecoverRequest.hooks.recoverBefore(entity, context);
+                    }
+
                     return { entity: processedEntity, wasSoftDeleted };
                 })
             );
@@ -712,8 +778,12 @@ export class CrudService<T extends EntityType> {
                     const context: HookContext<T> = {
                         operation: 'recover' as Method,
                         params: crudRecoverRequest.params[index],
+                        controller: this.controllerInstance,
                     };
-                    const afterRecoverEntity = entity;
+                    let afterRecoverEntity = entity;
+                    if (crudRecoverRequest.hooks?.recoverAfter) {
+                        afterRecoverEntity = await crudRecoverRequest.hooks.recoverAfter(entity, context);
+                    }
                     return this.excludeEntity(afterRecoverEntity, crudRecoverRequest.exclude);
                 })
             );
@@ -737,22 +807,29 @@ export class CrudService<T extends EntityType> {
                     operation: 'recover' as Method,
                     params: crudRecoverRequest.params,
                     currentEntity: entity,
+                    controller: this.controllerInstance,
                 };
 
                 const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
 
                 // 🚀 recoverBefore 훅 실행 - entity를 받아서 entity를 반환
-                // No configuration-based hooks
+                let processedEntity = entity;
+                if (crudRecoverRequest.hooks?.recoverBefore) {
+                    processedEntity = await crudRecoverRequest.hooks.recoverBefore(entity, context);
+                }
 
-                await this.repository.recover(entity, crudRecoverRequest.saveOptions).catch(this.throwConflictException);
+                const recoveredEntity = await this.repository.recover(processedEntity, crudRecoverRequest.saveOptions).catch(this.throwConflictException);
 
                 // 🚀 recoverAfter 훅 실행 - 복구 후 처리
-                // No configuration-based hooks
+                let finalEntity = recoveredEntity;
+                if (crudRecoverRequest.hooks?.recoverAfter) {
+                    finalEntity = await crudRecoverRequest.hooks.recoverAfter(recoveredEntity, context);
+                }
 
-                const processedEntity = this.excludeEntity(entity, crudRecoverRequest.exclude);
+                const excludedEntity = this.excludeEntity(finalEntity, crudRecoverRequest.exclude);
 
                 // Transform entity to plain object to apply @Exclude decorators
-                const transformedEntity = this.transformEntityToPlain(processedEntity);
+                const transformedEntity = this.transformEntityToPlain(excludedEntity);
                 const excludedFields = crudRecoverRequest.exclude.size > 0 ? [...crudRecoverRequest.exclude] : undefined;
 
                 return createCrudResponse(transformedEntity, {

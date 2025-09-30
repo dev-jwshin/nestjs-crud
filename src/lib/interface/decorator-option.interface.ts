@@ -362,6 +362,10 @@ export interface HookContext<T = any> {
      */
     currentEntity?: T;
     /**
+     * Controller instance (for accessing controller methods and properties)
+     */
+    controller?: any;
+    /**
      * Additional information from request object
      */
     request?: any;
