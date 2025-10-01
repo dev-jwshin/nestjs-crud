@@ -188,14 +188,47 @@ export class CrudService<T extends EntityType> {
                 });
 
                 if (Array.isArray(existingArray) && Array.isArray(newItems)) {
-                    // 기존 배열 내용 모두 제거
-                    existingArray.splice(0, existingArray.length);
+                    // 1. 새 항목들의 ID를 Set으로 만듦
+                    const newItemIds = new Set(
+                        newItems
+                            .filter((item) => item && typeof item === 'object' && 'id' in item && item.id != null)
+                            .map((item) => item.id)
+                    );
 
-                    // 새 항목들을 그대로 추가 (plain object)
-                    // TypeORM이 save 시 자동으로 처리하도록 함
-                    if (newItems.length > 0) {
-                        existingArray.push(...newItems);
-                        console.log(`[replaceOneToManyArrays] Pushed ${newItems.length} items (plain objects)`);
+                    console.log('[replaceOneToManyArrays] newItemIds:', Array.from(newItemIds));
+
+                    // 2. 기존 배열에서 새 항목에 없는 것들을 제거 (orphan으로 만듦)
+                    for (let i = existingArray.length - 1; i >= 0; i--) {
+                        const existingItem = existingArray[i];
+                        if (existingItem && typeof existingItem === 'object' && 'id' in existingItem) {
+                            if (!newItemIds.has(existingItem.id)) {
+                                console.log('[replaceOneToManyArrays] Removing orphan:', existingItem.id);
+                                existingArray.splice(i, 1);
+                            }
+                        }
+                    }
+
+                    // 3. 새 항목들을 처리
+                    for (const newItem of newItems) {
+                        if (newItem && typeof newItem === 'object') {
+                            if ('id' in newItem && newItem.id != null) {
+                                // 기존 항목: 배열에서 찾아서 값 업데이트
+                                const existingItem = existingArray.find((e: any) => e.id === newItem.id);
+                                if (existingItem) {
+                                    // 기존 entity에 값 복사
+                                    Object.assign(existingItem, newItem);
+                                    console.log('[replaceOneToManyArrays] Updated existing item:', newItem.id);
+                                } else {
+                                    // 못 찾았으면 새로 추가 (plain object)
+                                    existingArray.push(newItem);
+                                    console.log('[replaceOneToManyArrays] Added missing item:', newItem.id);
+                                }
+                            } else {
+                                // 새 항목: 배열에 추가 (plain object)
+                                existingArray.push(newItem);
+                                console.log('[replaceOneToManyArrays] Added new item (no id)');
+                            }
+                        }
                     }
 
                     // body에서 제거하여 _.assign이 덮어쓰지 않도록 함
