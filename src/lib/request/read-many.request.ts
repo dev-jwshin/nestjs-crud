@@ -128,12 +128,16 @@ export class CrudReadManyRequest<T> {
 
     generate(): this {
         if (this.pagination.type === PaginationType.OFFSET && Number.isFinite(this.pagination.offset)) {
-            this._findOptions.where = this._deserialize(this);
+            // 기존 where 조건과 pagination where 조건을 병합
+            const paginationWhere = this._deserialize(this);
+            this._findOptions.where = { ...this._findOptions.where, ...paginationWhere };
             this._findOptions.skip = this.pagination.offset;
         }
 
         if (this.pagination.type === PaginationType.CURSOR && this.pagination.nextCursor) {
-            this._findOptions.where = this._deserialize(this);
+            // 기존 where 조건과 pagination where 조건을 병합
+            const paginationWhere = this._deserialize(this);
+            this._findOptions.where = { ...this._findOptions.where, ...paginationWhere };
         }
 
         return this;
