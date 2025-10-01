@@ -80,6 +80,14 @@ export class CrudService<T extends EntityType> {
     }
 
     /**
+     * OneToMany 관계 필드명 배열 반환 (orphanedRowAction을 위한 관계 로드용)
+     */
+    private getOneToManyRelationNames(): string[] {
+        const relations = this.getOneToManyRelations();
+        return relations.map((relation) => relation.propertyName);
+    }
+
+    /**
      * CREATE 작업 후 entity의 OneToMany 관계에 부모 ID를 설정합니다.
      * repository.create() 후 호출되어야 합니다.
      *
@@ -122,13 +130,14 @@ export class CrudService<T extends EntityType> {
 
     /**
      * UPDATE 작업 시 body에 포함된 OneToMany 관계를 기존 entity에서 제거합니다.
-     * 이를 통해 새 배열이 기존 배열을 완전히 교체하도록 합니다.
+     * orphanedRowAction: 'delete'가 설정되어 있으면 TypeORM이 자동으로 기존 항목을 삭제합니다.
      *
      * @example
-     * entity.profileHighlights = [기존1, 기존2]
+     * entity.profileHighlights = [기존1, 기존2] (먼저 로드됨)
      * body = { profileHighlights: [새1] }
-     * → entity.profileHighlights = [] (초기화)
-     * → _.assign 후 entity.profileHighlights = [새1] (교체 완료)
+     * → entity.profileHighlights = [] (orphan으로 표시)
+     * → _.assign 후 entity.profileHighlights = [새1]
+     * → save 시 TypeORM이 orphan(기존1, 기존2)을 자동 삭제
      */
     private clearOneToManyRelations<T>(entity: T, body: DeepPartial<T>): void {
         const oneToManyRelations = this.getOneToManyRelations();
@@ -137,6 +146,7 @@ export class CrudService<T extends EntityType> {
             const propertyName = relation.propertyName;
 
             // body에 해당 관계 필드가 있으면 entity에서 빈 배열로 초기화
+            // orphanedRowAction이 있으면 TypeORM이 자동으로 기존 항목 삭제
             if ((body as any)[propertyName] !== undefined) {
                 (entity as any)[propertyName] = [];
             }
@@ -708,7 +718,13 @@ export class CrudService<T extends EntityType> {
                 .catch(this.throwConflictException);
         } else {
             // Single update (existing logic)
-            return this.findOne(crudUpdateRequest.params as unknown as FindOptionsWhere<T>, false).then(async (entity: T | null) => {
+            // orphanedRowAction이 작동하려면 OneToMany 관계를 먼저 로드해야 함
+            const relationsToLoad = this.getOneToManyRelationNames();
+
+            return this.repository.findOne({
+                where: crudUpdateRequest.params as unknown as FindOptionsWhere<T>,
+                relations: relationsToLoad,
+            }).then(async (entity: T | null) => {
                 if (!entity) {
                     throw new NotFoundException();
                 }
