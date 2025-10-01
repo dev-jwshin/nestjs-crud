@@ -182,32 +182,20 @@ export class CrudService<T extends EntityType> {
 
                 console.log(`[replaceOneToManyArrays] ${propertyName}:`, {
                     existingArrayLength: existingArray?.length,
+                    existingIds: existingArray?.map((e: any) => e.id),
                     newItemsLength: newItems?.length,
-                    newItems: JSON.stringify(newItems),
+                    newItemIds: newItems?.map((e: any) => e?.id),
                 });
 
                 if (Array.isArray(existingArray) && Array.isArray(newItems)) {
                     // 기존 배열 내용 모두 제거
                     existingArray.splice(0, existingArray.length);
 
-                    // 새 항목들을 entity instance로 변환하여 추가
+                    // 새 항목들을 그대로 추가 (plain object)
+                    // TypeORM이 save 시 자동으로 처리하도록 함
                     if (newItems.length > 0) {
-                        // plain object를 entity instance로 변환
-                        const targetRepository = this.repository.manager.getRepository(relation.inverseRelation!.target);
-                        const entityInstances = newItems.map((item) => {
-                            // id가 있으면 기존 entity로 간주, 없으면 새 entity 생성
-                            const hasId = item && typeof item === 'object' && 'id' in item && item.id != null;
-                            if (hasId) {
-                                // 기존 entity: repository.create로 instance 생성
-                                return targetRepository.create(item as any);
-                            } else {
-                                // 새 entity: repository.create로 instance 생성
-                                return targetRepository.create(item as any);
-                            }
-                        });
-                        existingArray.push(...entityInstances);
-
-                        console.log(`[replaceOneToManyArrays] Pushed ${entityInstances.length} entity instances`);
+                        existingArray.push(...newItems);
+                        console.log(`[replaceOneToManyArrays] Pushed ${newItems.length} items (plain objects)`);
                     }
 
                     // body에서 제거하여 _.assign이 덮어쓰지 않도록 함
