@@ -734,24 +734,28 @@ export class CrudService<T extends EntityType> {
             // 1. Collect all IDs
             const ids = crudUpdateRequest.body.map((item) => item.id || item[primaryKeyName]);
 
-            // 2. Fetch all entities with a single query using In operator
+            // 2. orphanedRowAction이 작동하려면 OneToMany 관계를 먼저 로드해야 함
+            const relationsToLoad = this.getOneToManyRelationNames();
+
+            // 3. Fetch all entities with a single query using In operator (with relations for orphan detection)
             const entities = await this.repository.find({
                 where: { [primaryKeyName]: In(ids) } as FindOptionsWhere<T>,
+                relations: relationsToLoad,
             });
 
-            // 3. Create a map for fast lookup
+            // 4. Create a map for fast lookup
             const entityMap = new Map<any, T>();
             entities.forEach((entity) => {
                 entityMap.set(entity[primaryKeyName], entity);
             });
 
-            // 4. Check for missing entities
+            // 5. Check for missing entities
             const missingIds = ids.filter((id) => !entityMap.has(id));
             if (missingIds.length > 0) {
                 throw new NotFoundException(`Entities not found: ${missingIds.join(', ')}`);
             }
 
-            // 5. Process updates with hooks
+            // 6. Process updates with hooks
             const entitiesToUpdate = await Promise.all(
                 crudUpdateRequest.body.map(async (item) => {
                     const { id, ...updateData } = item;
