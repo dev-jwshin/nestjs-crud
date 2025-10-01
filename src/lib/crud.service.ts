@@ -154,6 +154,43 @@ export class CrudService<T extends EntityType> {
     }
 
     /**
+     * UPDATE 작업 후 entity의 OneToMany 관계 배열에 직접 부모 ID를 설정합니다.
+     * assign 후 entity의 배열에 접근하여 각 항목에 FK를 설정합니다.
+     */
+    private setParentReferencesOnEntity<T>(parentEntity: T): void {
+        const oneToManyRelations = this.getOneToManyRelations();
+
+        for (const relation of oneToManyRelations) {
+            const propertyName = relation.propertyName;
+            const inverseRelation = relation.inverseRelation;
+
+            if (!inverseRelation) {
+                continue;
+            }
+
+            const nestedEntities = (parentEntity as any)[propertyName];
+
+            if (Array.isArray(nestedEntities)) {
+                const foreignKeyColumns = inverseRelation.foreignKeys[0]?.columnNames;
+                if (foreignKeyColumns && foreignKeyColumns.length > 0) {
+                    const foreignKeyName = foreignKeyColumns[0];
+                    const parentPkValue = (parentEntity as any)[this.primaryKey[0]];
+
+                    for (const nestedEntity of nestedEntities) {
+                        if (nestedEntity && typeof nestedEntity === 'object') {
+                            // ID가 없는 새 엔티티만 FK 설정
+                            const hasId = this.primaryKey.some((pk) => nestedEntity[pk] != null);
+                            if (!hasId && parentPkValue !== undefined) {
+                                nestedEntity[foreignKeyName] = parentPkValue;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * UPDATE 작업 시 OneToMany 관계의 nested entities에 부모 ID를 설정합니다.
      * 순환 참조를 방지하기 위해 부모 엔티티 자체가 아닌 ID만 설정합니다.
      *
@@ -674,14 +711,14 @@ export class CrudService<T extends EntityType> {
                         request: crudUpdateRequest.request,
                     };
 
-                    // OneToMany 관계의 nested entities에 부모 참조 자동 설정
-                    this.setParentReferences(updateData as DeepPartial<T>, entity);
-
                     // OneToMany 관계의 기존 항목을 교체하기 위해 빈 배열로 초기화
                     this.clearOneToManyRelations(entity, updateData as DeepPartial<T>);
 
                     // Apply update data to entity
                     _.assign(entity, updateData);
+
+                    // OneToMany 관계의 nested entities에 부모 ID를 설정 (assign 후)
+                    this.setParentReferencesOnEntity(entity);
 
                     // Execute hooks
                     let processedEntity = entity;
@@ -738,14 +775,15 @@ export class CrudService<T extends EntityType> {
                 };
 
                 // 🚀 UPDATE 개선: body를 entity에 먼저 할당 후 beforeUpdate 훅에서 entity 처리
-                // OneToMany 관계의 nested entities에 부모 참조 자동 설정 (assign 전에 실행)
-                this.setParentReferences(crudUpdateRequest.body, entity);
-
                 // OneToMany 관계의 기존 항목을 교체하기 위해 빈 배열로 초기화
                 this.clearOneToManyRelations(entity, crudUpdateRequest.body);
 
                 // 1. body 데이터를 entity에 임시 할당
                 _.assign(entity, crudUpdateRequest.body);
+
+                // OneToMany 관계의 nested entities에 부모 ID를 설정
+                // assign 후 entity.profileHighlights에 직접 설정 (entity의 배열에 접근)
+                this.setParentReferencesOnEntity(entity);
 
                 // 2. assignBefore 훅 실행 (UPDATE의 경우 entity 기반)
                 let processedEntity = entity;
