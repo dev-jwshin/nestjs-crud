@@ -180,13 +180,34 @@ export class CrudService<T extends EntityType> {
                 const existingArray = (entity as any)[propertyName];
                 const newItems = (body as any)[propertyName];
 
+                console.log(`[replaceOneToManyArrays] ${propertyName}:`, {
+                    existingArrayLength: existingArray?.length,
+                    newItemsLength: newItems?.length,
+                    newItems: JSON.stringify(newItems),
+                });
+
                 if (Array.isArray(existingArray) && Array.isArray(newItems)) {
                     // 기존 배열 내용 모두 제거
                     existingArray.splice(0, existingArray.length);
 
-                    // 새 항목들 추가
+                    // 새 항목들을 entity instance로 변환하여 추가
                     if (newItems.length > 0) {
-                        existingArray.push(...newItems);
+                        // plain object를 entity instance로 변환
+                        const targetRepository = this.repository.manager.getRepository(relation.inverseRelation!.target);
+                        const entityInstances = newItems.map((item) => {
+                            // id가 있으면 기존 entity로 간주, 없으면 새 entity 생성
+                            const hasId = item && typeof item === 'object' && 'id' in item && item.id != null;
+                            if (hasId) {
+                                // 기존 entity: repository.create로 instance 생성
+                                return targetRepository.create(item as any);
+                            } else {
+                                // 새 entity: repository.create로 instance 생성
+                                return targetRepository.create(item as any);
+                            }
+                        });
+                        existingArray.push(...entityInstances);
+
+                        console.log(`[replaceOneToManyArrays] Pushed ${entityInstances.length} entity instances`);
                     }
 
                     // body에서 제거하여 _.assign이 덮어쓰지 않도록 함
@@ -222,11 +243,15 @@ export class CrudService<T extends EntityType> {
                     const foreignKeyName = foreignKeyColumns[0];
                     const parentPkValue = (parentEntity as any)[this.primaryKey[0]];
 
+                    console.log(`[setParentReferencesOnEntity] ${propertyName}: parentPkValue=${parentPkValue}, foreignKeyName=${foreignKeyName}`);
+
                     for (const nestedEntity of nestedEntities) {
                         if (nestedEntity && typeof nestedEntity === 'object' && parentPkValue !== undefined) {
+                            const beforeValue = nestedEntity[foreignKeyName];
                             // UPDATE에서는 id 유무와 관계없이 항상 FK 설정
                             // 클라이언트가 요청에 FK를 포함하지 않을 수 있음
                             nestedEntity[foreignKeyName] = parentPkValue;
+                            console.log(`[setParentReferencesOnEntity] Set FK: ${foreignKeyName} = ${parentPkValue} (was: ${beforeValue}), entity:`, JSON.stringify(nestedEntity));
                         }
                     }
                 }
