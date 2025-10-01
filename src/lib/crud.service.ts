@@ -121,6 +121,29 @@ export class CrudService<T extends EntityType> {
     }
 
     /**
+     * UPDATE 작업 시 body에 포함된 OneToMany 관계를 기존 entity에서 제거합니다.
+     * 이를 통해 새 배열이 기존 배열을 완전히 교체하도록 합니다.
+     *
+     * @example
+     * entity.profileHighlights = [기존1, 기존2]
+     * body = { profileHighlights: [새1] }
+     * → entity.profileHighlights = [] (초기화)
+     * → _.assign 후 entity.profileHighlights = [새1] (교체 완료)
+     */
+    private clearOneToManyRelations<T>(entity: T, body: DeepPartial<T>): void {
+        const oneToManyRelations = this.getOneToManyRelations();
+
+        for (const relation of oneToManyRelations) {
+            const propertyName = relation.propertyName;
+
+            // body에 해당 관계 필드가 있으면 entity에서 빈 배열로 초기화
+            if ((body as any)[propertyName] !== undefined) {
+                (entity as any)[propertyName] = [];
+            }
+        }
+    }
+
+    /**
      * UPDATE 작업 시 OneToMany 관계의 nested entities에 부모 ID를 설정합니다.
      * 순환 참조를 방지하기 위해 부모 엔티티 자체가 아닌 ID만 설정합니다.
      *
@@ -641,11 +664,14 @@ export class CrudService<T extends EntityType> {
                         request: crudUpdateRequest.request,
                     };
 
-                    // Apply update data to entity
-                    _.assign(entity, updateData);
-
                     // OneToMany 관계의 nested entities에 부모 참조 자동 설정
                     this.setParentReferences(updateData as DeepPartial<T>, entity);
+
+                    // OneToMany 관계의 기존 항목을 교체하기 위해 빈 배열로 초기화
+                    this.clearOneToManyRelations(entity, updateData as DeepPartial<T>);
+
+                    // Apply update data to entity
+                    _.assign(entity, updateData);
 
                     // Execute hooks
                     let processedEntity = entity;
@@ -698,6 +724,9 @@ export class CrudService<T extends EntityType> {
                 // 🚀 UPDATE 개선: body를 entity에 먼저 할당 후 beforeUpdate 훅에서 entity 처리
                 // OneToMany 관계의 nested entities에 부모 참조 자동 설정 (assign 전에 실행)
                 this.setParentReferences(crudUpdateRequest.body, entity);
+
+                // OneToMany 관계의 기존 항목을 교체하기 위해 빈 배열로 초기화
+                this.clearOneToManyRelations(entity, crudUpdateRequest.body);
 
                 // 1. body 데이터를 entity에 임시 할당
                 _.assign(entity, crudUpdateRequest.body);
