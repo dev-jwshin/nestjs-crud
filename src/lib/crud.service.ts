@@ -4,9 +4,9 @@ import { instanceToPlain } from 'class-transformer';
 import _ from 'lodash';
 import { In } from 'typeorm';
 
-import { 
-    createCrudArrayResponse, 
-    createCrudResponse, 
+import {
+    createCrudArrayResponse,
+    createCrudResponse,
     isCrudCreateManyRequest,
     isCrudUpdateManyRequest,
     isCrudUpsertManyRequest,
@@ -18,6 +18,7 @@ import { ResponseFactory } from './utils/response-factory';
 import { BatchProcessor } from './utils/batch-processor';
 
 import type { DeepPartial, FindOptionsWhere, Repository } from 'typeorm';
+import type { RelationMetadata } from 'typeorm/metadata/RelationMetadata';
 import type {
     CrudArrayResponse,
     CrudCreateManyRequest,
@@ -45,6 +46,7 @@ export class CrudService<T extends EntityType> {
     private columnNames: string[];
     private usableQueryRunner = false;
     private controllerInstance?: any;
+    private cachedOneToManyRelations?: RelationMetadata[];
 
     constructor(public readonly repository: Repository<T>) {
         this.usableQueryRunner = SUPPORTED_REPLICATION_TYPES.has(this.repository.metadata.connection?.options.type);
@@ -54,6 +56,108 @@ export class CrudService<T extends EntityType> {
 
     setControllerInstance(controller: any): void {
         this.controllerInstance = controller;
+    }
+
+    /**
+     * Entity의 OneToMany 관계 메타데이터 추출 (cascade insert가 활성화된 것만)
+     * 성능을 위해 결과를 캐싱합니다.
+     */
+    private getOneToManyRelations(): RelationMetadata[] {
+        if (!this.cachedOneToManyRelations) {
+            this.cachedOneToManyRelations = this.repository.metadata.relations.filter(
+                (relation) => relation.relationType === 'one-to-many' && relation.isCascadeInsert,
+            );
+        }
+        return this.cachedOneToManyRelations;
+    }
+
+    /**
+     * 관계의 역참조 필드명 찾기
+     * @example Profile.profileHighlights → ProfileHighlight.profile
+     */
+    private getInversePropertyName(relation: RelationMetadata): string | null {
+        return relation.inverseRelation?.propertyName ?? null;
+    }
+
+    /**
+     * CREATE 작업 후 entity의 OneToMany 관계에 부모 참조를 설정합니다.
+     * repository.create() 후 호출되어야 합니다.
+     */
+    private setParentReferencesAfterCreate(parentEntity: any): void {
+        const oneToManyRelations = this.getOneToManyRelations();
+
+        for (const relation of oneToManyRelations) {
+            const propertyName = relation.propertyName;
+            const inversePropertyName = this.getInversePropertyName(relation);
+
+            if (!inversePropertyName) {
+                continue;
+            }
+
+            const nestedEntities = parentEntity[propertyName];
+
+            if (Array.isArray(nestedEntities)) {
+                for (const nestedEntity of nestedEntities) {
+                    if (nestedEntity && typeof nestedEntity === 'object') {
+                        // 부모 참조가 없으면 설정
+                        if (!nestedEntity[inversePropertyName]) {
+                            nestedEntity[inversePropertyName] = parentEntity;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * UPDATE 작업 시 OneToMany 관계의 nested entities에 부모 참조를 자동으로 설정합니다.
+     * 이를 통해 cascade insert/update 시 외래키가 자동으로 설정됩니다.
+     *
+     * @example
+     * // Before
+     * body = { profileHighlights: [{ before: '헬스케어' }] }
+     *
+     * // After
+     * body.profileHighlights[0].profile = parentEntity
+     */
+    private setParentReferences<T>(body: DeepPartial<T>, parentEntity: T, depth: number = 0): DeepPartial<T> {
+        // 순환 참조 방지를 위한 depth 제한
+        if (depth > 2) return body;
+
+        const oneToManyRelations = this.getOneToManyRelations();
+
+        for (const relation of oneToManyRelations) {
+            const propertyName = relation.propertyName;
+            const inversePropertyName = this.getInversePropertyName(relation);
+
+            if (!inversePropertyName) {
+                continue;
+            }
+
+            const nestedEntities = (body as any)[propertyName];
+
+            // 배열 처리
+            if (Array.isArray(nestedEntities)) {
+                for (const nestedEntity of nestedEntities) {
+                    if (nestedEntity && typeof nestedEntity === 'object') {
+                        // ID가 없는 새 엔티티만 부모 참조 설정 (기존 엔티티는 덮어쓰지 않음)
+                        const hasId = this.primaryKey.some((pk) => nestedEntity[pk as keyof typeof nestedEntity] != null);
+                        if (!hasId) {
+                            nestedEntity[inversePropertyName as keyof typeof nestedEntity] = parentEntity as any;
+                        }
+                    }
+                }
+            }
+            // 단일 객체 처리
+            else if (nestedEntities && typeof nestedEntities === 'object') {
+                const hasId = this.primaryKey.some((pk) => (nestedEntities as any)[pk] != null);
+                if (!hasId) {
+                    (nestedEntities as any)[inversePropertyName] = parentEntity;
+                }
+            }
+        }
+
+        return body;
     }
 
     /**
@@ -238,8 +342,13 @@ export class CrudService<T extends EntityType> {
             }),
         );
 
-        // 엔티티 생성
-        const entities = this.repository.create(processedBodyArray);
+        // 엔티티 생성 및 부모 참조 설정
+        const entities = processedBodyArray.map((body, index) => {
+            const entity = this.repository.create(body);
+            // CREATE 후 nested entities에 부모 참조 설정
+            this.setParentReferencesAfterCreate(entity);
+            return entity;
+        });
 
         // assignAfter 훅 실행
         for (let i = 0; i < entities.length; i++) {
@@ -350,6 +459,9 @@ export class CrudService<T extends EntityType> {
                 }
                 _.assign(upsertEntity, processedBody);
 
+                // OneToMany 관계의 nested entities에 부모 참조 자동 설정
+                this.setParentReferences(processedBody, upsertEntity);
+
                 if (crudUpsertRequest.hooks?.assignAfter) {
                     upsertEntity = await crudUpsertRequest.hooks.assignAfter(upsertEntity, processedBody, context);
                 }
@@ -420,6 +532,9 @@ export class CrudService<T extends EntityType> {
 
                 // 엔티티에 데이터 할당
                 _.assign(upsertEntity, processedBody);
+
+                // OneToMany 관계의 nested entities에 부모 참조 자동 설정
+                this.setParentReferences(processedBody, upsertEntity);
 
                 // assignAfter 훅 실행
                 if (crudUpsertRequest.hooks?.assignAfter) {
@@ -492,7 +607,7 @@ export class CrudService<T extends EntityType> {
                     const entityId = id || item[primaryKeyName];
                     const entity = entityMap.get(entityId)!;
                     const params = { [primaryKeyName]: entityId } as Partial<Record<keyof T, unknown>>;
-                    
+
                     const context: HookContext<T> = {
                         operation: 'update' as Method,
                         params,
@@ -500,15 +615,18 @@ export class CrudService<T extends EntityType> {
                         controller: this.controllerInstance,
                         request: crudUpdateRequest.request,
                     };
-                    
+
                     // Apply update data to entity
                     _.assign(entity, updateData);
-                    
+
+                    // OneToMany 관계의 nested entities에 부모 참조 자동 설정
+                    this.setParentReferences(updateData as DeepPartial<T>, entity);
+
                     // Execute hooks
                     let processedEntity = entity;
                     // No configuration-based hooks
                     // No configuration-based hooks
-                    
+
                     return processedEntity;
                 })
             );
@@ -553,6 +671,9 @@ export class CrudService<T extends EntityType> {
                 };
 
                 // 🚀 UPDATE 개선: body를 entity에 먼저 할당 후 beforeUpdate 훅에서 entity 처리
+                // OneToMany 관계의 nested entities에 부모 참조 자동 설정 (assign 전에 실행)
+                this.setParentReferences(crudUpdateRequest.body, entity);
+
                 // 1. body 데이터를 entity에 임시 할당
                 _.assign(entity, crudUpdateRequest.body);
 
