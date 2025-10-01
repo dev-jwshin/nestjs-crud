@@ -80,17 +80,19 @@ export class CrudService<T extends EntityType> {
     }
 
     /**
-     * CREATE 작업 후 entity의 OneToMany 관계에 부모 참조를 설정합니다.
+     * CREATE 작업 후 entity의 OneToMany 관계에 부모 ID를 설정합니다.
      * repository.create() 후 호출되어야 합니다.
+     *
+     * 순환 참조를 방지하기 위해 부모 엔티티 자체가 아닌 ID만 설정합니다.
      */
     private setParentReferencesAfterCreate(parentEntity: any): void {
         const oneToManyRelations = this.getOneToManyRelations();
 
         for (const relation of oneToManyRelations) {
             const propertyName = relation.propertyName;
-            const inversePropertyName = this.getInversePropertyName(relation);
+            const inverseRelation = relation.inverseRelation;
 
-            if (!inversePropertyName) {
+            if (!inverseRelation) {
                 continue;
             }
 
@@ -99,9 +101,18 @@ export class CrudService<T extends EntityType> {
             if (Array.isArray(nestedEntities)) {
                 for (const nestedEntity of nestedEntities) {
                     if (nestedEntity && typeof nestedEntity === 'object') {
-                        // 부모 참조가 없으면 설정
-                        if (!nestedEntity[inversePropertyName]) {
-                            nestedEntity[inversePropertyName] = parentEntity;
+                        // 부모 ID 필드명 찾기 (예: profileId)
+                        const foreignKeyColumns = inverseRelation.foreignKeys[0]?.columnNames;
+                        if (foreignKeyColumns && foreignKeyColumns.length > 0) {
+                            const foreignKeyName = foreignKeyColumns[0]; // 예: 'profileId'
+
+                            // 부모의 PK 값 가져오기
+                            const parentPkValue = parentEntity[this.primaryKey[0]];
+
+                            // nested entity에 FK 설정
+                            if (parentPkValue !== undefined) {
+                                nestedEntity[foreignKeyName] = parentPkValue;
+                            }
                         }
                     }
                 }
@@ -110,27 +121,24 @@ export class CrudService<T extends EntityType> {
     }
 
     /**
-     * UPDATE 작업 시 OneToMany 관계의 nested entities에 부모 참조를 자동으로 설정합니다.
-     * 이를 통해 cascade insert/update 시 외래키가 자동으로 설정됩니다.
+     * UPDATE 작업 시 OneToMany 관계의 nested entities에 부모 ID를 설정합니다.
+     * 순환 참조를 방지하기 위해 부모 엔티티 자체가 아닌 ID만 설정합니다.
      *
      * @example
      * // Before
      * body = { profileHighlights: [{ before: '헬스케어' }] }
      *
      * // After
-     * body.profileHighlights[0].profile = parentEntity
+     * body.profileHighlights[0].profileId = parentEntity.id
      */
-    private setParentReferences<T>(body: DeepPartial<T>, parentEntity: T, depth: number = 0): DeepPartial<T> {
-        // 순환 참조 방지를 위한 depth 제한
-        if (depth > 2) return body;
-
+    private setParentReferences<T>(body: DeepPartial<T>, parentEntity: T): DeepPartial<T> {
         const oneToManyRelations = this.getOneToManyRelations();
 
         for (const relation of oneToManyRelations) {
             const propertyName = relation.propertyName;
-            const inversePropertyName = this.getInversePropertyName(relation);
+            const inverseRelation = relation.inverseRelation;
 
-            if (!inversePropertyName) {
+            if (!inverseRelation) {
                 continue;
             }
 
@@ -140,10 +148,19 @@ export class CrudService<T extends EntityType> {
             if (Array.isArray(nestedEntities)) {
                 for (const nestedEntity of nestedEntities) {
                     if (nestedEntity && typeof nestedEntity === 'object') {
-                        // ID가 없는 새 엔티티만 부모 참조 설정 (기존 엔티티는 덮어쓰지 않음)
+                        // ID가 없는 새 엔티티만 부모 ID 설정 (기존 엔티티는 덮어쓰지 않음)
                         const hasId = this.primaryKey.some((pk) => nestedEntity[pk as keyof typeof nestedEntity] != null);
                         if (!hasId) {
-                            nestedEntity[inversePropertyName as keyof typeof nestedEntity] = parentEntity as any;
+                            // 부모 ID 필드명 찾기 (예: profileId)
+                            const foreignKeyColumns = inverseRelation.foreignKeys[0]?.columnNames;
+                            if (foreignKeyColumns && foreignKeyColumns.length > 0) {
+                                const foreignKeyName = foreignKeyColumns[0];
+                                const parentPkValue = (parentEntity as any)[this.primaryKey[0]];
+
+                                if (parentPkValue !== undefined) {
+                                    nestedEntity[foreignKeyName] = parentPkValue;
+                                }
+                            }
                         }
                     }
                 }
@@ -152,7 +169,15 @@ export class CrudService<T extends EntityType> {
             else if (nestedEntities && typeof nestedEntities === 'object') {
                 const hasId = this.primaryKey.some((pk) => (nestedEntities as any)[pk] != null);
                 if (!hasId) {
-                    (nestedEntities as any)[inversePropertyName] = parentEntity;
+                    const foreignKeyColumns = inverseRelation.foreignKeys[0]?.columnNames;
+                    if (foreignKeyColumns && foreignKeyColumns.length > 0) {
+                        const foreignKeyName = foreignKeyColumns[0];
+                        const parentPkValue = (parentEntity as any)[this.primaryKey[0]];
+
+                        if (parentPkValue !== undefined) {
+                            (nestedEntities as any)[foreignKeyName] = parentPkValue;
+                        }
+                    }
                 }
             }
         }
