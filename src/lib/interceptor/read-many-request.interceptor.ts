@@ -119,6 +119,9 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
                 .setDeserialize(this.deserialize)
                 .generate();
 
+            // Add request object to the generated request
+            crudReadManyRequest.request = req;
+
             this.crudLogger.logRequest(req, crudReadManyRequest.toString());
             req[CRUD_ROUTE_ARGS] = crudReadManyRequest;
 

@@ -9,6 +9,8 @@ import type { FindManyOptions, FindOptionsOrder, FindOptionsSelect, FindOptionsW
 
 type Where<T> = FindOptionsWhere<T> | Array<FindOptionsWhere<T>>;
 export class CrudReadManyRequest<T> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    public request?: any; // Express Request object or similar
     private _paginationKeys: string[] = [];
     private _findOptions: FindManyOptions<T> & {
         where: Where<T>;

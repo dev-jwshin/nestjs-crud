@@ -3,8 +3,10 @@ import type { SaveOptions, LifecycleHooks } from '.';
 
 export type CrudRequestId<T> = keyof T | Array<keyof T>;
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface CrudRequestBase {}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface CrudRequestBase {
+    request?: any; // Express Request object or similar
+}
 
 export interface CrudReadRequestBase extends CrudRequestBase {
     softDeleted?: boolean;

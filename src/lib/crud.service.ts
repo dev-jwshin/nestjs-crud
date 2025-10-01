@@ -183,6 +183,7 @@ export class CrudService<T extends EntityType> {
             operation: 'show' as Method,
             params: crudReadOneRequest.params,
             controller: this.controllerInstance,
+            request: crudReadOneRequest.request,
         };
 
         // 2. No configuration-based hooks anymore
@@ -227,6 +228,7 @@ export class CrudService<T extends EntityType> {
                     operation: 'create' as Method,
                     params: {},
                     controller: this.controllerInstance,
+                    request: crudCreateRequest.request,
                 };
                 let processedBody = body;
                 if (crudCreateRequest.hooks?.assignBefore) {
@@ -245,6 +247,7 @@ export class CrudService<T extends EntityType> {
                 operation: 'create' as Method,
                 params: {},
                 controller: this.controllerInstance,
+                request: crudCreateRequest.request,
             };
             if (crudCreateRequest.hooks?.assignAfter) {
                 entities[i] = await crudCreateRequest.hooks.assignAfter(entities[i], processedBodyArray[i], context);
@@ -257,6 +260,7 @@ export class CrudService<T extends EntityType> {
                 operation: 'create' as Method,
                 params: {},
                 controller: this.controllerInstance,
+                request: crudCreateRequest.request,
             };
             if (crudCreateRequest.hooks?.saveBefore) {
                 entities[i] = await crudCreateRequest.hooks.saveBefore(entities[i], context);
@@ -287,6 +291,7 @@ export class CrudService<T extends EntityType> {
                         operation: 'create' as Method,
                         params: {},
                         controller: this.controllerInstance,
+                        request: crudCreateRequest.request,
                     };
                     if (crudCreateRequest.hooks?.saveAfter) {
                         result[i] = await crudCreateRequest.hooks.saveAfter(result[i], context);
@@ -335,6 +340,7 @@ export class CrudService<T extends EntityType> {
                     params,
                     currentEntity: entity ?? undefined,
                     controller: this.controllerInstance,
+                    request: crudUpsertRequest.request,
                 };
 
                 // Execute hooks
@@ -368,6 +374,7 @@ export class CrudService<T extends EntityType> {
                                 operation: 'upsert' as Method,
                                 params: {},
                                 controller: this.controllerInstance,
+                                request: crudUpsertRequest.request,
                             };
                             let afterSaveEntity = entity;
                             if (crudUpsertRequest.hooks?.saveAfter) {
@@ -402,6 +409,7 @@ export class CrudService<T extends EntityType> {
                     operation: 'upsert' as Method,
                     params: crudUpsertRequest.params,
                     currentEntity: entity ?? undefined,
+                    request: crudUpsertRequest.request,
                 };
 
                 // assignBefore 훅 실행
@@ -490,6 +498,7 @@ export class CrudService<T extends EntityType> {
                         params,
                         currentEntity: entity,
                         controller: this.controllerInstance,
+                        request: crudUpdateRequest.request,
                     };
                     
                     // Apply update data to entity
@@ -514,6 +523,7 @@ export class CrudService<T extends EntityType> {
                                 operation: 'update' as Method,
                                 params: { [this.primaryKey[0]]: crudUpdateRequest.body[index].id },
                                 controller: this.controllerInstance,
+                                request: crudUpdateRequest.request,
                             };
                             const afterSaveEntity = entity;
                             return this.excludeEntity(afterSaveEntity, crudUpdateRequest.exclude);
@@ -539,6 +549,7 @@ export class CrudService<T extends EntityType> {
                     params: crudUpdateRequest.params,
                     currentEntity: entity,
                     controller: this.controllerInstance,
+                    request: crudUpdateRequest.request,
                 };
 
                 // 🚀 UPDATE 개선: body를 entity에 먼저 할당 후 beforeUpdate 훅에서 entity 처리
@@ -627,6 +638,7 @@ export class CrudService<T extends EntityType> {
                         params,
                         currentEntity: entity,
                         controller: this.controllerInstance,
+                        request: crudDeleteRequest.request,
                     };
                     
                     // Execute destroyBefore hook
@@ -651,6 +663,7 @@ export class CrudService<T extends EntityType> {
                         operation: 'destroy' as Method,
                         params: crudDeleteRequest.params[index],
                         controller: this.controllerInstance,
+                        request: crudDeleteRequest.request,
                     };
                     let afterDestroyEntity = entity;
                     if (crudDeleteRequest.hooks?.destroyAfter) {
@@ -680,6 +693,7 @@ export class CrudService<T extends EntityType> {
                     params: crudDeleteRequest.params,
                     currentEntity: entity,
                     controller: this.controllerInstance,
+                    request: crudDeleteRequest.request,
                 };
 
                 // 🚀 destroyBefore 훅 실행 - entity를 받아서 entity를 반환
@@ -753,6 +767,7 @@ export class CrudService<T extends EntityType> {
                         params,
                         currentEntity: entity,
                         controller: this.controllerInstance,
+                        request: crudRecoverRequest.request,
                     };
                     
                     const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
@@ -779,6 +794,7 @@ export class CrudService<T extends EntityType> {
                         operation: 'recover' as Method,
                         params: crudRecoverRequest.params[index],
                         controller: this.controllerInstance,
+                        request: crudRecoverRequest.request,
                     };
                     let afterRecoverEntity = entity;
                     if (crudRecoverRequest.hooks?.recoverAfter) {
@@ -808,6 +824,7 @@ export class CrudService<T extends EntityType> {
                     params: crudRecoverRequest.params,
                     currentEntity: entity,
                     controller: this.controllerInstance,
+                    request: crudRecoverRequest.request,
                 };
 
                 const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;

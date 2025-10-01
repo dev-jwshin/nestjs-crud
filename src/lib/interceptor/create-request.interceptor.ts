@@ -53,6 +53,7 @@ export function CreateRequestInterceptor(crudOptions: CrudOptions, factoryOption
                     listeners: createOptions.listeners,
                 },
                 hooks: createOptions.hooks,
+                request: req,
             };
 
             this.crudLogger.logRequest(req, crudCreateRequest);
