@@ -113,8 +113,16 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
                 .setPagination(pagination)
                 .setWithDeleted(withDeleted)
                 .setWhere(mergedWhere)
-                .setTake(numberOfTake)
-                .setSort(sort)
+                .setTake(numberOfTake);
+
+            // parsedQuery에 sorts가 있으면 findOptions.order를 직접 사용, 없으면 setSort 사용
+            if (parsedQuery.sorts.length > 0 && findOptions.order) {
+                crudReadManyRequest.setOrder(findOptions.order);
+            } else {
+                crudReadManyRequest.setSort(sort);
+            }
+
+            crudReadManyRequest
                 .setRelations(relations)
                 .setDeserialize(this.deserialize)
                 .generate();
