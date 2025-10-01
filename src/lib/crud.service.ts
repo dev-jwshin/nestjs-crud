@@ -12,7 +12,7 @@ import {
     isCrudUpsertManyRequest,
     isCrudDeleteManyRequest,
     isCrudRecoverManyRequest,
-    FilterOperator
+    FilterOperator,
 } from './interface';
 import { ResponseFactory } from './utils/response-factory';
 import { BatchProcessor } from './utils/batch-processor';
@@ -135,7 +135,7 @@ export class CrudService<T extends EntityType> {
      * @example
      * entity.profileHighlights = [기존1, 기존2] (먼저 로드됨)
      * body = { profileHighlights: [새1] }
-     * → entity.profileHighlights = [] (orphan으로 표시)
+     * → entity.profileHighlights.splice(0) (배열 내용만 비움)
      * → _.assign 후 entity.profileHighlights = [새1]
      * → save 시 TypeORM이 orphan(기존1, 기존2)을 자동 삭제
      */
@@ -145,10 +145,53 @@ export class CrudService<T extends EntityType> {
         for (const relation of oneToManyRelations) {
             const propertyName = relation.propertyName;
 
-            // body에 해당 관계 필드가 있으면 entity에서 빈 배열로 초기화
-            // orphanedRowAction이 있으면 TypeORM이 자동으로 기존 항목 삭제
+            // body에 해당 관계 필드가 있으면 entity의 배열 내용을 비움
+            // splice를 사용하여 배열 객체 자체는 유지하면서 내용만 제거
+            // 이렇게 해야 TypeORM이 orphan을 올바르게 감지함
             if ((body as any)[propertyName] !== undefined) {
-                (entity as any)[propertyName] = [];
+                const existingArray = (entity as any)[propertyName];
+                if (Array.isArray(existingArray) && existingArray.length > 0) {
+                    // 배열의 모든 항목 제거 (배열 객체는 유지)
+                    existingArray.splice(0, existingArray.length);
+                }
+            }
+        }
+    }
+
+    /**
+     * UPDATE 작업 시 OneToMany 배열을 수동으로 교체합니다.
+     * _.assign은 배열을 완전히 교체하므로 TypeORM이 orphan을 감지하지 못합니다.
+     * 이 메서드는 기존 배열 객체를 유지하면서 내용만 교체하여 orphan 감지가 가능하게 합니다.
+     *
+     * @example
+     * entity.profileHighlights = [기존1, 기존2] (기존 배열 객체)
+     * body = { profileHighlights: [새1] }
+     * → entity.profileHighlights.splice(0) 후 .push(새1) (같은 배열 객체 유지)
+     * → TypeORM이 orphan(기존1, 기존2)을 감지하여 삭제
+     */
+    private replaceOneToManyArrays<T>(entity: T, body: DeepPartial<T>): void {
+        const oneToManyRelations = this.getOneToManyRelations();
+
+        for (const relation of oneToManyRelations) {
+            const propertyName = relation.propertyName;
+
+            // body에 해당 관계 필드가 있으면 수동으로 배열 내용 교체
+            if ((body as any)[propertyName] !== undefined) {
+                const existingArray = (entity as any)[propertyName];
+                const newItems = (body as any)[propertyName];
+
+                if (Array.isArray(existingArray) && Array.isArray(newItems)) {
+                    // 기존 배열 내용 모두 제거
+                    existingArray.splice(0, existingArray.length);
+
+                    // 새 항목들 추가
+                    if (newItems.length > 0) {
+                        existingArray.push(...newItems);
+                    }
+
+                    // body에서 제거하여 _.assign이 덮어쓰지 않도록 함
+                    delete (body as any)[propertyName];
+                }
             }
         }
     }
@@ -263,7 +306,7 @@ export class CrudService<T extends EntityType> {
         if (databaseType !== 'postgres') {
             throw new Error(
                 'Full-text search (_fts) operator is only supported with PostgreSQL database. ' +
-                `Current database type (${databaseType}) does not support to_tsvector and plainto_tsquery functions.`
+                    `Current database type (${databaseType}) does not support to_tsvector and plainto_tsquery functions.`,
             );
         }
     }
@@ -273,7 +316,7 @@ export class CrudService<T extends EntityType> {
      */
     private validateFullTextSearchInRequest(crudReadManyRequest: CrudReadManyRequest<T>): void {
         const findOptions = crudReadManyRequest.findOptions;
-        
+
         // where 조건에서 Raw 쿼리 검색 (FTS는 Raw 쿼리로 변환됨)
         if (this.hasFullTextSearchInWhere(findOptions.where)) {
             this.validatePostgreSQLFullTextSearch();
@@ -287,7 +330,7 @@ export class CrudService<T extends EntityType> {
         if (!where) return false;
 
         if (Array.isArray(where)) {
-            return where.some(w => this.hasFullTextSearchInWhere(w));
+            return where.some((w) => this.hasFullTextSearchInWhere(w));
         }
 
         if (typeof where === 'object') {
@@ -300,7 +343,7 @@ export class CrudService<T extends EntityType> {
                         return true;
                     }
                 }
-                
+
                 // 중첩 객체 재귀 검색
                 if (value && typeof value === 'object') {
                     if (this.hasFullTextSearchInWhere(value)) {
@@ -316,7 +359,7 @@ export class CrudService<T extends EntityType> {
     readonly handleIndex = async (crudReadManyRequest: CrudReadManyRequest<T>): Promise<CrudArrayResponse<T>> => {
         // PostgreSQL 전문 검색 사용 시 데이터베이스 타입 검증
         this.validateFullTextSearchInRequest(crudReadManyRequest);
-        
+
         crudReadManyRequest.excludedColumns(this.columnNames);
         const { entities, total } = await (async () => {
             const findEntities = this.repository.find({ ...crudReadManyRequest.findOptions });
@@ -407,7 +450,7 @@ export class CrudService<T extends EntityType> {
 
         // 5. Transform entity to plain object to apply @Exclude decorators
         const transformedEntity = this.transformEntityToPlain(processedEntity);
-        
+
         return createCrudResponse(transformedEntity, {
             includedRelations: crudReadOneRequest.relations,
             excludedFields: crudReadOneRequest.excludedColumns ? [...crudReadOneRequest.excludedColumns] : undefined,
@@ -431,7 +474,7 @@ export class CrudService<T extends EntityType> {
                 };
                 let processedBody = body;
                 if (crudCreateRequest.hooks?.assignBefore) {
-                    processedBody = await crudCreateRequest.hooks.assignBefore(body, context) as DeepPartial<T>;
+                    processedBody = (await crudCreateRequest.hooks.assignBefore(body, context)) as DeepPartial<T>;
                 }
                 return processedBody;
             }),
@@ -458,6 +501,11 @@ export class CrudService<T extends EntityType> {
             }
         }
 
+        // assignAfter 훅 후 FK 재설정 (훅에서 배열이 교체되었을 수 있음)
+        for (const entity of entities) {
+            this.setParentReferencesAfterCreate(entity);
+        }
+
         // saveBefore 훅 실행
         for (let i = 0; i < entities.length; i++) {
             const context: HookContext<T> = {
@@ -471,6 +519,11 @@ export class CrudService<T extends EntityType> {
             }
         }
 
+        // saveBefore 훅 후 FK 최종 설정 (save 직전)
+        for (const entity of entities) {
+            this.setParentReferencesAfterCreate(entity);
+        }
+
         // Process in batches for large datasets
         const saveEntities = async (entitiesToSave: T[]) => {
             if (isMany && entitiesToSave.length > BatchProcessor.DEFAULT_BATCH_SIZE) {
@@ -479,14 +532,14 @@ export class CrudService<T extends EntityType> {
                 return BatchProcessor.processBatches(
                     entitiesToSave,
                     (batch) => this.repository.save(batch, crudCreateRequest.saveOptions),
-                    batchSize
+                    batchSize,
                 );
             } else {
                 // Regular save for small operations
                 return this.repository.save(entitiesToSave, crudCreateRequest.saveOptions);
             }
         };
-        
+
         return saveEntities(entities)
             .then(async (result) => {
                 // saveAfter 훅 실행
@@ -508,7 +561,7 @@ export class CrudService<T extends EntityType> {
 
                 // Use ResponseFactory for optimized transformation
                 const excludedFields = crudCreateRequest.exclude.size > 0 ? [...crudCreateRequest.exclude] : undefined;
-                
+
                 return ResponseFactory.createResponse(processedResult, { excludedFields });
             })
             .catch(this.throwConflictException);
@@ -518,20 +571,20 @@ export class CrudService<T extends EntityType> {
         crudUpsertRequest: CrudUpsertRequest<T> | CrudUpsertManyRequest<T>,
     ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
         const isMany = isCrudUpsertManyRequest<T>(crudUpsertRequest);
-        
+
         if (isMany) {
             // Bulk upsert handling
             const upsertPromises = crudUpsertRequest.body.map(async (item) => {
                 // Try to find existing entity based on primary key if present
                 let entity: T | null = null;
                 let params: Partial<Record<keyof T, unknown>> = {};
-                
+
                 // Check if item has primary key
                 if (this.primaryKey.length > 0 && this.primaryKey[0] in item) {
                     params = { [this.primaryKey[0]]: (item as any)[this.primaryKey[0]] } as Partial<Record<keyof T, unknown>>;
                     entity = await this.findOne(params as unknown as FindOptionsWhere<T>, true);
                 }
-                
+
                 const isNew = entity === null;
                 let upsertEntity = entity ?? this.repository.create(item as unknown as DeepPartial<T>);
 
@@ -550,7 +603,10 @@ export class CrudService<T extends EntityType> {
                 // Execute hooks
                 let processedBody = item;
                 if (crudUpsertRequest.hooks?.assignBefore) {
-                    processedBody = await crudUpsertRequest.hooks.assignBefore(processedBody as DeepPartial<T>, context) as DeepPartial<T>;
+                    processedBody = (await crudUpsertRequest.hooks.assignBefore(
+                        processedBody as DeepPartial<T>,
+                        context,
+                    )) as DeepPartial<T>;
                 }
                 _.assign(upsertEntity, processedBody);
 
@@ -569,8 +625,8 @@ export class CrudService<T extends EntityType> {
             });
 
             const upsertData = await Promise.all(upsertPromises);
-            const entitiesToSave = upsertData.map(d => d.entity);
-            
+            const entitiesToSave = upsertData.map((d) => d.entity);
+
             return this.repository
                 .save(entitiesToSave, crudUpsertRequest.saveOptions)
                 .then(async (savedEntities) => {
@@ -588,17 +644,17 @@ export class CrudService<T extends EntityType> {
                                 afterSaveEntity = await crudUpsertRequest.hooks.saveAfter(entity, context);
                             }
                             return this.excludeEntity(afterSaveEntity, crudUpsertRequest.exclude);
-                        })
+                        }),
                     );
 
                     // Transform entities to plain objects
                     const transformedEntities = this.transformEntityToPlain(processedEntities) as T[];
                     const excludedFields = crudUpsertRequest.exclude.size > 0 ? [...crudUpsertRequest.exclude] : undefined;
 
-                    return createCrudArrayResponse<T>(transformedEntities, { 
+                    return createCrudArrayResponse<T>(transformedEntities, {
                         excludedFields,
                         // Track which entities were new vs updated
-                        upsertInfo: upsertData.map(d => ({ isNew: d.isNew }))
+                        upsertInfo: upsertData.map((d) => ({ isNew: d.isNew })),
                     });
                 })
                 .catch(this.throwConflictException);
@@ -622,7 +678,7 @@ export class CrudService<T extends EntityType> {
                 // assignBefore 훅 실행
                 let processedBody = crudUpsertRequest.body;
                 if (crudUpsertRequest.hooks?.assignBefore) {
-                    processedBody = await crudUpsertRequest.hooks.assignBefore(processedBody, context) as DeepPartial<T>;
+                    processedBody = (await crudUpsertRequest.hooks.assignBefore(processedBody, context)) as DeepPartial<T>;
                 }
 
                 // 엔티티에 데이터 할당
@@ -670,31 +726,31 @@ export class CrudService<T extends EntityType> {
         crudUpdateRequest: CrudUpdateOneRequest<T> | CrudUpdateManyRequest<T>,
     ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
         const isMany = isCrudUpdateManyRequest<T>(crudUpdateRequest);
-        
+
         if (isMany) {
             // Bulk update handling - Optimized to avoid N+1 queries
             const primaryKeyName = this.primaryKey[0];
-            
+
             // 1. Collect all IDs
-            const ids = crudUpdateRequest.body.map(item => item.id || item[primaryKeyName]);
-            
+            const ids = crudUpdateRequest.body.map((item) => item.id || item[primaryKeyName]);
+
             // 2. Fetch all entities with a single query using In operator
             const entities = await this.repository.find({
-                where: { [primaryKeyName]: In(ids) } as FindOptionsWhere<T>
+                where: { [primaryKeyName]: In(ids) } as FindOptionsWhere<T>,
             });
-            
+
             // 3. Create a map for fast lookup
             const entityMap = new Map<any, T>();
-            entities.forEach(entity => {
+            entities.forEach((entity) => {
                 entityMap.set(entity[primaryKeyName], entity);
             });
-            
+
             // 4. Check for missing entities
-            const missingIds = ids.filter(id => !entityMap.has(id));
+            const missingIds = ids.filter((id) => !entityMap.has(id));
             if (missingIds.length > 0) {
                 throw new NotFoundException(`Entities not found: ${missingIds.join(', ')}`);
             }
-            
+
             // 5. Process updates with hooks
             const entitiesToUpdate = await Promise.all(
                 crudUpdateRequest.body.map(async (item) => {
@@ -711,8 +767,8 @@ export class CrudService<T extends EntityType> {
                         request: crudUpdateRequest.request,
                     };
 
-                    // OneToMany 관계의 기존 항목을 교체하기 위해 빈 배열로 초기화
-                    this.clearOneToManyRelations(entity, updateData as DeepPartial<T>);
+                    // OneToMany 배열을 수동으로 교체 (기존 배열 객체 유지)
+                    this.replaceOneToManyArrays(entity, updateData as DeepPartial<T>);
 
                     // Apply update data to entity
                     _.assign(entity, updateData);
@@ -725,10 +781,13 @@ export class CrudService<T extends EntityType> {
                     // No configuration-based hooks
                     // No configuration-based hooks
 
+                    // save 직전 최종 FK 설정
+                    this.setParentReferencesOnEntity(processedEntity);
+
                     return processedEntity;
-                })
+                }),
             );
-            
+
             return this.repository
                 .save(entitiesToUpdate, crudUpdateRequest.saveOptions)
                 .then(async (updatedEntities) => {
@@ -743,7 +802,7 @@ export class CrudService<T extends EntityType> {
                             };
                             const afterSaveEntity = entity;
                             return this.excludeEntity(afterSaveEntity, crudUpdateRequest.exclude);
-                        })
+                        }),
                     );
 
                     // Transform entities to plain objects
@@ -758,68 +817,75 @@ export class CrudService<T extends EntityType> {
             // orphanedRowAction이 작동하려면 OneToMany 관계를 먼저 로드해야 함
             const relationsToLoad = this.getOneToManyRelationNames();
 
-            return this.repository.findOne({
-                where: crudUpdateRequest.params as unknown as FindOptionsWhere<T>,
-                relations: relationsToLoad,
-            }).then(async (entity: T | null) => {
-                if (!entity) {
-                    throw new NotFoundException();
-                }
+            return this.repository
+                .findOne({
+                    where: crudUpdateRequest.params as unknown as FindOptionsWhere<T>,
+                    relations: relationsToLoad,
+                })
+                .then(async (entity: T | null) => {
+                    if (!entity) {
+                        throw new NotFoundException();
+                    }
 
-                const context: HookContext<T> = {
-                    operation: 'update' as Method,
-                    params: crudUpdateRequest.params,
-                    currentEntity: entity,
-                    controller: this.controllerInstance,
-                    request: crudUpdateRequest.request,
-                };
+                    const context: HookContext<T> = {
+                        operation: 'update' as Method,
+                        params: crudUpdateRequest.params,
+                        currentEntity: entity,
+                        controller: this.controllerInstance,
+                        request: crudUpdateRequest.request,
+                    };
 
-                // 🚀 UPDATE 개선: body를 entity에 먼저 할당 후 beforeUpdate 훅에서 entity 처리
-                // OneToMany 관계의 기존 항목을 교체하기 위해 빈 배열로 초기화
-                this.clearOneToManyRelations(entity, crudUpdateRequest.body);
+                    // 🚀 UPDATE 개선: OneToMany 배열을 수동으로 교체하여 orphan 감지 가능하게 함
+                    // 1. OneToMany 배열 교체 (기존 배열 객체 유지, body에서 제거)
+                    this.replaceOneToManyArrays(entity, crudUpdateRequest.body);
 
-                // 1. body 데이터를 entity에 임시 할당
-                _.assign(entity, crudUpdateRequest.body);
+                    // 2. 나머지 필드를 entity에 할당
+                    _.assign(entity, crudUpdateRequest.body);
 
-                // OneToMany 관계의 nested entities에 부모 ID를 설정
-                // assign 후 entity.profileHighlights에 직접 설정 (entity의 배열에 접근)
-                this.setParentReferencesOnEntity(entity);
+                    // 3. OneToMany 관계의 nested entities에 부모 ID를 설정
+                    this.setParentReferencesOnEntity(entity);
 
-                // 2. assignBefore 훅 실행 (UPDATE의 경우 entity 기반)
-                let processedEntity = entity;
-                if (crudUpdateRequest.hooks?.assignBefore) {
-                    processedEntity = await crudUpdateRequest.hooks.assignBefore(entity, context) as T;
-                }
+                    // 2. assignBefore 훅 실행 (UPDATE의 경우 entity 기반)
+                    let processedEntity = entity;
+                    if (crudUpdateRequest.hooks?.assignBefore) {
+                        processedEntity = (await crudUpdateRequest.hooks.assignBefore(entity, context)) as T;
+                    }
 
-                // assignAfter 훅 실행
-                if (crudUpdateRequest.hooks?.assignAfter) {
-                    processedEntity = await crudUpdateRequest.hooks.assignAfter(processedEntity, crudUpdateRequest.body, context);
-                }
+                    // assignAfter 훅 실행
+                    if (crudUpdateRequest.hooks?.assignAfter) {
+                        processedEntity = await crudUpdateRequest.hooks.assignAfter(processedEntity, crudUpdateRequest.body, context);
+                    }
 
-                // saveBefore 훅 실행
-                if (crudUpdateRequest.hooks?.saveBefore) {
-                    processedEntity = await crudUpdateRequest.hooks.saveBefore(processedEntity, context);
-                }
+                    // 훅 실행 후 다시 FK 설정 (훅에서 배열이 교체되었을 수 있음)
+                    this.setParentReferencesOnEntity(processedEntity);
 
-                return this.repository
-                    .save(processedEntity, crudUpdateRequest.saveOptions)
-                    .then(async (updatedEntity) => {
-                        // saveAfter 훅 실행
-                        let finalEntity = updatedEntity;
-                        if (crudUpdateRequest.hooks?.saveAfter) {
-                            finalEntity = await crudUpdateRequest.hooks.saveAfter(updatedEntity, context);
-                        }
+                    // saveBefore 훅 실행
+                    if (crudUpdateRequest.hooks?.saveBefore) {
+                        processedEntity = await crudUpdateRequest.hooks.saveBefore(processedEntity, context);
+                    }
 
-                        const processedEntity = this.excludeEntity(finalEntity, crudUpdateRequest.exclude);
+                    // save 직전 최종 FK 설정 (saveBefore 훅에서 배열이 교체되었을 수 있음)
+                    this.setParentReferencesOnEntity(processedEntity);
 
-                        // Transform entity to plain object to apply @Exclude decorators
-                        const transformedEntity = this.transformEntityToPlain(processedEntity);
-                        const excludedFields = crudUpdateRequest.exclude.size > 0 ? [...crudUpdateRequest.exclude] : undefined;
+                    return this.repository
+                        .save(processedEntity, crudUpdateRequest.saveOptions)
+                        .then(async (updatedEntity) => {
+                            // saveAfter 훅 실행
+                            let finalEntity = updatedEntity;
+                            if (crudUpdateRequest.hooks?.saveAfter) {
+                                finalEntity = await crudUpdateRequest.hooks.saveAfter(updatedEntity, context);
+                            }
 
-                        return createCrudResponse(transformedEntity, { excludedFields });
-                    })
-                    .catch(this.throwConflictException);
-            });
+                            const processedEntity = this.excludeEntity(finalEntity, crudUpdateRequest.exclude);
+
+                            // Transform entity to plain object to apply @Exclude decorators
+                            const transformedEntity = this.transformEntityToPlain(processedEntity);
+                            const excludedFields = crudUpdateRequest.exclude.size > 0 ? [...crudUpdateRequest.exclude] : undefined;
+
+                            return createCrudResponse(transformedEntity, { excludedFields });
+                        })
+                        .catch(this.throwConflictException);
+                });
         }
     };
 
@@ -829,39 +895,39 @@ export class CrudService<T extends EntityType> {
         if (this.primaryKey.length === 0) {
             throw new ConflictException('cannot found primary key from entity');
         }
-        
+
         const isMany = isCrudDeleteManyRequest<T>(crudDeleteRequest);
-        
+
         if (isMany) {
             // Bulk delete handling - Optimized to avoid N+1 queries
             const primaryKeyName = this.primaryKey[0];
-            
+
             // 1. Extract IDs from params
-            const ids = crudDeleteRequest.params.map(params => params[primaryKeyName]);
-            
+            const ids = crudDeleteRequest.params.map((params) => params[primaryKeyName]);
+
             // 2. Fetch all entities with a single query using In operator
             const entities = await this.repository.find({
-                where: { [primaryKeyName]: In(ids) } as FindOptionsWhere<T>
+                where: { [primaryKeyName]: In(ids) } as FindOptionsWhere<T>,
             });
-            
+
             // 3. Create a map for fast lookup
             const entityMap = new Map<any, T>();
-            entities.forEach(entity => {
+            entities.forEach((entity) => {
                 entityMap.set(entity[primaryKeyName], entity);
             });
-            
+
             // 4. Check for missing entities
-            const missingIds = ids.filter(id => !entityMap.has(id));
+            const missingIds = ids.filter((id) => !entityMap.has(id));
             if (missingIds.length > 0) {
                 throw new NotFoundException(`Entities not found: ${missingIds.join(', ')}`);
             }
-            
+
             // 5. Process deletes with hooks
             const entitiesToDelete = await Promise.all(
                 crudDeleteRequest.params.map(async (params) => {
                     const entityId = params[primaryKeyName];
                     const entity = entityMap.get(entityId)!;
-                    
+
                     const context: HookContext<T> = {
                         operation: 'destroy' as Method,
                         params,
@@ -869,7 +935,7 @@ export class CrudService<T extends EntityType> {
                         controller: this.controllerInstance,
                         request: crudDeleteRequest.request,
                     };
-                    
+
                     // Execute destroyBefore hook
                     let processedEntity = entity;
                     if (crudDeleteRequest.hooks?.destroyBefore) {
@@ -877,9 +943,9 @@ export class CrudService<T extends EntityType> {
                     }
 
                     return processedEntity;
-                })
+                }),
             );
-            
+
             // Perform bulk delete
             const deletedEntities = await (crudDeleteRequest.softDeleted
                 ? this.repository.softRemove(entitiesToDelete, crudDeleteRequest.saveOptions)
@@ -899,7 +965,7 @@ export class CrudService<T extends EntityType> {
                         afterDestroyEntity = await crudDeleteRequest.hooks.destroyAfter(entity, context);
                     }
                     return this.excludeEntity(afterDestroyEntity, crudDeleteRequest.exclude);
-                })
+                }),
             );
 
             // Transform entities to plain objects
@@ -959,38 +1025,38 @@ export class CrudService<T extends EntityType> {
         crudRecoverRequest: CrudRecoverRequest<T> | CrudRecoverManyRequest<T>,
     ): Promise<CrudResponse<T> | CrudArrayResponse<T>> => {
         const isMany = isCrudRecoverManyRequest<T>(crudRecoverRequest);
-        
+
         if (isMany) {
             // Bulk recover handling - Optimized to avoid N+1 queries
             const primaryKeyName = this.primaryKey[0];
-            
+
             // 1. Extract IDs from params
-            const ids = crudRecoverRequest.params.map(params => params[primaryKeyName]);
-            
+            const ids = crudRecoverRequest.params.map((params) => params[primaryKeyName]);
+
             // 2. Fetch all entities with a single query using In operator (with deleted records)
             const entities = await this.repository.find({
                 where: { [primaryKeyName]: In(ids) } as FindOptionsWhere<T>,
-                withDeleted: true
+                withDeleted: true,
             });
-            
+
             // 3. Create a map for fast lookup
             const entityMap = new Map<any, T>();
-            entities.forEach(entity => {
+            entities.forEach((entity) => {
                 entityMap.set(entity[primaryKeyName], entity);
             });
-            
+
             // 4. Check for missing entities
-            const missingIds = ids.filter(id => !entityMap.has(id));
+            const missingIds = ids.filter((id) => !entityMap.has(id));
             if (missingIds.length > 0) {
                 throw new NotFoundException(`Entities not found: ${missingIds.join(', ')}`);
             }
-            
+
             // 5. Process recovers with hooks
             const recoverData = await Promise.all(
                 crudRecoverRequest.params.map(async (params) => {
                     const entityId = params[primaryKeyName];
                     const entity = entityMap.get(entityId)!;
-                    
+
                     const context: HookContext<T> = {
                         operation: 'recover' as Method,
                         params,
@@ -998,9 +1064,9 @@ export class CrudService<T extends EntityType> {
                         controller: this.controllerInstance,
                         request: crudRecoverRequest.request,
                     };
-                    
+
                     const wasSoftDeleted = 'deletedAt' in entity && entity.deletedAt != null;
-                    
+
                     // Execute recoverBefore hook
                     let processedEntity = entity;
                     if (crudRecoverRequest.hooks?.recoverBefore) {
@@ -1008,11 +1074,11 @@ export class CrudService<T extends EntityType> {
                     }
 
                     return { entity: processedEntity, wasSoftDeleted };
-                })
+                }),
             );
-            
-            const entitiesToRecover = recoverData.map(d => d.entity);
-            
+
+            const entitiesToRecover = recoverData.map((d) => d.entity);
+
             // Perform bulk recover
             await this.repository.recover(entitiesToRecover, crudRecoverRequest.saveOptions).catch(this.throwConflictException);
 
@@ -1030,7 +1096,7 @@ export class CrudService<T extends EntityType> {
                         afterRecoverEntity = await crudRecoverRequest.hooks.recoverAfter(entity, context);
                     }
                     return this.excludeEntity(afterRecoverEntity, crudRecoverRequest.exclude);
-                })
+                }),
             );
 
             // Transform entities to plain objects
@@ -1039,7 +1105,7 @@ export class CrudService<T extends EntityType> {
 
             return createCrudArrayResponse(transformedEntities, {
                 excludedFields,
-                wasSoftDeleted: recoverData.some(d => d.wasSoftDeleted),
+                wasSoftDeleted: recoverData.some((d) => d.wasSoftDeleted),
             });
         } else {
             // Single recover (existing logic)
@@ -1064,7 +1130,9 @@ export class CrudService<T extends EntityType> {
                     processedEntity = await crudRecoverRequest.hooks.recoverBefore(entity, context);
                 }
 
-                const recoveredEntity = await this.repository.recover(processedEntity, crudRecoverRequest.saveOptions).catch(this.throwConflictException);
+                const recoveredEntity = await this.repository
+                    .recover(processedEntity, crudRecoverRequest.saveOptions)
+                    .catch(this.throwConflictException);
 
                 // 🚀 recoverAfter 훅 실행 - 복구 후 처리
                 let finalEntity = recoveredEntity;
@@ -1124,4 +1192,3 @@ export class CrudService<T extends EntityType> {
         throw new ConflictException(error);
     }
 }
-
