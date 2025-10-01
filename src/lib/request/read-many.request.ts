@@ -140,7 +140,7 @@ export class CrudReadManyRequest<T> {
     }
 
     toString(): string {
-        return JSON.stringify(_.omit(this, ['_deserialize']));
+        return JSON.stringify(_.omit(this, ['_deserialize', 'request']));
     }
 
     toResponse(data: T[], total: number): PaginationResponse<T> {
