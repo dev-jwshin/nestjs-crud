@@ -46,7 +46,7 @@ export function ReadManyRequestInterceptor(crudOptions: CrudOptions, factoryOpti
                 allowedFilters,
                 allowedSorts: factoryOption.columns?.map((col) => col.name),
                 allowedIncludes,
-                maxPageSize: 100,
+                maxPageSize: crudOptions.maxPageSize, // undefined면 무제한
                 defaultPageSize: readManyOptions.numberOfTake ?? CRUD_POLICY[method].default.numberOfTake,
             };
 

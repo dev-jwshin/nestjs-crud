@@ -123,6 +123,13 @@ export interface CrudOptions {
     autoRelationDetection?: boolean;
 
     /**
+     * Maximum page size allowed for pagination.
+     * If not specified, there is no limit.
+     * @example 1000
+     */
+    maxPageSize?: number;
+
+    /**
      * Configures each CRUD method
      */
     routes?: {
