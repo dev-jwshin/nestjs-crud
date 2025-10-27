@@ -12,6 +12,7 @@ export * from './lib/provider';
 export * from './lib/request';
 export * from './lib/utils/response-factory';
 export * from './lib/utils/batch-processor';
+export * from './lib/utils/relations-helper';
 export * from './lib/utils/crud-query-helper';
 export * from './lib/utils/crud-operation-helper';
 export * from './lib/utils/exclude-fields.util';

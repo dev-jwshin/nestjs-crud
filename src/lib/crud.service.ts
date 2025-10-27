@@ -16,6 +16,7 @@ import {
 } from './interface';
 import { ResponseFactory } from './utils/response-factory';
 import { BatchProcessor } from './utils/batch-processor';
+import { RelationsHelper } from './utils/relations-helper';
 
 import type { DeepPartial, FindOptionsWhere, Repository } from 'typeorm';
 import type { RelationMetadata } from 'typeorm/metadata/RelationMetadata';
@@ -409,20 +410,78 @@ export class CrudService<T extends EntityType> {
 
         crudReadManyRequest.excludedColumns(this.columnNames);
         const { entities, total } = await (async () => {
-            const findEntities = this.repository.find({ ...crudReadManyRequest.findOptions });
+            // 중첩된 관계가 있는지 확인
+            const hasNested = RelationsHelper.hasNestedRelations(crudReadManyRequest.findOptions.relations);
 
-            if (crudReadManyRequest.pagination.isNext) {
-                const entities = await findEntities;
-                return { entities, total: crudReadManyRequest.pagination.nextTotal() };
+            if (hasNested) {
+                // QueryBuilder를 사용하여 중첩된 ManyToMany 관계를 올바르게 로딩
+                const alias = this.repository.metadata.tableName;
+                const queryBuilder = this.repository.createQueryBuilder(alias);
+
+                // where 조건 적용
+                if (crudReadManyRequest.findOptions.where) {
+                    queryBuilder.where(crudReadManyRequest.findOptions.where);
+                }
+
+                // withDeleted 적용
+                if (crudReadManyRequest.findOptions.withDeleted) {
+                    queryBuilder.withDeleted();
+                }
+
+                // select 적용
+                if (crudReadManyRequest.findOptions.select) {
+                    queryBuilder.select(crudReadManyRequest.findOptions.select as string[]);
+                }
+
+                // order 적용
+                if (crudReadManyRequest.findOptions.order) {
+                    queryBuilder.orderBy(crudReadManyRequest.findOptions.order as any);
+                }
+
+                // skip/take 적용
+                if (crudReadManyRequest.findOptions.skip !== undefined) {
+                    queryBuilder.skip(crudReadManyRequest.findOptions.skip);
+                }
+                if (crudReadManyRequest.findOptions.take !== undefined) {
+                    queryBuilder.take(crudReadManyRequest.findOptions.take);
+                }
+
+                // relations를 leftJoinAndSelect로 변환
+                RelationsHelper.applyRelations(
+                    queryBuilder,
+                    crudReadManyRequest.findOptions.relations as any,
+                );
+
+                if (crudReadManyRequest.pagination.isNext) {
+                    const entities = await queryBuilder.getMany();
+                    return { entities, total: crudReadManyRequest.pagination.nextTotal() };
+                }
+
+                const [entities, total] = await Promise.all([
+                    queryBuilder.getMany(),
+                    this.repository.count({
+                        where: crudReadManyRequest.findOptions.where,
+                        withDeleted: crudReadManyRequest.findOptions.withDeleted,
+                    }),
+                ]);
+                return { entities, total };
+            } else {
+                // 단순 관계는 기존 방식 사용 (repository.find)
+                const findEntities = this.repository.find({ ...crudReadManyRequest.findOptions });
+
+                if (crudReadManyRequest.pagination.isNext) {
+                    const entities = await findEntities;
+                    return { entities, total: crudReadManyRequest.pagination.nextTotal() };
+                }
+                const [entities, total] = await Promise.all([
+                    findEntities,
+                    this.repository.count({
+                        where: crudReadManyRequest.findOptions.where,
+                        withDeleted: crudReadManyRequest.findOptions.withDeleted,
+                    }),
+                ]);
+                return { entities, total };
             }
-            const [entities, total] = await Promise.all([
-                findEntities,
-                this.repository.count({
-                    where: crudReadManyRequest.findOptions.where,
-                    withDeleted: crudReadManyRequest.findOptions.withDeleted,
-                }),
-            ]);
-            return { entities, total };
         })();
 
         // Convert traditional pagination response to unified CRUD response
@@ -478,15 +537,50 @@ export class CrudService<T extends EntityType> {
         // 2. No configuration-based hooks anymore
         const processedParams = crudReadOneRequest.params;
 
-        // 3. 엔티티 조회
-        const entity = await this.repository.findOne({
-            select: (crudReadOneRequest.selectColumns ?? this.columnNames).filter(
+        // 3. 중첩된 관계가 있는지 확인
+        const hasNested = RelationsHelper.hasNestedRelations(crudReadOneRequest.relations);
+
+        let entity: T | null;
+
+        if (hasNested) {
+            // QueryBuilder를 사용하여 중첩된 ManyToMany 관계를 올바르게 로딩
+            const alias = this.repository.metadata.tableName;
+            const queryBuilder = this.repository.createQueryBuilder(alias);
+
+            // where 조건 적용
+            queryBuilder.where(processedParams as FindOptionsWhere<T>);
+
+            // withDeleted 적용
+            if (crudReadOneRequest.softDeleted) {
+                queryBuilder.withDeleted();
+            }
+
+            // select 적용
+            const selectColumns = (crudReadOneRequest.selectColumns ?? this.columnNames).filter(
                 (columnName) => !crudReadOneRequest.excludedColumns?.includes(columnName),
-            ),
-            where: processedParams as FindOptionsWhere<T>,
-            withDeleted: crudReadOneRequest.softDeleted,
-            relations: crudReadOneRequest.relations,
-        });
+            );
+            if (selectColumns && selectColumns.length > 0) {
+                queryBuilder.select(selectColumns.map(col => `${alias}.${col}`));
+            }
+
+            // relations를 leftJoinAndSelect로 변환
+            RelationsHelper.applyRelations(
+                queryBuilder,
+                crudReadOneRequest.relations as any,
+            );
+
+            entity = await queryBuilder.getOne();
+        } else {
+            // 단순 관계는 기존 방식 사용 (repository.findOne)
+            entity = await this.repository.findOne({
+                select: (crudReadOneRequest.selectColumns ?? this.columnNames).filter(
+                    (columnName) => !crudReadOneRequest.excludedColumns?.includes(columnName),
+                ),
+                where: processedParams as FindOptionsWhere<T>,
+                withDeleted: crudReadOneRequest.softDeleted,
+                relations: crudReadOneRequest.relations,
+            });
+        }
 
         if (_.isNil(entity)) {
             throw new NotFoundException();
