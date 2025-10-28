@@ -215,6 +215,18 @@ describe('[Nested Relations Bug] FeaturedProfile > Profile > jobs/profileExperie
         jobRepository = moduleFixture.get<Repository<Job>>(getRepositoryToken(Job));
     });
 
+    // 각 테스트 전에 데이터 정리
+    beforeEach(async () => {
+        const profileExperienceRepository = app.get<Repository<ProfileExperience>>(getRepositoryToken(ProfileExperience));
+
+        // 순서대로 삭제 (외래 키 제약조건 때문)
+        await featuredProfileService.repository.delete({});
+        await profileExperienceRepository.delete({});
+        await profileRepository.query('DELETE FROM nested_bug_profile_jobs');
+        await profileRepository.delete({});
+        await jobRepository.delete({});
+    });
+
     afterAll(async () => {
         await app.close();
     });
@@ -241,26 +253,25 @@ describe('[Nested Relations Bug] FeaturedProfile > Profile > jobs/profileExperie
                 enabled: true,
             });
 
-            console.log('\n📝 Created FeaturedProfile ID:', featuredProfile.id);
-            console.log('📝 Profile ID:', profile.id);
-
             // When: 모든 중첩 관계 포함하여 조회
             const response = await request(app.getHttpServer())
                 .get(`/nested-bug-featured-profiles/${featuredProfile.id}?include=profile,profile.jobs,profile.profileExperiences`)
                 .expect(200);
 
-            console.log('\n✅ Response with ALL relations:', JSON.stringify(response.body, null, 2));
-
             // Then: 모든 관계가 로딩되어야 함
             expect(response.body.data).toBeDefined();
             expect(response.body.data.profile).toBeDefined();
 
-            // ⚠️ BUG CHECK: profile.jobs가 누락되는가?
+            // ✅ FIX: profile.jobs가 정상적으로 로딩되어야 함
             expect(response.body.data.profile.jobs).toBeDefined();
-            expect(response.body.data.profile.jobs.length).toBeGreaterThan(0); // 🔴 실패 예상
+            expect(Array.isArray(response.body.data.profile.jobs)).toBe(true);
+            expect(response.body.data.profile.jobs.length).toBe(2);
+            expect(response.body.data.profile.jobs[0].title).toBeDefined();
+            expect(response.body.data.profile.jobs[1].title).toBeDefined();
 
             expect(response.body.data.profile.profileExperiences).toBeDefined();
-            expect(response.body.data.profile.profileExperiences.length).toBeGreaterThan(0);
+            expect(response.body.data.profile.profileExperiences.length).toBe(1);
+            expect(response.body.data.profile.profileExperiences[0].company).toBe('Tech Corp');
         });
 
         it('✅ WORKS: profile.jobs loads correctly WITHOUT profile.profileExperiences', async () => {
@@ -281,14 +292,10 @@ describe('[Nested Relations Bug] FeaturedProfile > Profile > jobs/profileExperie
                 enabled: true,
             });
 
-            console.log('\n📝 Created FeaturedProfile ID:', featuredProfile.id);
-
             // When: profile.profileExperiences 제외하고 조회
             const response = await request(app.getHttpServer())
                 .get(`/nested-bug-featured-profiles/${featuredProfile.id}?include=profile,profile.jobs`)
                 .expect(200);
-
-            console.log('\n✅ Response WITHOUT profileExperiences:', JSON.stringify(response.body, null, 2));
 
             // Then: jobs가 정상적으로 로딩됨
             expect(response.body.data.profile).toBeDefined();
@@ -296,23 +303,64 @@ describe('[Nested Relations Bug] FeaturedProfile > Profile > jobs/profileExperie
             expect(response.body.data.profile.jobs.length).toBe(2); // ✅ 성공 예상
         });
 
-        it('🔍 DEBUG: Check index endpoint with multiple featured profiles', async () => {
-            // When: 목록 조회
-            const response = await request(app.getHttpServer())
-                .get('/nested-bug-featured-profiles?include=profile,profile.jobs,profile.profileExperiences&filter[enabled]=true')
-                .expect(200);
+        it('🔍 INDEX: Check index endpoint with multiple featured profiles', async () => {
+            // Given: 2개의 FeaturedProfile 생성
+            const job1 = await jobRepository.save({ title: 'Backend Developer' });
+            const job2 = await jobRepository.save({ title: 'Frontend Developer' });
+            const job3 = await jobRepository.save({ title: 'Data Scientist' });
 
-            console.log('\n🔍 Index Response:', JSON.stringify(response.body, null, 2));
+            const profile1 = await profileRepository.save({
+                userId: 'user-index-001',
+                name: 'Index User 1',
+                jobs: [job1, job2],
+                profileExperiences: [
+                    { company: 'Tech Corp', role: 'Developer', profileId: '' },
+                ],
+            } as any);
+
+            const profile2 = await profileRepository.save({
+                userId: 'user-index-002',
+                name: 'Index User 2',
+                jobs: [job3],
+                profileExperiences: [
+                    { company: 'Data Corp', role: 'Analyst', profileId: '' },
+                ],
+            } as any);
+
+            const fp1 = await featuredProfileService.repository.save({
+                profileId: profile1.id,
+                enabled: true,
+            });
+
+            await featuredProfileService.repository.save({
+                profileId: profile2.id,
+                enabled: true,
+            });
+
+            // When: 목록 조회 (필터 없이 전체 조회)
+            const response = await request(app.getHttpServer())
+                .get('/nested-bug-featured-profiles?include=profile,profile.jobs,profile.profileExperiences')
+                .expect(200);
 
             // Then: 각 FeaturedProfile의 profile.jobs 확인
             expect(response.body.data).toBeDefined();
-            if (response.body.data.length > 0) {
-                response.body.data.forEach((fp: any, index: number) => {
-                    console.log(`\nFeaturedProfile[${index}]:`);
-                    console.log('  - profile.jobs:', fp.profile?.jobs?.length || 0);
-                    console.log('  - profile.profileExperiences:', fp.profile?.profileExperiences?.length || 0);
-                });
-            }
+            expect(Array.isArray(response.body.data)).toBe(true);
+            expect(response.body.data.length).toBeGreaterThanOrEqual(2);
+
+            // 모든 FeaturedProfile이 profile.jobs를 가져야 함
+            response.body.data.forEach((fp: any) => {
+                expect(fp.profile).toBeDefined();
+                expect(fp.profile.jobs).toBeDefined();
+                expect(Array.isArray(fp.profile.jobs)).toBe(true);
+                expect(fp.profile.jobs.length).toBeGreaterThan(0);
+
+                // jobs 데이터 검증
+                expect(fp.profile.jobs[0].title).toBeDefined();
+
+                expect(fp.profile.profileExperiences).toBeDefined();
+                expect(Array.isArray(fp.profile.profileExperiences)).toBe(true);
+                expect(fp.profile.profileExperiences.length).toBeGreaterThan(0);
+            });
         });
     });
 });

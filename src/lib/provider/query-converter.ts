@@ -161,7 +161,21 @@ export class QueryConverter<T = any> {
 
         for (const include of includes) {
             // Handle nested relations or simple relation
-            relations[include.relation] = include.nested && include.nested.length > 0 ? this.convertNestedIncludes(include.nested) : true;
+            if (include.nested && include.nested.length > 0) {
+                // 중첩 관계가 있는 경우, 기존 값과 병합
+                if (!relations[include.relation] || relations[include.relation] === true) {
+                    relations[include.relation] = this.convertNestedIncludes(include.nested);
+                } else {
+                    // 이미 객체가 있으면 병합
+                    const newNested = this.convertNestedIncludes(include.nested);
+                    relations[include.relation] = { ...relations[include.relation], ...newNested };
+                }
+            } else {
+                // 단순 관계는 기존 값이 없을 때만 true로 설정
+                if (!relations[include.relation]) {
+                    relations[include.relation] = true;
+                }
+            }
         }
 
         return relations;

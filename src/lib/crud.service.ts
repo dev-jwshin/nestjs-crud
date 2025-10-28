@@ -414,7 +414,9 @@ export class CrudService<T extends EntityType> {
             const hasNested = RelationsHelper.hasNestedRelations(crudReadManyRequest.findOptions.relations);
 
             if (hasNested) {
-                // QueryBuilder를 사용하여 중첩된 ManyToMany 관계를 올바르게 로딩
+                // 중첩된 ManyToMany 관계가 있을 때 2단계 조회 전략 사용
+                // 1단계: QueryBuilder로 필터링/정렬/페이지네이션된 ID만 가져오기
+                // 2단계: repository.find()로 관계를 포함한 실제 데이터 로딩
                 const alias = this.repository.metadata.tableName;
                 const queryBuilder = this.repository.createQueryBuilder(alias);
 
@@ -426,11 +428,6 @@ export class CrudService<T extends EntityType> {
                 // withDeleted 적용
                 if (crudReadManyRequest.findOptions.withDeleted) {
                     queryBuilder.withDeleted();
-                }
-
-                // select 적용
-                if (crudReadManyRequest.findOptions.select) {
-                    queryBuilder.select(crudReadManyRequest.findOptions.select as string[]);
                 }
 
                 // order 적용
@@ -446,24 +443,46 @@ export class CrudService<T extends EntityType> {
                     queryBuilder.take(crudReadManyRequest.findOptions.take);
                 }
 
-                // relations를 leftJoinAndSelect로 변환
-                RelationsHelper.applyRelations(
-                    queryBuilder,
-                    crudReadManyRequest.findOptions.relations as any,
-                );
+                // 1단계: ID만 가져오기
+                const primaryKeyName = this.primaryKey[0];
+                const idsResult = await queryBuilder.select(`${alias}.${primaryKeyName}`, 'id').getRawMany();
+                const ids = idsResult.map(row => row.id);
+
+                if (ids.length === 0) {
+                    // 결과가 없으면 빈 배열 반환
+                    const total = await this.repository.count({
+                        where: crudReadManyRequest.findOptions.where,
+                        withDeleted: crudReadManyRequest.findOptions.withDeleted,
+                    });
+                    return { entities: [], total };
+                }
+
+                // 2단계: repository.find()로 관계를 포함한 실제 데이터 로딩
+                const entities = await this.repository.find({
+                    where: { [primaryKeyName]: In(ids) } as any,
+                    relations: crudReadManyRequest.findOptions.relations,
+                    select: crudReadManyRequest.findOptions.select,
+                    withDeleted: crudReadManyRequest.findOptions.withDeleted,
+                    order: crudReadManyRequest.findOptions.order,
+                });
+
+                // ID 순서대로 정렬 (QueryBuilder의 정렬 순서 유지)
+                const idIndexMap = new Map(ids.map((id, index) => [id, index]));
+                entities.sort((a, b) => {
+                    const indexA = idIndexMap.get((a as any)[primaryKeyName]) ?? 0;
+                    const indexB = idIndexMap.get((b as any)[primaryKeyName]) ?? 0;
+                    return indexA - indexB;
+                });
 
                 if (crudReadManyRequest.pagination.isNext) {
-                    const entities = await queryBuilder.getMany();
                     return { entities, total: crudReadManyRequest.pagination.nextTotal() };
                 }
 
-                const [entities, total] = await Promise.all([
-                    queryBuilder.getMany(),
-                    this.repository.count({
-                        where: crudReadManyRequest.findOptions.where,
-                        withDeleted: crudReadManyRequest.findOptions.withDeleted,
-                    }),
-                ]);
+                const total = await this.repository.count({
+                    where: crudReadManyRequest.findOptions.where,
+                    withDeleted: crudReadManyRequest.findOptions.withDeleted,
+                });
+
                 return { entities, total };
             } else {
                 // 단순 관계는 기존 방식 사용 (repository.find)
@@ -537,50 +556,16 @@ export class CrudService<T extends EntityType> {
         // 2. No configuration-based hooks anymore
         const processedParams = crudReadOneRequest.params;
 
-        // 3. 중첩된 관계가 있는지 확인
-        const hasNested = RelationsHelper.hasNestedRelations(crudReadOneRequest.relations);
-
-        let entity: T | null;
-
-        if (hasNested) {
-            // QueryBuilder를 사용하여 중첩된 ManyToMany 관계를 올바르게 로딩
-            const alias = this.repository.metadata.tableName;
-            const queryBuilder = this.repository.createQueryBuilder(alias);
-
-            // where 조건 적용
-            queryBuilder.where(processedParams as FindOptionsWhere<T>);
-
-            // withDeleted 적용
-            if (crudReadOneRequest.softDeleted) {
-                queryBuilder.withDeleted();
-            }
-
-            // select 적용
-            const selectColumns = (crudReadOneRequest.selectColumns ?? this.columnNames).filter(
+        // 3. 엔티티 조회
+        // 중첩된 관계가 있어도 repository.findOne을 사용 (TypeORM이 올바르게 처리함)
+        const entity = await this.repository.findOne({
+            select: (crudReadOneRequest.selectColumns ?? this.columnNames).filter(
                 (columnName) => !crudReadOneRequest.excludedColumns?.includes(columnName),
-            );
-            if (selectColumns && selectColumns.length > 0) {
-                queryBuilder.select(selectColumns.map(col => `${alias}.${col}`));
-            }
-
-            // relations를 leftJoinAndSelect로 변환
-            RelationsHelper.applyRelations(
-                queryBuilder,
-                crudReadOneRequest.relations as any,
-            );
-
-            entity = await queryBuilder.getOne();
-        } else {
-            // 단순 관계는 기존 방식 사용 (repository.findOne)
-            entity = await this.repository.findOne({
-                select: (crudReadOneRequest.selectColumns ?? this.columnNames).filter(
-                    (columnName) => !crudReadOneRequest.excludedColumns?.includes(columnName),
-                ),
-                where: processedParams as FindOptionsWhere<T>,
-                withDeleted: crudReadOneRequest.softDeleted,
-                relations: crudReadOneRequest.relations,
-            });
-        }
+            ),
+            where: processedParams as FindOptionsWhere<T>,
+            withDeleted: crudReadOneRequest.softDeleted,
+            relations: crudReadOneRequest.relations,
+        });
 
         if (_.isNil(entity)) {
             throw new NotFoundException();
