@@ -172,6 +172,11 @@ export class CrudRouteFactory {
                 const chainedHookFunction = async (data: any, context: any) => {
                     let result = data;
 
+                    // context가 없으면 훅을 실행하지 않고 원래 데이터 반환
+                    if (!context) {
+                        return result;
+                    }
+
                     // 컨트롤러 인스턴스를 context에서 가져오기
                     // context.controller가 실제 DI된 컨트롤러 인스턴스
                     const controllerInstance = context.controller || context.instance;
